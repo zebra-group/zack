@@ -1,0 +1,30 @@
+// Prisma schema for Kurzly's API.
+//
+// Prisma 7 makes `prisma-client` the default generator and requires an
+// explicit `output` path (RESEARCH Pattern 4). This path is fixed now so
+// Phase 2's better-auth Prisma adapter imports the exact same generated
+// client instance (see .claude/CLAUDE.md's Prisma 7 breaking-change note).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// NOTE: Prisma 7.8.0 no longer accepts `url` inside the `datasource` block
+// in schema.prisma (P1012 validation error) — the connection URL moved to
+// `prisma.config.ts` (see that file, and https://pris.ly/d/config-datasource).
+// This supersedes the plan/RESEARCH.md guidance, which predates this
+// point-release breaking change; keeping this note so Phase 2 doesn't
+// reintroduce `url` here.
+datasource db {
+  provider = "postgresql"
+}
+
+/// Walking-skeleton model used as the vehicle for the D-08 persistence-canary
+/// proof (data survives a docker-compose down/up cycle without -v) and as a
+/// base placeholder ahead of Phase 2's better-auth schema additions.
+model PersistenceCanary {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  createdAt DateTime @default(now())
+}
