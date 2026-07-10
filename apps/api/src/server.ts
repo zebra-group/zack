@@ -1,9 +1,25 @@
 /**
- * Placeholder entry point for the Fastify server.
+ * Server entrypoint (D-06 fail-fast boot; D-01 single-image).
  *
- * This is a walking-skeleton stub so the build toolchain (tsup) and the
- * TypeScript compiler have a valid entry to target during Phase 1
- * scaffolding (plan 01-02). The real Fastify instance, route registration
- * order, health route, and static-SPA wiring are built in plan 01-06.
+ * Boot order: validate ENV first (`loadEnv()` prints formatted issues and
+ * calls `process.exit(1)` on invalid config) BEFORE building or listening
+ * on the Fastify app — so a misconfigured operator environment never
+ * reaches the DB/SMTP layers (see env.ts). `app.js` (and, transitively,
+ * db.ts's Prisma client construction) is imported dynamically so its
+ * module-level code runs strictly after ENV has been validated, not
+ * hoisted ahead of it.
  */
-export {};
+import { loadEnv } from "./env.js";
+
+const env = loadEnv();
+
+const { buildApp } = await import("./app.js");
+
+const app = await buildApp({ nodeEnv: env.NODE_ENV });
+
+try {
+  await app.listen({ port: env.PORT, host: "0.0.0.0" });
+} catch (err) {
+  app.log.error(err);
+  process.exit(1);
+}

@@ -1,0 +1,21 @@
+<!doctype html>
+<!--
+  Walking-skeleton SPA shell fixture (Pattern 6, D-01).
+
+  This placeholder stands in for the built `apps/web` Vite `dist/index.html`
+  so `@fastify/static` (registered with `wildcard: false`) has a real file
+  to glob at registration time and `setNotFoundHandler` has something to
+  `reply.sendFile('index.html')` for the SPA history-mode fallback. The
+  production Dockerfile copies the real built `apps/web/dist/` output over
+  this directory — this file exists purely so the API's own boot and
+  integration tests do not depend on `apps/web` having been built first.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Kurzly</title>
+  </head>
+  <body>
+    <div id="app">Kurzly walking-skeleton placeholder — replaced by the built apps/web SPA.</div>
+  </body>
+</html>
