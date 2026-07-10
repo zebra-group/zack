@@ -38,10 +38,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Operator configures the instance entirely via environment variables (DB URL, SMTP credentials, base domain, secrets) — nothing is hardcoded in the image.
   3. Data in PostgreSQL persists across a full container stop/restart/recreate cycle via a named volume.
 
-**Plans**: 9 plans
+**Plans**: 1/9 plans executed
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Supply-chain package legitimacy gate (blocking-human checkpoint before first install)
+- [x] 01-01-PLAN.md — Supply-chain package legitimacy gate (blocking-human checkpoint before first install)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -219,7 +219,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 0/9 | Not started | - |
+| 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 1/9 | In Progress|  |
 | 2. Magic-Link Auth, App Shell & Domain Authorization Core | 0/TBD | Not started | - |
 | 3. Domains & Multi-Domain TLS Routing | 0/TBD | Not started | - |
 | 4. Links Management & Bulk Import | 0/TBD | Not started | - |
