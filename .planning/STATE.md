@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: test-infrastructure-monorepo-deployment-scaffolding
 status: executing
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-07-10T21:36:45.700Z"
+stopped_at: Completed 01-07-PLAN.md
+last_updated: "2026-07-10T21:44:48.525Z"
 last_activity: 2026-07-10
 last_activity_desc: Completed 01-02-PLAN.md (pnpm monorepo scaffold)
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 9
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 01 (test-infrastructure-monorepo-deployment-scaffolding) — EXECUTING
-Plan: 6 of 9 (complete) — ready for plan 03
+Plan: 7 of 9 (complete) — ready for plan 03
 Status: Ready to execute
 Last activity: 2026-07-10 — Completed 01-02-PLAN.md (pnpm monorepo scaffold)
 
@@ -60,6 +60,7 @@ Progress: [██░░░░░░░░] 22%
 | Phase 01 P04 | 6min | 2 tasks | 4 files |
 | Phase 01 P05 | 10min | 3 tasks | 5 files |
 | Phase 01 P06 | 16min | 3 tasks | 10 files |
+| Phase 01 P07 | 5min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-05: Vitest globalSetup confirmed empirically (A3) to start exactly one shared testcontainers Postgres per vitest run invocation, reused across multiple worker processes
 - [Phase 01]: 01-06: buildApp() accepts an injectable prisma override so integration tests reuse setupFileEach.ts's transaction-wrapped client (GET /api/canary sees rows written by an earlier POST in the same rolled-back test transaction) — Routes hard-importing db.ts's singleton would use a separate un-rolled-back connection, leaking writes across tests
 - [Phase 01]: 01-06: server.ts dynamically imports app.ts after loadEnv() so db.ts's module-level PrismaClient construction never runs ahead of fail-fast ENV validation (D-06)
+- [Phase 01]: 01-07: GET /api/canary's { total, latest } response is typed as a local CanaryStatus in api.ts, not the shared CanaryResult DTO (which only matches POST's { token, total }) - avoids silently mistyping a field that doesn't exist on the GET response
+- [Phase 01]: 01-07: apps/web/tsconfig.json adds "DOM" to compilerOptions.lib (app-local) - the first real browser fetch() call in the SPA needed fetch/Response types beyond the workspace base tsconfig's ES2022-only lib
 
 ### Pending Todos
 
@@ -99,6 +102,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-10T21:36:45.675Z
-Stopped at: Completed 01-06-PLAN.md
+Last session: 2026-07-10T21:44:48.490Z
+Stopped at: Completed 01-07-PLAN.md
 Resume file: None
