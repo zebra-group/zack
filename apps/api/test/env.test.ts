@@ -20,7 +20,7 @@ const VALID_SOURCE: NodeJS.ProcessEnv = {
   SMTP_SECURE: "true",
   SMTP_USER: "smtp-user",
   SMTP_PASS: "smtp-pass",
-  SMTP_FROM: "Kurzly <no-reply@example.com>",
+  SMTP_FROM: "no-reply@example.com",
   BASE_URL: "https://kurzly.example.com",
   BETTER_AUTH_SECRET: "a".repeat(32),
 };
