@@ -13,6 +13,18 @@ import { envSchema } from "../src/env.js";
 
 const ENV_EXAMPLE_PATH = fileURLToPath(new URL("../../../.env.example", import.meta.url));
 
+/**
+ * Keys documented in `.env.example` that are consumed by docker-compose's
+ * `db` service init (POSTGRES_*) — used to bootstrap the Postgres container
+ * and to compose `DATABASE_URL` — NOT by the API process itself. The API
+ * reads only the single `DATABASE_URL` connection string, so these are
+ * intentionally absent from `envSchema` (adding them as required would break
+ * API boot when a full `DATABASE_URL` is supplied directly). They must still
+ * be documented in the one operator-facing env file (INFRA-02). Any OTHER
+ * undocumented-in-schema key still fails the drift guard below.
+ */
+const COMPOSE_ONLY_KEYS = new Set(["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"]);
+
 function parseEnvExampleKeys(content: string): string[] {
   return content
     .split("\n")
@@ -29,10 +41,17 @@ describe(".env.example / envSchema drift guard", () => {
     const schemaKeys = new Set(Object.keys(envSchema.shape));
 
     const missingFromExample = [...schemaKeys].filter((key) => !documentedKeys.has(key));
-    const extraInExample = [...documentedKeys].filter((key) => !schemaKeys.has(key));
+    const extraInExample = [...documentedKeys].filter(
+      (key) => !schemaKeys.has(key) && !COMPOSE_ONLY_KEYS.has(key),
+    );
+    // Compose-only keys are allowed in the example, but they must actually be
+    // present — removing them would break `docker compose up`, so the guard
+    // stays meaningful in both directions.
+    const missingComposeKeys = [...COMPOSE_ONLY_KEYS].filter((key) => !documentedKeys.has(key));
 
     expect(missingFromExample).toEqual([]);
     expect(extraInExample).toEqual([]);
+    expect(missingComposeKeys).toEqual([]);
   });
 
   it("does not contain a real DATABASE_URL credential (placeholder only)", () => {
