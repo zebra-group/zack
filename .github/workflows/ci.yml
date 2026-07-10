@@ -1,0 +1,79 @@
+# Kurzly CI (D-11 — the TDD mandate is only real if it's enforced on every
+# change). Runs on every push and pull_request: install, generate the
+# Prisma client explicitly, build the workspace topologically
+# (packages/shared before apps/*), typecheck, and run the FULL Vitest
+# suite — including the real-Postgres integration tests, which spin up a
+# testcontainers Postgres per D-09 (ubuntu-latest ships Docker
+# preinstalled, so no extra `services:` config is needed here — see
+# 01-RESEARCH.md Environment Availability / CI workflow skeleton).
+#
+# The compose-driven smoke scripts (scripts/smoke-compose.sh,
+# scripts/smoke-persistence.sh — INFRA-01/INFRA-03) need the built Docker
+# image rather than the raw workspace, so they run as a separate `smoke`
+# job that only starts once `test` is green.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Build, typecheck, and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Explicit `prisma generate` (belt-and-suspenders alongside
+      # pnpm-workspace.yaml's allowBuilds postinstall approval —
+      # 01-RESEARCH.md Pitfall 1). prisma.config.ts resolves DATABASE_URL
+      # eagerly via env() even for `generate`, which never opens a DB
+      # connection, so a placeholder value unblocks config loading without
+      # a real database at this step (same pattern as the Dockerfile build
+      # stage).
+      - name: Generate Prisma client
+        run: pnpm --filter @kurzly/api exec prisma generate
+        env:
+          DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+
+      # Topological build: packages/shared builds before apps/web and
+      # apps/api, since both declare it as a workspace:* dependency (pnpm
+      # resolves the dependency graph, not directory order —
+      # 01-RESEARCH.md Pitfall 2).
+      - name: Build
+        run: pnpm run -r build
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      # Spins up testcontainers Postgres per D-09 (one shared container per
+      # Vitest run, each test wrapped in a rolled-back transaction).
+      - name: Test
+        run: pnpm run -r test
+
+  smoke:
+    name: Compose boot & persistence smoke tests
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the app image
+        run: docker compose -f docker-compose.yml build app
+
+      - name: Boot smoke test (INFRA-01 — docker compose up requires no manual steps)
+        run: ./scripts/smoke-compose.sh
+
+      - name: Persistence smoke test (INFRA-03 — data survives down/up without -v)
+        run: ./scripts/smoke-persistence.sh
