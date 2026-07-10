@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: test-infrastructure-monorepo-deployment-scaffolding
 status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-07-10T21:02:07.794Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-07-10T21:18:04.960Z"
 last_activity: 2026-07-10
 last_activity_desc: Completed 01-02-PLAN.md (pnpm monorepo scaffold)
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 9
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 01 (test-infrastructure-monorepo-deployment-scaffolding) — EXECUTING
-Plan: 4 of 9 (complete) — ready for plan 03
+Plan: 5 of 9 (complete) — ready for plan 03
 Status: Ready to execute
 Last activity: 2026-07-10 — Completed 01-02-PLAN.md (pnpm monorepo scaffold)
 
@@ -58,6 +58,7 @@ Progress: [██░░░░░░░░] 22%
 | Phase 01 P02 | 15 | 3 tasks | 24 files |
 | Phase 01 P03 | 11min | 2 tasks | 8 files |
 | Phase 01 P04 | 6min | 2 tasks | 4 files |
+| Phase 01 P05 | 10min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Prisma 7.8.0 (point release beyond CLAUDE.md/RESEARCH.md) requires prisma.config.ts for datasource.url and an @prisma/adapter-pg driver adapter on PrismaClient construction - both added in 01-03; Phase 2's better-auth adapter must follow the same new PrismaClient({ adapter }) pattern — Bare new PrismaClient() and schema.prisma datasource.url no longer type-check/validate against the actually-installed Prisma 7.8.0
 - [Phase 01]: 01-04: SMTP_FROM schema validated as z.email() (bare address) — RESEARCH.md's own .env.example example used the RFC5322 'Name <email>' header format while its Pattern 2 code sample used z.email(); resolved in favor of the schema.
 - [Phase 01]: 01-04: loadEnv() is an explicit boot-time call (not a top-level side-effecting env.ts export) so importing env.ts never triggers process.exit(1) as an import side effect.
+- [Phase 01]: 01-05: PrismaPg adapter pinned to pool max:1 for per-test BEGIN/ROLLBACK isolation - @prisma/adapter-pg's per-statement pool.query() can otherwise route BEGIN/ROLLBACK to different connections, silently breaking isolation
+- [Phase 01]: 01-05: Vitest globalSetup confirmed empirically (A3) to start exactly one shared testcontainers Postgres per vitest run invocation, reused across multiple worker processes
 
 ### Pending Todos
 
@@ -93,6 +96,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-10T21:02:07.753Z
-Stopped at: Completed 01-04-PLAN.md
+Last session: 2026-07-10T21:18:04.929Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None
