@@ -118,17 +118,69 @@ Explizit ausgeschlossen, um Scope-Creep zu verhindern.
 
 ## Traceability
 
-Wird während der Roadmap-Erstellung befüllt (jedes v1-Requirement → genau eine Phase).
+Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige Phasenstruktur).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (wird vom Roadmapper gefüllt) | — | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-03 | Phase 1 | Pending |
+| AUTH-01 | Phase 2 | Pending |
+| AUTH-02 | Phase 2 | Pending |
+| AUTH-03 | Phase 2 | Pending |
+| AUTH-04 | Phase 2 | Pending |
+| UI-01 | Phase 2 | Pending |
+| UI-02 | Phase 2 | Pending |
+| UI-03 | Phase 2 | Pending |
+| DOMAIN-01 | Phase 3 | Pending |
+| DOMAIN-02 | Phase 3 | Pending |
+| DOMAIN-03 | Phase 3 | Pending |
+| DOMAIN-04 | Phase 3 | Pending |
+| LINK-01 | Phase 4 | Pending |
+| LINK-02 | Phase 4 | Pending |
+| LINK-03 | Phase 4 | Pending |
+| LINK-04 | Phase 4 | Pending |
+| LINK-05 | Phase 4 | Pending |
+| LINK-06 | Phase 4 | Pending |
+| LINK-07 | Phase 4 | Pending |
+| LINK-08 | Phase 4 | Pending |
+| UI-06 | Phase 4 | Pending |
+| REDIR-01 | Phase 5 | Pending |
+| REDIR-02 | Phase 5 | Pending |
+| REDIR-03 | Phase 5 | Pending |
+| REDIR-04 | Phase 5 | Pending |
+| REDIR-05 | Phase 5 | Pending |
+| UI-04 | Phase 5 | Pending |
+| UI-05 | Phase 5 | Pending |
+| TRACK-01 | Phase 6 | Pending |
+| TRACK-02 | Phase 6 | Pending |
+| TRACK-03 | Phase 6 | Pending |
+| TRACK-04 | Phase 6 | Pending |
+| TRACK-05 | Phase 6 | Pending |
+| QR-01 | Phase 7 | Pending |
+| QR-02 | Phase 7 | Pending |
+| QR-03 | Phase 7 | Pending |
+| QR-04 | Phase 7 | Pending |
+| QR-05 | Phase 7 | Pending |
+| QR-06 | Phase 7 | Pending |
+| QR-07 | Phase 7 | Pending |
+| META-01 | Phase 8 | Pending |
+| META-02 | Phase 8 | Pending |
+| TEAM-01 | Phase 9 | Pending |
+| TEAM-02 | Phase 9 | Pending |
+| TEAM-03 | Phase 9 | Pending |
+| TEAM-04 | Phase 9 | Pending |
+| TEAM-05 | Phase 9 | Pending |
+| TEAM-06 | Phase 9 | Pending |
+| AUTH-05 | Phase 10 | Pending |
+| AUTH-06 | Phase 10 | Pending |
+| AUTH-07 | Phase 10 | Pending |
 
 **Coverage:**
-- v1 requirements: 47 total
-- Mapped to phases: 0 (Roadmap ausstehend)
-- Unmapped: 47 ⚠️ (wird durch Roadmap aufgelöst)
+- v1 requirements: 53 total (corrected from an earlier miscount of 47 — a direct recount of every `REQ-ID` bullet across all 10 categories confirms 53 distinct v1 requirement IDs)
+- Mapped to phases: 53/53
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-10*
-*Last updated: 2026-07-10 after initial definition*
+*Last updated: 2026-07-10 after roadmap creation (traceability populated, requirement-count corrected 47→53)*
