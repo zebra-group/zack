@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: test-infrastructure-monorepo-deployment-scaffolding
 status: executing
-stopped_at: Completed 01-07-PLAN.md
-last_updated: "2026-07-10T21:44:48.525Z"
+stopped_at: Completed 01-08-PLAN.md
+last_updated: "2026-07-10T22:10:48.023Z"
 last_activity: 2026-07-10
 last_activity_desc: Completed 01-02-PLAN.md (pnpm monorepo scaffold)
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 9
-  completed_plans: 7
-  percent: 0
+  completed_plans: 8
+  percent: 89
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 01 (test-infrastructure-monorepo-deployment-scaffolding) — EXECUTING
-Plan: 7 of 9 (complete) — ready for plan 03
+Plan: 8 of 9 (complete) — ready for plan 09
 Status: Ready to execute
-Last activity: 2026-07-10 — Completed 01-02-PLAN.md (pnpm monorepo scaffold)
+Last activity: 2026-07-10 — Completed 01-08-PLAN.md (Docker image + compose stack + boot/persistence smoke tests)
 
-Progress: [██░░░░░░░░] 22%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [██░░░░░░░░] 22%
 | Phase 01 P05 | 10min | 3 tasks | 5 files |
 | Phase 01 P06 | 16min | 3 tasks | 10 files |
 | Phase 01 P07 | 5min | 2 tasks | 4 files |
+| Phase 01 P08 | 35min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,9 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-06: server.ts dynamically imports app.ts after loadEnv() so db.ts's module-level PrismaClient construction never runs ahead of fail-fast ENV validation (D-06)
 - [Phase 01]: 01-07: GET /api/canary's { total, latest } response is typed as a local CanaryStatus in api.ts, not the shared CanaryResult DTO (which only matches POST's { token, total }) - avoids silently mistyping a field that doesn't exist on the GET response
 - [Phase 01]: 01-07: apps/web/tsconfig.json adds "DOM" to compilerOptions.lib (app-local) - the first real browser fetch() call in the SPA needed fetch/Response types beyond the workspace base tsconfig's ES2022-only lib
+- [Phase 01]: 01-08: pnpm deploy requires --legacy under pnpm 11's default injected-workspace mode for Docker-safe production output
+- [Phase 01]: 01-08: postgres:18-alpine's named volume must mount at /var/lib/postgresql (not .../data) - image manages its own major-version-specific subdirectory; confirmed empirically, RESEARCH.md example predates this behavior change
+- [Phase 01]: 01-08: prisma generate needs a placeholder DATABASE_URL at Docker build time since prisma.config.ts resolves it eagerly via env(), even though generate never connects to a DB
 
 ### Pending Todos
 
@@ -102,6 +106,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-10T21:44:48.490Z
-Stopped at: Completed 01-07-PLAN.md
+Last session: 2026-07-10T22:10:47.998Z
+Stopped at: Completed 01-08-PLAN.md
 Resume file: None
