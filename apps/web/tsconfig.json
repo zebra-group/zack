@@ -4,6 +4,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "jsx": "preserve",
+    "lib": ["ES2022", "DOM"],
     "types": ["vite/client"]
   },
   "include": ["src"]
