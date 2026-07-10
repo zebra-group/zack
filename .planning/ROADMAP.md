@@ -34,7 +34,16 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Operator runs `docker-compose up` and gets a working API + Web + PostgreSQL + reverse-proxy stack with no manual steps beyond supplying environment variables.
   2. Operator configures the instance entirely via environment variables (DB URL, SMTP credentials, base domain, secrets) — nothing is hardcoded in the image.
   3. Data in PostgreSQL persists across a full container stop/restart/recreate cycle via a named volume.
-**Plans**: TBD
+**Plans**: 9 plans
+- [ ] 01-01-PLAN.md — Supply-chain package legitimacy gate (blocking-human checkpoint before first install)
+- [ ] 01-02-PLAN.md — pnpm monorepo skeleton + dependency install + buildable shared package
+- [ ] 01-03-PLAN.md — Prisma schema + [BLOCKING] initial migration + generated client
+- [ ] 01-04-PLAN.md — Fail-fast Zod ENV validation (D-06) + `.env.example` (D-07)
+- [ ] 01-05-PLAN.md — Real-Postgres TDD harness (Vitest + testcontainers, D-09)
+- [ ] 01-06-PLAN.md — Fastify app: health, redirect stub, static SPA + real DB canary route
+- [ ] 01-07-PLAN.md — Vue dashboard slice: interactive UI reads/writes live API data
+- [ ] 01-08-PLAN.md — Docker image + Compose stack + entrypoint migration + persistence smoke (INFRA-01/02/03)
+- [ ] 01-09-PLAN.md — CI full-suite pipeline (D-11) + reverse-proxy/TLS docs (D-03/D-04)
 
 ### Phase 2: Magic-Link Auth, App Shell & Domain Authorization Core
 **Goal**: Users can securely sign in via magic link and land in a pixel-accurate, theme-aware dashboard shell; the shared `requireDomainAccess`/`scopedDomainIds` server-side authorization helper is built and unit-tested here, ahead of any Links/QR/Analytics/Team route that must depend on it.
@@ -156,7 +165,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 0/TBD | Not started | - |
+| 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 0/9 | Not started | - |
 | 2. Magic-Link Auth, App Shell & Domain Authorization Core | 0/TBD | Not started | - |
 | 3. Domains & Multi-Domain TLS Routing | 0/TBD | Not started | - |
 | 4. Links Management & Bulk Import | 0/TBD | Not started | - |
