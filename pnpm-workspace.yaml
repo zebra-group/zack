@@ -1,0 +1,28 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm 11+ blocks dependency lifecycle (postinstall/preinstall/install) scripts
+# by default. Prisma relies on a postinstall hook to run `prisma generate`,
+# so it must be explicitly allowlisted here — otherwise `pnpm install`
+# succeeds silently while the generated Prisma client never gets created
+# (see 01-RESEARCH.md Pitfall 1).
+allowBuilds:
+  prisma: true
+  "@prisma/client": true
+  # Sub-package of prisma itself (same vetted repo/org) — its postinstall
+  # downloads the Prisma query-engine binaries; without it `prisma generate`
+  # / `prisma migrate deploy` cannot function.
+  "@prisma/engines": true
+  # esbuild's postinstall installs the correct platform binary; tsup (apps/api
+  # build) and Vite (apps/web build) both depend on esbuild transitively —
+  # without approval neither app can build.
+  esbuild: true
+  # Transitive deps of testcontainers' docker client (dockerode), only
+  # relevant for SSH-based remote Docker hosts. Not used by this project
+  # (local Docker socket only) and not exercised until plan 01-05 wires the
+  # testcontainers globalSetup — left unapproved per the "no blanket
+  # lifecycle-script enablement" mitigation (threat T-01-02).
+  cpu-features: false
+  protobufjs: false
+  ssh2: false

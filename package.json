@@ -1,0 +1,21 @@
+{
+  "name": "kurzly",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Kurzly - self-hosted, open-source URL shortener",
+  "packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r exec tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.10",
+    "zod": "^4.4.3"
+  }
+}
