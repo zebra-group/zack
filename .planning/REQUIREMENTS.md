@@ -122,7 +122,7 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 1 | Pending |
+| INFRA-01 | Phase 1 | In Progress |
 | INFRA-02 | Phase 1 | Pending |
 | INFRA-03 | Phase 1 | Pending |
 | AUTH-01 | Phase 2 | Pending |
@@ -177,6 +177,7 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | AUTH-07 | Phase 10 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 53 total (corrected from an earlier miscount of 47 — a direct recount of every `REQ-ID` bullet across all 10 categories confirms 53 distinct v1 requirement IDs)
 - Mapped to phases: 53/53
 - Unmapped: 0 ✓

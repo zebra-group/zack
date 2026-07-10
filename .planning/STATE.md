@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: test-infrastructure-monorepo-deployment-scaffolding
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-07-10T20:15:29.793Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-07-10T20:31:49.284Z"
 last_activity: 2026-07-10
-last_activity_desc: Phase 01 execution started
+last_activity_desc: Completed 01-02-PLAN.md (pnpm monorepo scaffold)
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 9
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 22
 ---
 
 # Project State
@@ -29,32 +29,33 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 01 (test-infrastructure-monorepo-deployment-scaffolding) — EXECUTING
-Plan: 1 of 9
+Plan: 2 of 9 (complete) — ready for plan 03
 Status: Executing Phase 01
-Last activity: 2026-07-10 — Phase 01 execution started
+Last activity: 2026-07-10 — Completed 01-02-PLAN.md (pnpm monorepo scaffold)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 22%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
-- Average duration: - min
-- Total execution time: 0 hours
+- Total plans completed: 2
+- Average duration: ~8 min
+- Total execution time: ~0.25 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01 | 2 | 16 min | 8 min |
 
 **Recent Trend:**
 
-- Last 5 plans: -
+- Last 5 plans: 01-01 (1 min), 01-02 (15 min)
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 01 P02 | 15 | 3 tasks | 24 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,8 @@ Recent decisions affecting current work:
 - Roadmap: Redirect Engine split into its own dedicated phase (5) from Links Management (4), per research's pitfall-density recommendation.
 - Roadmap: Bulk CSV Import folded into Links Management (4) rather than a standalone phase, to avoid a single-requirement phase.
 - Roadmap: TEAM-06 (domain-scoped authorization enforcement) placed in Phase 9, where it can be proven end-to-end against real Links/QR/Analytics resources — the underlying `requireDomainAccess` helper itself is built in Phase 2, ahead of the routes it must gate.
+- [Phase 01]: allowBuilds extended to @prisma/engines and esbuild (beyond prisma/@prisma/client) - both required for pnpm -r build to succeed; testcontainers unused SSH-remote-docker deps (cpu-features/protobufjs/ssh2) left unapproved
+- [Phase 01]: Dropped vue-tsc from apps/web (incompatible with typescript@7.0.2); typecheck now runs plain tsc --noEmit against a *.vue module shim
 
 ### Pending Todos
 
@@ -85,6 +88,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-10T19:18:55.610Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-test-infrastructure-monorepo-deployment-scaffolding/01-CONTEXT.md
+Last session: 2026-07-10T20:29:47.747Z
+Stopped at: Completed 01-02-PLAN.md
+Resume file: .planning/phases/01-test-infrastructure-monorepo-deployment-scaffolding/01-03-PLAN.md
