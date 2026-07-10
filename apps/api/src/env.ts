@@ -15,7 +15,12 @@
  */
 import { z } from "zod";
 
-const envSchema = z.object({
+/**
+ * Exported so `test/env-example-drift.test.ts` can introspect the schema
+ * shape and assert `.env.example` documents exactly this key set — the
+ * schema is the single source of truth (see plan 01-04 task 2).
+ */
+export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.url(),
