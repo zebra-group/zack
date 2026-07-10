@@ -1,0 +1,71 @@
+# Kurzly production stack (D-01/D-02).
+#
+# Two services only: `app` (single Fastify image serving /api/*, the
+# redirect handler, and the built Vue SPA - D-01) and `db`
+# (postgres:18-alpine). No separate web container, no bundled reverse
+# proxy/TLS (D-03/D-04 - that is the operator's own responsibility,
+# documented separately) and no Mailpit (dev/CI only, see
+# docker-compose.dev.yml, D-10).
+#
+# `docker compose up` requires no manual steps beyond supplying `.env`
+# (copy `.env.example` -> `.env` and fill in real values) - migrations
+# apply automatically at container start (D-05, INFRA-01).
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kurzly}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-kurzly}
+    volumes:
+      # Named volume (D-08/INFRA-03): data survives a full `down`/`up`
+      # cycle as long as `-v` is never passed to `down`. NEVER document or
+      # script `docker compose down -v` for a routine restart.
+      #
+      # Mounted at /var/lib/postgresql (NOT .../data): the postgres:18+
+      # image manages a major-version-specific subdirectory under this
+      # parent path itself (pg_ctlcluster-compatible layout) and refuses
+      # to start if a volume is mounted directly at .../data instead -
+      # confirmed empirically against postgres:18-alpine during this
+      # plan's execution (see docker-library/postgres#1259/#37).
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kurzly}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      # Generous start_period to tolerate slow first-boot initdb on a fresh
+      # volume (01-RESEARCH.md Pitfall 3).
+      start_period: 30s
+    # Only the app port is published to the host (D-03/T-01-16) - Postgres
+    # is reachable from `app` over the compose network only.
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        # Waits for the healthcheck above, not just container start
+        # (01-RESEARCH.md Pitfall 3) - otherwise `app`'s entrypoint can hit
+        # `prisma migrate deploy` before Postgres accepts connections.
+        condition: service_healthy
+    env_file: .env
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  db-data:

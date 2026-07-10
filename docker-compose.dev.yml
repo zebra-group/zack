@@ -1,0 +1,16 @@
+# Dev/CI-only overlay (D-10) - adds Mailpit as an SMTP catcher so
+# magic-link emails (Phase 2 onward) can be inspected without a real SMTP
+# provider. NEVER referenced by the production docker-compose.yml.
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # Web UI
+      - "1025:1025" # SMTP
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
