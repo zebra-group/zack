@@ -11,7 +11,7 @@
 ### Deployment & Betrieb
 
 - [x] **INFRA-01**: Betreiber kann den gesamten Dienst (API, Web, PostgreSQL, Reverse-Proxy) via `docker-compose up` starten
-- [ ] **INFRA-02**: Betreiber konfiguriert die Instanz vollständig über Environment-Variablen (DB-URL, SMTP, Basis-Domain, Secrets)
+- [x] **INFRA-02**: Betreiber konfiguriert die Instanz vollständig über Environment-Variablen (DB-URL, SMTP, Basis-Domain, Secrets)
 - [ ] **INFRA-03**: Daten (Postgres) überstehen Container-Neustarts über ein persistentes Volume
 
 ### Authentifizierung (better-auth)
@@ -123,7 +123,7 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-01 | Phase 1 | In Progress |
-| INFRA-02 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Pending |
 | AUTH-01 | Phase 2 | Pending |
 | AUTH-02 | Phase 2 | Pending |

@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: test-infrastructure-monorepo-deployment-scaffolding
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-07-10T20:51:34.312Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-07-10T21:02:07.794Z"
 last_activity: 2026-07-10
 last_activity_desc: Completed 01-02-PLAN.md (pnpm monorepo scaffold)
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 9
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 01 (test-infrastructure-monorepo-deployment-scaffolding) — EXECUTING
-Plan: 3 of 9 (complete) — ready for plan 03
+Plan: 4 of 9 (complete) — ready for plan 03
 Status: Ready to execute
 Last activity: 2026-07-10 — Completed 01-02-PLAN.md (pnpm monorepo scaffold)
 
@@ -57,6 +57,7 @@ Progress: [██░░░░░░░░] 22%
 *Updated after each plan completion*
 | Phase 01 P02 | 15 | 3 tasks | 24 files |
 | Phase 01 P03 | 11min | 2 tasks | 8 files |
+| Phase 01 P04 | 6min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,8 @@ Recent decisions affecting current work:
 - [Phase 01]: allowBuilds extended to @prisma/engines and esbuild (beyond prisma/@prisma/client) - both required for pnpm -r build to succeed; testcontainers unused SSH-remote-docker deps (cpu-features/protobufjs/ssh2) left unapproved
 - [Phase 01]: Dropped vue-tsc from apps/web (incompatible with typescript@7.0.2); typecheck now runs plain tsc --noEmit against a *.vue module shim
 - [Phase 01]: Prisma 7.8.0 (point release beyond CLAUDE.md/RESEARCH.md) requires prisma.config.ts for datasource.url and an @prisma/adapter-pg driver adapter on PrismaClient construction - both added in 01-03; Phase 2's better-auth adapter must follow the same new PrismaClient({ adapter }) pattern — Bare new PrismaClient() and schema.prisma datasource.url no longer type-check/validate against the actually-installed Prisma 7.8.0
+- [Phase 01]: 01-04: SMTP_FROM schema validated as z.email() (bare address) — RESEARCH.md's own .env.example example used the RFC5322 'Name <email>' header format while its Pattern 2 code sample used z.email(); resolved in favor of the schema.
+- [Phase 01]: 01-04: loadEnv() is an explicit boot-time call (not a top-level side-effecting env.ts export) so importing env.ts never triggers process.exit(1) as an import side effect.
 
 ### Pending Todos
 
@@ -90,6 +93,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-10T20:51:34.281Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-07-10T21:02:07.753Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
