@@ -10,7 +10,7 @@
 
 ### Deployment & Betrieb
 
-- [ ] **INFRA-01**: Betreiber kann den gesamten Dienst (API, Web, PostgreSQL, Reverse-Proxy) via `docker-compose up` starten
+- [x] **INFRA-01**: Betreiber kann den gesamten Dienst (API, Web, PostgreSQL, Reverse-Proxy) via `docker-compose up` starten
 - [ ] **INFRA-02**: Betreiber konfiguriert die Instanz vollständig über Environment-Variablen (DB-URL, SMTP, Basis-Domain, Secrets)
 - [ ] **INFRA-03**: Daten (Postgres) überstehen Container-Neustarts über ein persistentes Volume
 
