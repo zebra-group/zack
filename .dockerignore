@@ -1,0 +1,36 @@
+# Kurzly Docker build context exclusions.
+#
+# Keeps the build context small and forces the image build to produce its
+# own fresh artifacts rather than trusting whatever happens to exist on the
+# host (dist/, generated Prisma client). Secrets and planning docs never
+# reach the image (T-01-15).
+
+# Dependencies (reinstalled fresh inside the image)
+node_modules
+**/node_modules
+
+# VCS / editor / OS
+.git
+.gitignore
+.DS_Store
+*.log
+
+# Secrets - never baked into the image (T-01-15, INFRA-02)
+.env
+.env.*
+!.env.example
+
+# GSD planning artifacts - not part of the shipped application
+.planning
+
+# Build output regenerated inside the image, not trusted from the host
+apps/api/dist
+apps/api/src/generated
+apps/web/dist
+
+# Test-only coverage output
+coverage
+
+# Unrelated reference material / large local-only files
+design_handoff_url_shortener
+*.zip
