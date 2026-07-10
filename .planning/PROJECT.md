@@ -58,6 +58,7 @@ Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hos
 - **Deployment**: Alles Docker-/Compose-hostbar, on-premise betreibbar — harte Anforderung.
 - **UI-Treue**: High-Fidelity — Farben, Typografie, Abstände, Interaktionen pixelgenau nach Prototyp.
 - **Security**: Passwörter gehasht; geschützte/abgelaufene Ziele nie vor Prüfung im HTML einbetten; kein OG-Preview des Ziels vor Entsperrung; TLS via Let's Encrypt nach DNS-Verifizierung.
+- **Test-Driven Development (verpflichtend)**: Jede Phase folgt TDD — Tests zuerst, dann Implementierung. Alles muss automatisiert getestet werden (Unit + Integration; kritische Flows E2E). Ziel: sauberer, lesbarer, wartbarer Code. Kein Feature gilt als fertig ohne grüne automatisierte Tests. CI führt die gesamte Suite bei jeder Änderung aus.
 
 ## Key Decisions
 
@@ -68,6 +69,7 @@ Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hos
 | SMTP (ENV-konfigurierbar) für Magic-Link-Mails | Maximal self-host-freundlich, provider-neutral | — Pending |
 | Produktname „Kurzly" beibehalten | Arbeitstitel akzeptiert; Brandname/Akzent bleiben konfigurierbar (Prototyp-Props) | — Pending |
 | better-auth als Auth-Layer (Magic Link Standard, OIDC optional) | Spec-vorgegeben | — Pending |
+| Test-Driven Development verpflichtend, volle Testautomatisierung | Vom Nutzer explizit gefordert — sauberer, lesbarer, wartbarer Code; Regressionsschutz | — Pending |
 
 ## Evolution
 
