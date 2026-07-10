@@ -21,6 +21,9 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Fastify, { type FastifyInstance } from "fastify";
+import { prisma as defaultPrisma } from "./db.js";
+import type { PrismaClient } from "./generated/prisma/client.js";
+import { canaryRoute } from "./routes/canary.js";
 import { healthRoute } from "./routes/health.js";
 import { redirectRoute } from "./routes/redirect.js";
 import { registerCors } from "./plugins/cors.js";
@@ -31,21 +34,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export type BuildAppOptions = {
   nodeEnv?: string;
   publicDir?: string;
+  /**
+   * Prisma client to wire into `/api` routes (currently only the
+   * PersistenceCanary route). Defaults to the `db.ts` singleton. Tests
+   * override this with the SAME transaction-wrapped client
+   * `test/setupFileEach.ts` uses, so route reads/writes participate in
+   * that test's rolled-back transaction (D-09).
+   */
+  prisma?: PrismaClient;
 };
-
-/**
- * `/api`-scoped routes live here. Currently empty — the `PersistenceCanary`
- * read/write route is added to this scope in plan 01-06 Task 2
- * (routes/canary.ts), once that route (and the Prisma client it needs) is
- * implemented via TDD.
- */
-async function registerApiRoutes(_apiScope: FastifyInstance): Promise<void> {
-  // Feature API routes are registered here.
-}
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const nodeEnv = options.nodeEnv ?? process.env.NODE_ENV ?? "development";
   const publicDir = options.publicDir ?? path.join(__dirname, "..", "public");
+  const prisma = options.prisma ?? defaultPrisma;
 
   const app = Fastify({
     logger: nodeEnv === "production" ? true : { transport: { target: "pino-pretty" } },
@@ -53,7 +55,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await registerCors(app, nodeEnv);
 
-  await app.register(registerApiRoutes, { prefix: "/api" });
+  await app.register(
+    async (apiScope) => {
+      await apiScope.register(canaryRoute(prisma));
+    },
+    { prefix: "/api" },
+  );
   await app.register(healthRoute);
   await app.register(redirectRoute);
 
