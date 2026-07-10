@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: test-infrastructure-monorepo-deployment-scaffolding
 status: executing
-stopped_at: Completed 01-08-PLAN.md
-last_updated: "2026-07-10T22:10:48.023Z"
+stopped_at: Completed 01-09-PLAN.md (Phase 1 complete)
+last_updated: "2026-07-10T22:20:00.785Z"
 last_activity: 2026-07-10
-last_activity_desc: Completed 01-02-PLAN.md (pnpm monorepo scaffold)
+last_activity_desc: Completed 01-08-PLAN.md (Docker image + compose stack + boot/persistence smoke tests)
 progress:
   total_phases: 10
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 9
-  completed_plans: 8
-  percent: 89
+  completed_plans: 9
+  percent: 10
 ---
 
 # Project State
@@ -28,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 
 ## Current Position
 
-Phase: 01 (test-infrastructure-monorepo-deployment-scaffolding) — EXECUTING
-Plan: 8 of 9 (complete) — ready for plan 09
-Status: Ready to execute
-Last activity: 2026-07-10 — Completed 01-08-PLAN.md (Docker image + compose stack + boot/persistence smoke tests)
+Phase: 01 (test-infrastructure-monorepo-deployment-scaffolding) — ALL PLANS COMPLETE
+Plan: 9 of 9 (complete) — phase ready for transition
+Status: Phase complete — awaiting /gsd-transition to Phase 2
+Last activity: 2026-07-10 — Completed 01-09-PLAN.md (CI workflow + reverse-proxy/TLS documentation)
 
-Progress: [█████████░] 89%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [█████████░] 89%
 | Phase 01 P06 | 16min | 3 tasks | 10 files |
 | Phase 01 P07 | 5min | 2 tasks | 4 files |
 | Phase 01 P08 | 35min | 3 tasks | 8 files |
+| Phase 01 P09 | 9min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-08: pnpm deploy requires --legacy under pnpm 11's default injected-workspace mode for Docker-safe production output
 - [Phase 01]: 01-08: postgres:18-alpine's named volume must mount at /var/lib/postgresql (not .../data) - image manages its own major-version-specific subdirectory; confirmed empirically, RESEARCH.md example predates this behavior change
 - [Phase 01]: 01-08: prisma generate needs a placeholder DATABASE_URL at Docker build time since prisma.config.ts resolves it eagerly via env(), even though generate never connects to a DB
+- [Phase 01]: 01-09: Split CI into a fast test job (workspace-only) and a smoke job (needs: test) that builds the Docker image and runs the compose boot/persistence smoke scripts
+- [Phase 01]: 01-09: Reused the Dockerfile's placeholder-DATABASE_URL trick for CI's explicit prisma generate step since prisma.config.ts resolves DATABASE_URL eagerly via env() even for a connection-less generate call
 
 ### Pending Todos
 
@@ -106,6 +109,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-10T22:10:47.998Z
-Stopped at: Completed 01-08-PLAN.md
+Last session: 2026-07-10T22:20:00.757Z
+Stopped at: Completed 01-09-PLAN.md (Phase 1 complete)
 Resume file: None

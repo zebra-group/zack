@@ -13,7 +13,7 @@ Kurzly ships as ten focused phases that build strictly bottom-up: a real-Postgre
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Test Infrastructure, Monorepo & Deployment Scaffolding** - Docker-Compose-hostable stack, ENV-driven config, persistent Postgres volume, and the real-Postgres TDD harness every later phase depends on
+- [x] **Phase 1: Test Infrastructure, Monorepo & Deployment Scaffolding** - Docker-Compose-hostable stack, ENV-driven config, persistent Postgres volume, and the real-Postgres TDD harness every later phase depends on (completed 2026-07-10)
 - [ ] **Phase 2: Magic-Link Auth, App Shell & Domain Authorization Core** - Users sign in via magic link into a pixel-accurate, theme-aware dashboard shell; the shared server-side domain-authorization helper is built here, ahead of anything it must gate
 - [ ] **Phase 3: Domains & Multi-Domain TLS Routing** - Admins register and DNS-verify their own domains, gated on-demand TLS issuance, host-header validated
 - [ ] **Phase 4: Links Management & Bulk Import** - Users create, search, edit, and bulk-CSV-import short links across their domains through one authorized creation path
@@ -38,7 +38,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Operator configures the instance entirely via environment variables (DB URL, SMTP credentials, base domain, secrets) — nothing is hardcoded in the image.
   3. Data in PostgreSQL persists across a full container stop/restart/recreate cycle via a named volume.
 
-**Plans**: 8/9 plans executed
+**Plans**: 9/9 plans complete
 **Wave 1**
 
 - [x] 01-01-PLAN.md — Supply-chain package legitimacy gate (blocking-human checkpoint before first install)
@@ -70,7 +70,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
-- [ ] 01-09-PLAN.md — CI full-suite pipeline (D-11) + reverse-proxy/TLS docs (D-03/D-04)
+- [x] 01-09-PLAN.md — CI full-suite pipeline (D-11) + reverse-proxy/TLS docs (D-03/D-04)
 
 ### Phase 2: Magic-Link Auth, App Shell & Domain Authorization Core
 
@@ -219,7 +219,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 8/9 | In Progress|  |
+| 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 9/9 | Complete   | 2026-07-10 |
 | 2. Magic-Link Auth, App Shell & Domain Authorization Core | 0/TBD | Not started | - |
 | 3. Domains & Multi-Domain TLS Routing | 0/TBD | Not started | - |
 | 4. Links Management & Bulk Import | 0/TBD | Not started | - |
