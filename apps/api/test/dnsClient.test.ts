@@ -106,6 +106,15 @@ describe("dnsClient.verifyDomain (DOMAIN-02, SSRF-safe by construction)", () => 
     expect(result).toEqual({ verified: false, error: "ENODATA" });
   });
 
+  it("WR-03: clears the DNS-timeout timer once the resolver settles first (no dangling timer handle)", async () => {
+    const clearTimeoutSpy = vi.spyOn(global, "clearTimeout");
+    const resolver = fakeDnsResolver(["shortener.kurzly.local"], []);
+
+    await verifyDomain("s.example.com", "subdomain", "shortener.kurzly.local", resolver, 5000);
+
+    expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("SSRF canary: verifyDomain never issues an HTTP fetch — global fetch spy recorded 0 calls", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const resolver = fakeDnsResolver(["shortener.kurzly.local"], []);
