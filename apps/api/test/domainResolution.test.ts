@@ -77,6 +77,20 @@ describe("resolveActiveDomainByHost (Pattern 4, deny-by-default)", () => {
     expect(resolved?.id).toBe(domain.id);
   });
 
+  it("strips a trailing dot from the queried host before matching (CR-01, shared normalizeHostname)", async () => {
+    const domain = await prisma.domain.create({
+      data: {
+        hostname: "trailingdot.example.com",
+        type: "subdomain",
+        status: "active",
+        verificationTarget: "shortener.kurzly.local",
+      },
+    });
+
+    const resolved = await resolveActiveDomainByHost(prisma, "trailingdot.example.com.");
+    expect(resolved?.id).toBe(domain.id);
+  });
+
   it("strips a trailing :port suffix before matching", async () => {
     const domain = await prisma.domain.create({
       data: {
