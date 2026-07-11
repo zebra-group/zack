@@ -6,14 +6,14 @@ current_phase: 04
 current_phase_name: links-management-bulk-import
 status: executing
 stopped_at: Completed 03-04-PLAN.md (Phase 03 complete)
-last_updated: "2026-07-11T19:48:01.261Z"
+last_updated: "2026-07-11T20:05:29.931Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 10
   completed_phases: 3
   total_plans: 24
-  completed_plans: 20
+  completed_plans: 21
   percent: 30
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 04 (links-management-bulk-import) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-07-11 — Phase 04 execution started
 
@@ -76,6 +76,7 @@ Progress: [██████████] 100%
 | Phase 03 P03 | 10min | 3 tasks | 6 files |
 | Phase 03 P04 | 15min | 3 tasks | 4 files |
 | Phase 04 P01 | 6min | 2 tasks | 2 files |
+| Phase 04 P02 | 14min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,8 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-04: verify failures (DNS-mismatch or 429) render as an inline .verify-error-row under the domain row, never a toast — only a successful verify toasts, per 03-UI-SPEC.md's DNS-Verify-Interaction contract
 - [Phase ?]: Operator-approved supply-chain sign-off for csv-parse and nanoid at RESEARCH-pinned versions (T-04-SC-Gate)
 - [Phase ?]: No pnpm-workspace allowBuilds entry needed for csv-parse/nanoid - neither introduced a build-script-requiring transitive dependency
+- [Phase ?]: [Phase 04]: 04-02: prisma migrate dev ran non-interactively for the additive Link CREATE TABLE (no confirmation-shaped warning) - the migrate-diff/deploy workaround from 03-01 remains the fallback for future ALTER-shaped migrations
+- [Phase ?]: [Phase 04]: 04-02: GET /api/links silently narrows an out-of-scope ?domainId= to [] rather than 403ing, matching GET /api/domains's scope-silently-never-leak convention
 
 ### Pending Todos
 
@@ -146,6 +149,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T19:47:19.656Z
+Last session: 2026-07-11T20:04:39.984Z
 Stopped at: Completed 03-04-PLAN.md (Phase 03 complete)
 Resume file: None

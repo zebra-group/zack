@@ -43,8 +43,8 @@
 ### Link-Verwaltung
 
 - [x] **LINK-01**: Nutzer kann einen Kurzlink durch Wahl von Domain + Ziel-URL erstellen (leerer Slug → automatisch generiert)
-- [ ] **LINK-02**: Nutzer kann einen eigenen Slug für einen Kurzlink festlegen
-- [ ] **LINK-03**: Nutzer kann die Kurzlink-Liste durchsuchen und nach Domain filtern
+- [x] **LINK-02**: Nutzer kann einen eigenen Slug für einen Kurzlink festlegen
+- [x] **LINK-03**: Nutzer kann die Kurzlink-Liste durchsuchen und nach Domain filtern
 - [ ] **LINK-04**: Nutzer kann die vollständige URL eines Kurzlinks in die Zwischenablage kopieren
 - [ ] **LINK-05**: Nutzer kann eine Link-Detailseite mit Attributen und Statistiken öffnen
 - [ ] **LINK-06**: Nutzer kann die Einstellungen eines Links bearbeiten
@@ -137,8 +137,8 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | DOMAIN-03 | Phase 3 | Complete |
 | DOMAIN-04 | Phase 3 | Complete |
 | LINK-01 | Phase 4 | Complete |
-| LINK-02 | Phase 4 | Pending |
-| LINK-03 | Phase 4 | Pending |
+| LINK-02 | Phase 4 | Complete |
+| LINK-03 | Phase 4 | Complete |
 | LINK-04 | Phase 4 | Pending |
 | LINK-05 | Phase 4 | Pending |
 | LINK-06 | Phase 4 | Pending |
