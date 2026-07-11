@@ -23,10 +23,14 @@
  *   7. `GET /api/tls-check` (Phase 3, DOMAIN-03 reformulated/D-01 — the
  *      operator-delegated TLS ask endpoint; no session, registered directly
  *      on `app` for the same reason as domains/auth above).
- *   8. `GET /health`.
- *   9. The redirect-handler stub `GET /:slug` (Phase 5 replaces this).
- *   10. `@fastify/static` (`wildcard: false` — see plugins/static.ts).
- *   11. `setNotFoundHandler`: JSON 404 for unmatched `/api/*` paths, the SPA
+ *   8. `POST/GET /api/links` (Phase 4, LINK-01/02/03 — registered directly
+ *      on `app` for the same reason as domains/tls-check above; every
+ *      write delegates to lib/links.ts's createLink, the D-01 sole insert
+ *      site).
+ *   9. `GET /health`.
+ *   10. The redirect-handler stub `GET /:slug` (Phase 5 replaces this).
+ *   11. `@fastify/static` (`wildcard: false` — see plugins/static.ts).
+ *   12. `setNotFoundHandler`: JSON 404 for unmatched `/api/*` paths, the SPA
  *      shell (`index.html`) for every other unmatched path.
  *
  * API routes (including the auth catch-all) are registered before the
@@ -44,6 +48,7 @@ import { authRoute } from "./routes/auth.js";
 import { canaryRoute } from "./routes/canary.js";
 import { domainsRoute } from "./routes/domains.js";
 import { healthRoute } from "./routes/health.js";
+import { linksRoute } from "./routes/links.js";
 import { redirectRoute } from "./routes/redirect.js";
 import { tlsCheckRoute } from "./routes/tlsCheck.js";
 import { registerCors } from "./plugins/cors.js";
@@ -116,6 +121,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(authRoute(auth));
   await app.register(domainsRoute(prisma, auth, options.dnsResolver));
   await app.register(tlsCheckRoute(prisma));
+  // Phase 4 (LINK-01/02/03): registered directly on `app` for the same
+  // reason as domains/auth/tls-check above (its urls already include the
+  // `/api/links` segment) — AFTER domains/tls-check and BEFORE the
+  // redirect stub + static registration (Pitfall 5) so /api/links is never
+  // shadowed by the `/:slug` stub or the SPA fallback.
+  await app.register(linksRoute(prisma, auth));
   await app.register(healthRoute);
   await app.register(redirectRoute);
 
