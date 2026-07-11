@@ -84,13 +84,20 @@ async function resolveSessionUserId(
   return session.json()?.user?.id as string;
 }
 
-/** Creates a Domain + owner DomainMembership for `userId` directly via Prisma (test seed helper). */
+/**
+ * Creates a Domain + owner DomainMembership for `userId` directly via
+ * Prisma (test seed helper). `status: "active"` (WR-03 fix, 04-REVIEW.md):
+ * `validateLinkInput` now rejects Link writes against a non-active domain
+ * — every test in this suite that expects an import row to SUCCEED needs
+ * an active domain fixture; `seedOwnedPendingDomain` below covers the new
+ * rejection behavior explicitly.
+ */
 async function seedOwnedDomain(userId: string, hostname: string): Promise<string> {
   const domain = await prisma.domain.create({
     data: {
       hostname,
       type: "subdomain",
-      status: "pending",
+      status: "active",
       verificationTarget: "shortener.kurzly.local",
     },
   });
@@ -106,9 +113,25 @@ async function seedForeignDomain(hostname: string): Promise<string> {
     data: {
       hostname,
       type: "subdomain",
+      status: "active",
+      verificationTarget: "shortener.kurzly.local",
+    },
+  });
+  return domain.id;
+}
+
+/** Creates a Domain + owner DomainMembership that is still "pending" (WR-03 coverage). */
+async function seedOwnedPendingDomain(userId: string, hostname: string): Promise<string> {
+  const domain = await prisma.domain.create({
+    data: {
+      hostname,
+      type: "subdomain",
       status: "pending",
       verificationTarget: "shortener.kurzly.local",
     },
+  });
+  await prisma.domainMembership.create({
+    data: { userId, domainId: domain.id, role: "owner" },
   });
   return domain.id;
 }
@@ -304,6 +327,38 @@ describe("CSV bulk import (LINK-08, D-01/D-05)", () => {
         .map((row: { reason: string }) => row.reason)
         .sort();
       expect(commitReasons).toEqual(previewReasons);
+
+      await app.close();
+    });
+  });
+
+  describe("WR-03: pending domain rows are skipped, never imported", () => {
+    it("skips a row whose domain is still pending (not yet verified) and writes zero rows for it", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const pendingDomainId = await seedOwnedPendingDomain(ownerId, "wr03-pending.example.com");
+
+      const csv = [
+        "ziel_url,slug,domain",
+        "https://example.com/pending-row,wr03-pending-slug,wr03-pending.example.com",
+      ].join("\n");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links/import/commit",
+        headers: { cookie: ownerCookie },
+        payload: { csv },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.importedCount).toBe(0);
+      expect(body.skippedCount).toBe(1);
+      expect(body.rows[0].reason).toBe("domain_unauthorized");
+
+      const row = await prisma.link.findFirst({ where: { domainId: pendingDomainId } });
+      expect(row).toBeNull();
 
       await app.close();
     });

@@ -100,7 +100,8 @@ export type LinkErrorCode =
   | "SLUG_TAKEN"
   | "SLUG_RESERVED"
   | "SLUG_INVALID_SHAPE"
-  | "SLUG_GENERATION_EXHAUSTED";
+  | "SLUG_GENERATION_EXHAUSTED"
+  | "DOMAIN_NOT_ACTIVE";
 
 /** Custom-slug shape (RESEARCH Open Question 2/A4): 2-32 chars, `[a-zA-Z0-9_-]`. */
 const customSlugSchema = z
@@ -218,6 +219,18 @@ export async function validateLinkInput(
   } catch (err) {
     if (err instanceof ForbiddenError) return { ok: false, error: "UNAUTHORIZED_DOMAIN" };
     throw err;
+  }
+
+  // WR-03 fix (04-REVIEW.md, high-value): membership alone is not enough —
+  // a pending domain has never proven DNS ownership, and a failed domain's
+  // verification is broken, so a Link created against either is either
+  // premature or permanently orphaned once the redirect engine (Phase 5)
+  // only serves `active` domains. This lives HERE (not in the route layer)
+  // so both manual create AND CSV import inherit it automatically, per
+  // D-01's single-core guarantee — do not duplicate this check elsewhere.
+  const domain = await prisma.domain.findUnique({ where: { id: input.domainId } });
+  if (!domain || domain.status !== "active") {
+    return { ok: false, error: "DOMAIN_NOT_ACTIVE" };
   }
 
   const targetUrl = validateTargetUrl(input.targetUrl);
@@ -397,6 +410,13 @@ export function mapErrorToSkipReason(code: LinkErrorCode): LinkSkipReason {
     case "SLUG_GENERATION_EXHAUSTED":
       return "slug_conflict";
     case "UNAUTHORIZED_DOMAIN":
+    // WR-03 fix (04-REVIEW.md): a pending/failed domain is bucketed under
+    // the same "domain_unauthorized" skip reason as a genuinely
+    // inaccessible/unknown domain — deliberate, mirrors this file's
+    // existing no-existence-oracle stance for CSV rows (a caller doing a
+    // bulk import should not learn precisely WHY a domain can't be used,
+    // only that it can't).
+    case "DOMAIN_NOT_ACTIVE":
       return "domain_unauthorized";
     default: {
       const exhaustive: never = code;

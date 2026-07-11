@@ -89,13 +89,40 @@ async function resolveSessionUserId(
   return session.json()?.user?.id as string;
 }
 
-/** Creates a Domain + owner DomainMembership for `userId` directly via Prisma (test seed helper). */
+/**
+ * Creates a Domain + owner DomainMembership for `userId` directly via
+ * Prisma (test seed helper). `status: "active"` (WR-03 fix, 04-REVIEW.md):
+ * `validateLinkInput` now rejects Link writes against a non-active domain,
+ * so every test in this suite that expects a create/edit to SUCCEED needs
+ * an active domain fixture — `seedPendingDomain`/`seedFailedDomain` below
+ * cover the new rejection behavior explicitly.
+ */
 async function seedOwnedDomain(userId: string, hostname: string): Promise<string> {
   const domain = await prisma.domain.create({
     data: {
       hostname,
       type: "subdomain",
-      status: "pending",
+      status: "active",
+      verificationTarget: "shortener.kurzly.local",
+    },
+  });
+  await prisma.domainMembership.create({
+    data: { userId, domainId: domain.id, role: "owner" },
+  });
+  return domain.id;
+}
+
+/** Creates a Domain + owner DomainMembership with a non-"active" status (WR-03 coverage). */
+async function seedOwnedDomainWithStatus(
+  userId: string,
+  hostname: string,
+  status: "pending" | "failed",
+): Promise<string> {
+  const domain = await prisma.domain.create({
+    data: {
+      hostname,
+      type: "subdomain",
+      status,
       verificationTarget: "shortener.kurzly.local",
     },
   });
@@ -291,6 +318,67 @@ describe("Link core + routes (LINK-01/02/03, D-01/D-02/D-03)", () => {
       if (result.ok) {
         expect(result.data.slug).toMatch(/^[0-9A-Za-z]{7}$/);
       }
+
+      await app.close();
+    });
+
+    it("DOMAIN_NOT_ACTIVE: rejects a Link write against a pending domain (WR-03, high-value)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomainWithStatus(ownerId, "pending-domain.example.com", "pending");
+
+      const before = await prisma.link.count();
+      const result = await validateLinkInput(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com",
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe("DOMAIN_NOT_ACTIVE");
+      const after = await prisma.link.count();
+      expect(after).toBe(before);
+
+      await app.close();
+    });
+
+    it("DOMAIN_NOT_ACTIVE: rejects a Link write against a failed domain (WR-03)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomainWithStatus(ownerId, "failed-domain.example.com", "failed");
+
+      const result = await validateLinkInput(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com",
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe("DOMAIN_NOT_ACTIVE");
+
+      await app.close();
+    });
+
+    it("POST /api/links: 403s a create against a pending domain and writes zero rows (WR-03 route layer)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomainWithStatus(ownerId, "pending-route.example.com", "pending");
+
+      const before = await prisma.link.count();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { domainId, targetUrl: "https://example.com/pending" },
+      });
+
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error).toBe("DOMAIN_NOT_ACTIVE");
+      const after = await prisma.link.count();
+      expect(after).toBe(before);
 
       await app.close();
     });
