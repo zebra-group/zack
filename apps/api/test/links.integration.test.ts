@@ -305,4 +305,353 @@ describe("Link core + routes (LINK-01/02/03, D-01/D-02/D-03)", () => {
       await app.close();
     });
   });
+
+  describe("POST /api/links (route layer)", () => {
+    it("201s a blank-slug create with a 7-char Base62 slug and persists createdBy", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "route-blank-slug.example.com");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { domainId, targetUrl: "https://example.com/blank" },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.slug).toMatch(/^[0-9A-Za-z]{7}$/);
+
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: body.id } });
+      expect(row.domainId).toBe(domainId);
+      expect(row.createdBy).toBe(ownerId);
+
+      await app.close();
+    });
+
+    it("201s a custom-slug create using that exact slug", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "route-custom-slug.example.com");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { domainId, targetUrl: "https://example.com/custom", slug: "my-custom-slug" },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.slug).toBe("my-custom-slug");
+
+      await app.close();
+    });
+
+    it("401s an unauthenticated create and writes zero rows", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "route-401.example.com");
+
+      const before = await prisma.link.count();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        payload: { domainId, targetUrl: "https://example.com" },
+      });
+
+      expect(res.statusCode).toBe(401);
+      const after = await prisma.link.count();
+      expect(after).toBe(before);
+
+      await app.close();
+    });
+
+    it("403s a cross-domain create (member of A posting to domain B) and writes zero rows", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      await seedOwnedDomain(ownerId, "route-cross-a.example.com");
+      const domainBId = await seedOwnedDomain(ownerId, "route-cross-b.example.com");
+
+      // Outsider has zero memberships anywhere - not a member of domain B.
+      const outsiderCookie = await signInAs(app, OUTSIDER_EMAIL);
+
+      const before = await prisma.link.count();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: outsiderCookie },
+        payload: { domainId: domainBId, targetUrl: "https://example.com" },
+      });
+
+      expect(res.statusCode).toBe(403);
+      const after = await prisma.link.count();
+      expect(after).toBe(before);
+
+      await app.close();
+    });
+
+    it("400s an invalid targetUrl scheme (javascript:) and writes zero rows", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "route-bad-scheme.example.com");
+
+      const before = await prisma.link.count();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { domainId, targetUrl: "javascript:alert(1)" },
+      });
+
+      expect(res.statusCode).toBe(400);
+      const after = await prisma.link.count();
+      expect(after).toBe(before);
+
+      await app.close();
+    });
+
+    it("400s a reserved custom slug (e.g. 'api') and writes zero rows", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "route-reserved.example.com");
+
+      const before = await prisma.link.count();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { domainId, targetUrl: "https://example.com", slug: "api" },
+      });
+
+      expect(res.statusCode).toBe(400);
+      const after = await prisma.link.count();
+      expect(after).toBe(before);
+
+      await app.close();
+    });
+
+    it("400s a malformed body (missing domainId)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { targetUrl: "https://example.com" },
+      });
+
+      expect(res.statusCode).toBe(400);
+
+      await app.close();
+    });
+
+    it("409s a custom-slug-taken create and leaves exactly one row for that (domainId, slug)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "route-slug-taken.example.com");
+
+      const first = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { domainId, targetUrl: "https://example.com/first", slug: "dup-route-slug" },
+      });
+      expect(first.statusCode).toBe(201);
+
+      const second = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { domainId, targetUrl: "https://example.com/second", slug: "dup-route-slug" },
+      });
+      expect(second.statusCode).toBe(409);
+
+      const count = await prisma.link.count({ where: { domainId, slug: "dup-route-slug" } });
+      expect(count).toBe(1);
+
+      await app.close();
+    });
+
+    it("mass-assignment: request body cannot set id/createdBy/createdAt", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "route-mass-assign.example.com");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/mass-assign",
+          id: "attacker-chosen-id",
+          createdBy: "someone-else",
+          createdAt: "2000-01-01T00:00:00.000Z",
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.id).not.toBe("attacker-chosen-id");
+      expect(body.createdBy).toBe(ownerId);
+      expect(body.createdAt).not.toBe("2000-01-01T00:00:00.000Z");
+
+      await app.close();
+    });
+  });
+
+  describe("GET /api/links (route layer)", () => {
+    it("scopes results to the caller's domains - a second user with no memberships sees none of the first user's links", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "route-scoping.example.com");
+
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { domainId, targetUrl: "https://example.com/scoped", slug: "scoped-link" },
+      });
+      expect(created.statusCode).toBe(201);
+
+      const ownerList = await app.inject({
+        method: "GET",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+      });
+      expect(ownerList.statusCode).toBe(200);
+      const ownerLinks = ownerList.json();
+      expect(ownerLinks.some((l: { slug: string }) => l.slug === "scoped-link")).toBe(true);
+
+      const outsiderCookie = await signInAs(app, OUTSIDER_EMAIL);
+      const outsiderList = await app.inject({
+        method: "GET",
+        url: "/api/links",
+        headers: { cookie: outsiderCookie },
+      });
+      expect(outsiderList.statusCode).toBe(200);
+      expect(outsiderList.json()).toEqual([]);
+
+      await app.close();
+    });
+
+    it("?domainId= narrows to that domain only when it is in scope; an out-of-scope domainId yields []", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainAId = await seedOwnedDomain(ownerId, "route-filter-a.example.com");
+      const domainBId = await seedOwnedDomain(ownerId, "route-filter-b.example.com");
+
+      await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { domainId: domainAId, targetUrl: "https://example.com/a", slug: "filter-a-link" },
+      });
+      await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { domainId: domainBId, targetUrl: "https://example.com/b", slug: "filter-b-link" },
+      });
+
+      const filteredA = await app.inject({
+        method: "GET",
+        url: `/api/links?domainId=${domainAId}`,
+        headers: { cookie: ownerCookie },
+      });
+      expect(filteredA.statusCode).toBe(200);
+      const filteredALinks = filteredA.json();
+      expect(filteredALinks.every((l: { domainId: string }) => l.domainId === domainAId)).toBe(true);
+      expect(filteredALinks.some((l: { slug: string }) => l.slug === "filter-a-link")).toBe(true);
+
+      // An out-of-scope domainId (owned by nobody the outsider has membership
+      // with) yields [] even though rows exist for it.
+      const outsiderCookie = await signInAs(app, OUTSIDER_EMAIL);
+      const outOfScope = await app.inject({
+        method: "GET",
+        url: `/api/links?domainId=${domainAId}`,
+        headers: { cookie: outsiderCookie },
+      });
+      expect(outOfScope.statusCode).toBe(200);
+      expect(outOfScope.json()).toEqual([]);
+
+      await app.close();
+    });
+
+    it("?q= filters by slug/targetUrl/title contains (case-insensitive)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "route-search.example.com");
+
+      await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/needle-target",
+          slug: "haystack-one",
+          title: "Nothing special",
+        },
+      });
+      await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/unrelated",
+          slug: "haystack-two",
+          title: "Contains NEEDLE in title",
+        },
+      });
+      await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/no-match-here",
+          slug: "no-match-slug",
+          title: "No match either",
+        },
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/links?q=needle",
+        headers: { cookie: ownerCookie },
+      });
+      expect(res.statusCode).toBe(200);
+      const results = res.json();
+      const slugs = results.map((l: { slug: string }) => l.slug).sort();
+      expect(slugs).toEqual(["haystack-one", "haystack-two"]);
+
+      await app.close();
+    });
+
+    it("401s an unauthenticated list request", async () => {
+      const app = await buildApp({ prisma });
+
+      const res = await app.inject({ method: "GET", url: "/api/links" });
+
+      expect(res.statusCode).toBe(401);
+
+      await app.close();
+    });
+  });
 });
