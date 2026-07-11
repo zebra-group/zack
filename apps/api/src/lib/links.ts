@@ -386,6 +386,27 @@ export type ImportRunResult = {
  * deliberate: `validateLinkInput`'s `requireDomainAccess` then denies it
  * uniformly as `UNAUTHORIZED_DOMAIN`, so "unknown domain" and "domain I
  * can't access" are indistinguishable to the caller (no existence oracle).
+ *
+ * WR-05 (04-REVIEW.md, accepted residual risk): the response BODY is
+ * identical for "unknown hostname" vs. "hostname exists but I'm not a
+ * member" by design (both bucket to `domain_unauthorized`), but the DB
+ * work is NOT symmetric — an unknown hostname short-circuits after this
+ * one query, while a known-but-foreign hostname additionally pays
+ * `validateLinkInput`'s membership + `DOMAIN_NOT_ACTIVE` (WR-03) queries
+ * before reaching the same result. That is a per-row timing/query-count
+ * signal an attacker could in principle use to enumerate hostnames
+ * registered on this instance via CSV import row timing. Deliberately NOT
+ * fixed the way WR-04 was (a single normalized query the way
+ * `resolveOwnedLink` now does): doing so here would mean resolving
+ * membership BEFORE knowing whether the hostname exists at all, which
+ * would require restructuring `runImport`'s per-row control flow (it
+ * currently short-circuits before ever calling `createLink`/`previewLink`
+ * for an unknown domain) — a materially larger change for a low-severity
+ * signal that only fires 5 requests/15min (`LINK_IMPORT_RATE_LIMIT`,
+ * plugins/rateLimit.ts) at a rate-limited, authenticated-only endpoint.
+ * Per the review's own stated fallback ("accept and document this as a
+ * low-severity residual risk"), this is the accepted resolution — revisit
+ * if this endpoint's rate limit is ever relaxed.
  */
 export async function resolveRowDomainId(
   prisma: PrismaClient,
