@@ -20,10 +20,13 @@
  *   6. `POST/GET /api/domains` (Phase 3, DOMAIN-01 — registered directly on
  *      `app` for the same reason as the auth catch-all: its own route urls
  *      already include the `/api/domains` segment).
- *   7. `GET /health`.
- *   8. The redirect-handler stub `GET /:slug` (Phase 5 replaces this).
- *   9. `@fastify/static` (`wildcard: false` — see plugins/static.ts).
- *   10. `setNotFoundHandler`: JSON 404 for unmatched `/api/*` paths, the SPA
+ *   7. `GET /api/tls-check` (Phase 3, DOMAIN-03 reformulated/D-01 — the
+ *      operator-delegated TLS ask endpoint; no session, registered directly
+ *      on `app` for the same reason as domains/auth above).
+ *   8. `GET /health`.
+ *   9. The redirect-handler stub `GET /:slug` (Phase 5 replaces this).
+ *   10. `@fastify/static` (`wildcard: false` — see plugins/static.ts).
+ *   11. `setNotFoundHandler`: JSON 404 for unmatched `/api/*` paths, the SPA
  *      shell (`index.html`) for every other unmatched path.
  *
  * API routes (including the auth catch-all) are registered before the
@@ -42,6 +45,7 @@ import { canaryRoute } from "./routes/canary.js";
 import { domainsRoute } from "./routes/domains.js";
 import { healthRoute } from "./routes/health.js";
 import { redirectRoute } from "./routes/redirect.js";
+import { tlsCheckRoute } from "./routes/tlsCheck.js";
 import { registerCors } from "./plugins/cors.js";
 import { registerHelmet } from "./plugins/helmet.js";
 import { registerRateLimit } from "./plugins/rateLimit.js";
@@ -111,6 +115,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   );
   await app.register(authRoute(auth));
   await app.register(domainsRoute(prisma, auth, options.dnsResolver));
+  await app.register(tlsCheckRoute(prisma));
   await app.register(healthRoute);
   await app.register(redirectRoute);
 
