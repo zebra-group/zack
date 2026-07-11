@@ -16,7 +16,7 @@
 
 ### Authentifizierung (better-auth)
 
-- [ ] **AUTH-01**: Nutzer kann auf der Login-Seite per E-Mail-Eingabe einen Magic Link anfordern
+- [x] **AUTH-01**: Nutzer kann auf der Login-Seite per E-Mail-Eingabe einen Magic Link anfordern
 - [ ] **AUTH-02**: Nutzer wird durch Klick auf einen gültigen, einmalig nutzbaren Magic Link (15 Min gültig) angemeldet
 - [ ] **AUTH-03**: Nutzersitzung bleibt über Browser-Refresh hinweg bestehen
 - [ ] **AUTH-04**: Nutzer kann sich von jeder Seite abmelden
@@ -125,7 +125,7 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
-| AUTH-01 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Complete |
 | AUTH-02 | Phase 2 | Pending |
 | AUTH-03 | Phase 2 | Pending |
 | AUTH-04 | Phase 2 | Pending |

@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 01
-current_phase_name: test-infrastructure-monorepo-deployment-scaffolding
+current_phase: 02
+current_phase_name: magic-link-auth-app-shell-domain-authorization-core
 status: executing
-stopped_at: Phase 2 UI-SPEC approved
-last_updated: "2026-07-11T11:38:05.386Z"
-last_activity: 2026-07-10
-last_activity_desc: Completed 01-09-PLAN.md (CI workflow + reverse-proxy/TLS documentation)
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-07-11T11:56:39.447Z"
+last_activity: 2026-07-11
+last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 10
   completed_phases: 1
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 15
+  completed_plans: 10
   percent: 10
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-10)
 
 **Core value:** Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hosted, ohne Drittanbieter-Tracking.
-**Current focus:** Phase 01 — test-infrastructure-monorepo-deployment-scaffolding
+**Current focus:** Phase 02 — magic-link-auth-app-shell-domain-authorization-core
 
 ## Current Position
 
-Phase: 01 (test-infrastructure-monorepo-deployment-scaffolding) — ALL PLANS COMPLETE
-Plan: 9 of 9 (complete) — phase ready for transition
+Phase: 02 (magic-link-auth-app-shell-domain-authorization-core) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-07-10 — Completed 01-09-PLAN.md (CI workflow + reverse-proxy/TLS documentation)
+Last activity: 2026-07-11 — Phase 02 execution started
 
 Progress: [██████████] 100%
 
@@ -63,6 +63,7 @@ Progress: [██████████] 100%
 | Phase 01 P07 | 5min | 2 tasks | 4 files |
 | Phase 01 P08 | 35min | 3 tasks | 8 files |
 | Phase 01 P09 | 9min | 2 tasks | 2 files |
+| Phase 02 P01 | 20min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-08: prisma generate needs a placeholder DATABASE_URL at Docker build time since prisma.config.ts resolves it eagerly via env(), even though generate never connects to a DB
 - [Phase 01]: 01-09: Split CI into a fast test job (workspace-only) and a smoke job (needs: test) that builds the Docker image and runs the compose boot/persistence smoke scripts
 - [Phase 01]: 01-09: Reused the Dockerfile's placeholder-DATABASE_URL trick for CI's explicit prisma generate step since prisma.config.ts resolves DATABASE_URL eagerly via env() even for a connection-less generate call
+- [Phase 02]: 02-01: Operator-approved supply-chain sign-off for better-auth, @fastify/rate-limit, @fastify/helmet, @better-auth/cli at CLAUDE.md-pinned versions (T-02-SC-Gate)
+- [Phase 02]: 02-01: better-sqlite3 (transitive optional dep of better-auth's bundled kysely/drizzle adapters) set to allowBuilds: false in pnpm-workspace.yaml - Postgres-only project, same no-blanket-lifecycle-script rationale as Phase 1's cpu-features/protobufjs/ssh2
 
 ### Pending Todos
 
@@ -109,6 +112,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T10:51:15.827Z
-Stopped at: Phase 2 UI-SPEC approved
-Resume file: .planning/phases/02-magic-link-auth-app-shell-domain-authorization-core/02-UI-SPEC.md
+Last session: 2026-07-11T11:56:39.408Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None

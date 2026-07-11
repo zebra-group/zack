@@ -85,12 +85,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The user's session survives a browser refresh, and the user can log out from any page in the app.
   4. Once signed in, the user navigates a persistent 212px sidebar + scrollable content shell matching the Hi-Fi prototype's design tokens (Geist typography, lime accent, spacing/radii) and can toggle between Light and Dark themes.
 
-**Plans**: 6 plans
+**Plans**: 1/6 plans executed
 **UI hint**: yes
 
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Supply-chain sign-off + install better-auth/@fastify-rate-limit/@fastify-helmet + INITIAL_ADMIN_EMAIL ENV (D-01/D-07)
+- [x] 02-01-PLAN.md — Supply-chain sign-off + install better-auth/@fastify-rate-limit/@fastify-helmet + INITIAL_ADMIN_EMAIL ENV (D-01/D-07)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -238,7 +238,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 9/9 | Complete   | 2026-07-10 |
-| 2. Magic-Link Auth, App Shell & Domain Authorization Core | 0/6 | Not started | - |
+| 2. Magic-Link Auth, App Shell & Domain Authorization Core | 1/6 | In Progress|  |
 | 3. Domains & Multi-Domain TLS Routing | 0/TBD | Not started | - |
 | 4. Links Management & Bulk Import | 0/TBD | Not started | - |
 | 5. Core Redirect Engine | 0/TBD | Not started | - |
