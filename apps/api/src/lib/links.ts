@@ -23,10 +23,13 @@
  * loop with `prisma.link.createMany(...)` would silently reintroduce a
  * parallel write path that skips every rule below. Do not add one.
  */
+import type { ImportRowResult, LinkSkipReason } from "@kurzly/shared";
+import { parse } from "csv-parse/sync";
 import { customAlphabet } from "nanoid";
 import { z } from "zod";
 import type { Link, PrismaClient } from "../generated/prisma/client.js";
 import { ForbiddenError, requireDomainAccess } from "./authorization.js";
+import { normalizeHostname } from "./hostname.js";
 
 /**
  * Base62 alphabet (D-02) — mixed-case digits, no ambiguous-character
@@ -298,3 +301,149 @@ export function isUniqueConstraintViolation(err: unknown): boolean {
     (err as { code?: unknown }).code === "P2002"
   );
 }
+
+/**
+ * CSV bulk import (LINK-08, D-01/D-05).
+ *
+ * `runImport` is the ONE parse + row-loop implementation shared by
+ * `previewImport` (mutate=false, zero writes) and `commitImport`
+ * (mutate=true) — they differ ONLY by the `mutate` boolean, so preview can
+ * never drift from commit (RESEARCH Pattern 2, Pitfall 2). Each row calls
+ * `previewLink` or `createLink` above — the exact same validated core a
+ * manual `POST /api/links` uses. This file must never gain a second Link
+ * write site: no batch/multi-row insert call, no raw SQL insert, appears
+ * anywhere in this import code (RESEARCH Pitfall 1) — the importer's only
+ * path to persistence is the single `createLink` insert already declared
+ * above.
+ */
+
+/**
+ * Safety cap on CSV rows processed per import request — a code-level
+ * constant, not an ENV var (RESEARCH OQ-3: INFRA-02 governs deployment
+ * config, not internal safety bounds). A file exceeding this is rejected
+ * before any row is touched.
+ */
+export const MAX_IMPORT_ROWS = 500;
+
+export type CsvRow = { ziel_url?: string; slug?: string; domain?: string };
+
+/** Shared shape of `previewImport`/`commitImport`'s return — the caller (routes/links.ts) maps this onto `ImportPreviewResult`/`ImportCommitResult` (@kurzly/shared). */
+export type ImportRunResult = {
+  validCount: number;
+  skippedCount: number;
+  rows: ImportRowResult[];
+};
+
+/**
+ * Resolves a CSV row's `domain` column to a `Domain.id` the caller MAY or
+ * may not have access to. An empty/missing `domain` cell falls back to
+ * `defaultDomainId`. An unknown hostname resolves to `undefined` — this is
+ * deliberate: `validateLinkInput`'s `requireDomainAccess` then denies it
+ * uniformly as `UNAUTHORIZED_DOMAIN`, so "unknown domain" and "domain I
+ * can't access" are indistinguishable to the caller (no existence oracle).
+ */
+export async function resolveRowDomainId(
+  prisma: PrismaClient,
+  row: CsvRow,
+  defaultDomainId: string | undefined,
+): Promise<string | undefined> {
+  if (!row.domain?.trim()) return defaultDomainId;
+  const domain = await prisma.domain.findUnique({
+    where: { hostname: normalizeHostname(row.domain) },
+  });
+  return domain?.id;
+}
+
+/** Maps a `validateLinkInput`/`createLink` failure code to one of the four CSV skip reasons. */
+export function mapErrorToSkipReason(code: LinkErrorCode): LinkSkipReason {
+  switch (code) {
+    case "INVALID_TARGET_URL":
+      return "invalid_url";
+    case "SLUG_TAKEN":
+    case "SLUG_RESERVED":
+    case "SLUG_GENERATION_EXHAUSTED":
+      return "slug_conflict";
+    case "UNAUTHORIZED_DOMAIN":
+      return "domain_unauthorized";
+    default: {
+      const exhaustive: never = code;
+      return exhaustive;
+    }
+  }
+}
+
+/**
+ * Parses `csvText` exactly once and loops rows SEQUENTIALLY — `await` runs
+ * inside the `for...of` loop, never `Promise.all` — so row N+1's per-domain
+ * slug uniqueness check sees row N's already-committed insert. `mutate`
+ * selects `createLink` (commit) vs `previewLink` (dry-run preview); both
+ * calls funnel through the exact same validated core.
+ */
+export async function runImport(
+  prisma: PrismaClient,
+  userId: string,
+  csvText: string,
+  defaultDomainId: string | undefined,
+  mutate: boolean,
+): Promise<ImportRunResult> {
+  const rows: CsvRow[] = parse(csvText, { columns: true, skip_empty_lines: true, trim: true });
+  if (rows.length > MAX_IMPORT_ROWS) {
+    throw new Error(`CSV exceeds ${MAX_IMPORT_ROWS} row limit`);
+  }
+
+  const seenSlugs = new Set<string>();
+  const results: ImportRowResult[] = [];
+  let validCount = 0;
+
+  for (const row of rows) {
+    const zielUrl = row.ziel_url ?? null;
+    const slug = row.slug ?? null;
+    const domain = row.domain ?? null;
+
+    const domainId = await resolveRowDomainId(prisma, row, defaultDomainId);
+    const customSlug = row.slug?.trim() || undefined;
+
+    if (domainId && customSlug) {
+      const dedupeKey = `${domainId}:${customSlug}`;
+      if (seenSlugs.has(dedupeKey)) {
+        results.push({ zielUrl, slug, domain, valid: false, reason: "duplicate_in_file" });
+        continue;
+      }
+      seenSlugs.add(dedupeKey);
+    }
+
+    const outcome = domainId
+      ? await (mutate ? createLink : previewLink)(prisma, {
+          userId,
+          domainId,
+          targetUrl: row.ziel_url ?? "",
+          slug: customSlug,
+        })
+      : ({ ok: false, error: "UNAUTHORIZED_DOMAIN" } as const);
+
+    if (!outcome.ok) {
+      results.push({ zielUrl, slug, domain, valid: false, reason: mapErrorToSkipReason(outcome.error) });
+    } else {
+      validCount += 1;
+      results.push({ zielUrl, slug, domain, valid: true, reason: null });
+    }
+  }
+
+  return { validCount, skippedCount: results.length - validCount, rows: results };
+}
+
+/** Dry-run: previewLink per row, ZERO writes — 04-04's CSV preview endpoint. */
+export const previewImport = (
+  prisma: PrismaClient,
+  userId: string,
+  csv: string,
+  defaultDomainId?: string,
+): Promise<ImportRunResult> => runImport(prisma, userId, csv, defaultDomainId, false);
+
+/** Writes only valid rows via createLink — the SAME insert site the manual-create route uses. */
+export const commitImport = (
+  prisma: PrismaClient,
+  userId: string,
+  csv: string,
+  defaultDomainId?: string,
+): Promise<ImportRunResult> => runImport(prisma, userId, csv, defaultDomainId, true);
