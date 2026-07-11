@@ -31,7 +31,7 @@ import {
   toLinkDto,
   updateLink,
 } from "../lib/links.js";
-import { ForbiddenError, requireDomainAccess, scopedDomainIds } from "../lib/authorization.js";
+import { scopedDomainIds } from "../lib/authorization.js";
 import { LINK_CREATE_RATE_LIMIT, LINK_IMPORT_RATE_LIMIT } from "../plugins/rateLimit.js";
 
 type Auth = ReturnType<typeof createAuth>;
@@ -110,30 +110,37 @@ async function resolveUserId(auth: Auth, request: FastifyRequest): Promise<strin
 /**
  * The IDOR guard (RESEARCH Pitfall 4, T-04-IDOR) every Link-by-ID route
  * must run before any read/write: unlike Domain routes (where `:id` IS the
- * domain), a Link's `:id` is one join away from its domain, so
- * `requireDomainAccess` alone is not enough — we must first `findUnique`
- * the Link to learn its `domainId`. Returns `null` for BOTH "no such
- * Link" AND "Link exists but the caller lacks member+ access to its
- * domain" — the caller must never be able to distinguish the two (no
- * existence oracle), matching this codebase's `tlsCheck.ts`-established
- * information-disclosure discipline.
+ * domain), a Link's `:id` is one join away from its domain, so a plain
+ * `findUnique` by id alone is not enough to prove access.
+ *
+ * WR-04 fix (04-REVIEW.md): the previous two-step implementation
+ * (`link.findUnique` then, ONLY on a hit, a second `requireDomainAccess`
+ * query) did strictly MORE database work on the "exists but forbidden"
+ * branch than the "does not exist" branch — a measurable timing/query-count
+ * side channel a caller could use to distinguish "an id I can't access"
+ * from "an id that doesn't exist" via statistical timing analysis,
+ * defeating the no-existence-oracle goal below. This version performs
+ * EXACTLY the same two queries (`scopedDomainIds` -> `domainMembership.
+ * findMany`, then `link.findFirst`) on every outcome — found, not-found,
+ * and forbidden all cost identically, because the membership lookup always
+ * runs FIRST regardless of whether the Link even exists. `scopedDomainIds`
+ * returns every domain the caller has ANY membership on (member/admin/
+ * owner) — equivalent to "member+ access" here since every Link route
+ * requires only `"member"` (the lowest rank), so this is not a
+ * relaxation of the access rule, just a reshaping of the query.
+ *
+ * Returns `null` for BOTH "no such Link" AND "Link exists but outside the
+ * caller's accessible domains" — the caller must never be able to
+ * distinguish the two (no existence oracle), matching this codebase's
+ * `tlsCheck.ts`-established information-disclosure discipline.
  */
 async function resolveOwnedLink(
   prisma: PrismaClient,
   userId: string,
   id: string,
 ): Promise<Link | null> {
-  const link = await prisma.link.findUnique({ where: { id } });
-  if (!link) return null;
-
-  try {
-    await requireDomainAccess(prisma, userId, link.domainId, "member");
-  } catch (err) {
-    if (err instanceof ForbiddenError) return null;
-    throw err;
-  }
-
-  return link;
+  const domainIds = await scopedDomainIds(prisma, userId);
+  return prisma.link.findFirst({ where: { id, domainId: { in: domainIds } } });
 }
 
 export function linksRoute(prisma: PrismaClient, auth: Auth) {
