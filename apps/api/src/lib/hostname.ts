@@ -18,3 +18,17 @@
 export function normalizeHostname(value: string): string {
   return value.trim().toLowerCase().replace(/\.$/, "");
 }
+
+/**
+ * Hostname shape validation (WR-02) — labels of 1-63 alphanumeric-or-hyphen
+ * chars (no leading/trailing hyphen per label), at least one dot, TLD of
+ * 2-63 letters. Applied to the ALREADY-NORMALIZED value (lowercase, no
+ * trailing dot) coming out of `normalizeHostname()`. Deliberately rejects
+ * whitespace-only/symbol-only/overlong inputs that would otherwise sit in
+ * the DB forever as a perpetually-failing-verification row.
+ */
+export const HOSTNAME_FORMAT_RE =
+  /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+
+/** Total hostname length ceiling per RFC 1035 (253 octets, dot-inclusive). */
+export const HOSTNAME_MAX_LENGTH = 253;

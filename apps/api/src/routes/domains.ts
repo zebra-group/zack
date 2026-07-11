@@ -49,7 +49,7 @@ import { ForbiddenError, requireDomainAccess, scopedDomainIds } from "../lib/aut
 import type { createAuth } from "../lib/auth.js";
 import type { DnsResolver } from "../lib/dnsClient.js";
 import { nodeDnsResolver, verifyDomain } from "../lib/dnsClient.js";
-import { normalizeHostname } from "../lib/hostname.js";
+import { HOSTNAME_FORMAT_RE, HOSTNAME_MAX_LENGTH, normalizeHostname } from "../lib/hostname.js";
 import { DOMAIN_CREATE_RATE_LIMIT, VERIFY_RATE_LIMIT } from "../plugins/rateLimit.js";
 
 type Auth = ReturnType<typeof createAuth>;
@@ -62,13 +62,25 @@ type Auth = ReturnType<typeof createAuth>;
  * variant of an already-verified hostname) and the "verified but
  * permanently unreachable" trap (a non-lowercase stored hostname the
  * always-lowercasing read-side guard could never match).
+ *
+ * WR-02: pipes the normalized value through a hostname-shape check
+ * (labels/charset/length) so malformed input (whitespace-only, all-symbols,
+ * overlong) is rejected with 400 instead of persisting as a perpetually-
+ * failing-verification row.
  */
 const createDomainSchema = z.object({
   hostname: z
     .string()
     .min(1)
     .max(255)
-    .transform((v) => normalizeHostname(v)),
+    .transform((v) => normalizeHostname(v))
+    .pipe(
+      z
+        .string()
+        .min(1)
+        .max(HOSTNAME_MAX_LENGTH)
+        .regex(HOSTNAME_FORMAT_RE, "Invalid hostname"),
+    ),
   type: z.enum(["subdomain", "apex"]),
 });
 
