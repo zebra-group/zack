@@ -32,6 +32,7 @@ import { fileURLToPath } from "node:url";
 import Fastify, { type FastifyInstance } from "fastify";
 import { prisma as defaultPrisma } from "./db.js";
 import type { PrismaClient } from "./generated/prisma/client.js";
+import { auth as defaultAuth, createAuth } from "./lib/auth.js";
 import { authRoute } from "./routes/auth.js";
 import { canaryRoute } from "./routes/canary.js";
 import { healthRoute } from "./routes/health.js";
@@ -47,11 +48,15 @@ export type BuildAppOptions = {
   nodeEnv?: string;
   publicDir?: string;
   /**
-   * Prisma client to wire into `/api` routes (currently only the
-   * PersistenceCanary route). Defaults to the `db.ts` singleton. Tests
-   * override this with the SAME transaction-wrapped client
-   * `test/setupFileEach.ts` uses, so route reads/writes participate in
-   * that test's rolled-back transaction (D-09).
+   * Prisma client to wire into `/api` routes (the PersistenceCanary route)
+   * AND into the better-auth instance the auth catch-all forwards to.
+   * Defaults to the `db.ts` singleton. Tests override this with the SAME
+   * transaction-wrapped client `test/setupFileEach.ts` uses, so route
+   * reads/writes — including better-auth's own User/Session/Verification
+   * writes — participate in that test's rolled-back transaction (D-09).
+   * When overridden, a fresh `createAuth(prisma)` instance is built bound
+   * to that client (see lib/auth.ts's header comment for why the default
+   * `auth` singleton, bound to `db.ts`'s client, cannot be reused here).
    */
   prisma?: PrismaClient;
 };
@@ -60,6 +65,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const nodeEnv = options.nodeEnv ?? process.env.NODE_ENV ?? "development";
   const publicDir = options.publicDir ?? path.join(__dirname, "..", "public");
   const prisma = options.prisma ?? defaultPrisma;
+  const auth = options.prisma ? createAuth(options.prisma) : defaultAuth;
 
   const app = Fastify({
     logger: nodeEnv === "production" ? true : { transport: { target: "pino-pretty" } },
@@ -75,7 +81,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
     { prefix: "/api" },
   );
-  await app.register(authRoute);
+  await app.register(authRoute(auth));
   await app.register(healthRoute);
   await app.register(redirectRoute);
 
