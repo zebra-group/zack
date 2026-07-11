@@ -165,6 +165,12 @@ async function resolveSlug(
 
   for (let attempt = 0; attempt < AUTO_SLUG_RETRY_LIMIT; attempt++) {
     const candidate = generateSlug();
+    // WR-06 fix (04-REVIEW.md): RESERVED_SLUGS is documented as "the single
+    // source of truth for a Link slug must never shadow a system/app
+    // route" — that guarantee must hold for AUTO-generated slugs too, not
+    // only caller-supplied ones. A reserved-word collision here is treated
+    // exactly like a DB collision: skip this candidate and retry.
+    if (RESERVED_SLUGS.has(candidate.toLowerCase())) continue;
     const existing = await prisma.link.findUnique({
       where: { domainId_slug: { domainId, slug: candidate } },
     });
