@@ -84,6 +84,7 @@ function isImportRowLimitError(err: unknown): err is Error {
 function statusForLinkError(error: LinkErrorCode): number {
   switch (error) {
     case "UNAUTHORIZED_DOMAIN":
+    case "DOMAIN_NOT_ACTIVE":
       return 403;
     case "INVALID_TARGET_URL":
     case "SLUG_RESERVED":
