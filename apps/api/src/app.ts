@@ -48,6 +48,18 @@ export type BuildAppOptions = {
   nodeEnv?: string;
   publicDir?: string;
   /**
+   * Wired into Fastify's own `trustProxy` constructor option (WR-02, D-07).
+   * When `true`, `request.ip` (and therefore `@fastify/rate-limit`'s
+   * default per-IP key) is derived from the `X-Forwarded-For` header set
+   * by a trusted reverse proxy, instead of the raw socket address (which,
+   * behind a proxy, would be the proxy's own address for every request —
+   * collapsing every user's rate limit into one shared bucket). Defaults to
+   * `false` — only enable this when a reverse proxy actually sits in front
+   * of the app (see `.env.example`'s `TRUST_PROXY`), or a client could
+   * spoof its rate-limit identity via a forged header.
+   */
+  trustProxy?: boolean;
+  /**
    * Prisma client to wire into `/api` routes (the PersistenceCanary route)
    * AND into the better-auth instance the auth catch-all forwards to.
    * Defaults to the `db.ts` singleton. Tests override this with the SAME
@@ -69,6 +81,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   const app = Fastify({
     logger: nodeEnv === "production" ? true : { transport: { target: "pino-pretty" } },
+    // WR-02 (D-07): see BuildAppOptions.trustProxy's header comment.
+    trustProxy: options.trustProxy ?? false,
   });
 
   await registerCors(app, nodeEnv);

@@ -36,7 +36,7 @@ await seedInitialAdmin(prisma, env.INITIAL_ADMIN_EMAIL);
 
 const { buildApp } = await import("./app.js");
 
-const app = await buildApp({ nodeEnv: env.NODE_ENV });
+const app = await buildApp({ nodeEnv: env.NODE_ENV, trustProxy: env.TRUST_PROXY });
 
 try {
   await app.listen({ port: env.PORT, host: "0.0.0.0" });
