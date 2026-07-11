@@ -833,4 +833,212 @@ describe("Link core + routes (LINK-01/02/03, D-01/D-02/D-03)", () => {
       await app.close();
     });
   });
+
+  describe("PATCH /api/links/:id (route layer, D-04 same-rules-as-create — LINK-06)", () => {
+    it("200s a targetUrl-only edit, leaving the slug untouched", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "patch-target-only.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/before",
+        slug: "patch-target-only",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: ownerCookie },
+        payload: { targetUrl: "https://example.com/after" },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.targetUrl).toBe("https://example.com/after");
+      expect(body.slug).toBe("patch-target-only");
+
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: created.link.id } });
+      expect(row.targetUrl).toBe("https://example.com/after");
+      expect(row.slug).toBe("patch-target-only");
+
+      await app.close();
+    });
+
+    it("200s a slug edit to a free slug; re-saving the same slug also 200s (no false SLUG_TAKEN)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "patch-slug-free.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/slug-edit",
+        slug: "patch-slug-old",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const renamed = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: ownerCookie },
+        payload: { slug: "patch-slug-new" },
+      });
+      expect(renamed.statusCode).toBe(200);
+      expect(renamed.json().slug).toBe("patch-slug-new");
+
+      const resave = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: ownerCookie },
+        payload: { slug: "patch-slug-new" },
+      });
+      expect(resave.statusCode).toBe(200);
+      expect(resave.json().slug).toBe("patch-slug-new");
+
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: created.link.id } });
+      expect(row.slug).toBe("patch-slug-new");
+
+      await app.close();
+    });
+
+    it("400s a reserved-slug edit and leaves the row unchanged", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "patch-reserved.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/reserved-edit",
+        slug: "patch-reserved-slug",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: ownerCookie },
+        payload: { slug: "api" },
+      });
+
+      expect(res.statusCode).toBe(400);
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: created.link.id } });
+      expect(row.slug).toBe("patch-reserved-slug");
+
+      await app.close();
+    });
+
+    it("409s a cross-link slug-collision edit and leaves the row unchanged", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "patch-collision.example.com");
+      const other = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/other",
+        slug: "patch-taken-slug",
+      });
+      const target = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/target",
+        slug: "patch-target-slug",
+      });
+      expect(other.ok).toBe(true);
+      expect(target.ok).toBe(true);
+      if (!other.ok || !target.ok) throw new Error("setup failed");
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${target.link.id}`,
+        headers: { cookie: ownerCookie },
+        payload: { slug: "patch-taken-slug" },
+      });
+
+      expect(res.statusCode).toBe(409);
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: target.link.id } });
+      expect(row.slug).toBe("patch-target-slug");
+
+      await app.close();
+    });
+
+    it("400s a javascript: targetUrl edit and leaves the row unchanged", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "patch-bad-scheme.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/scheme-edit",
+        slug: "patch-bad-scheme-slug",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: ownerCookie },
+        payload: { targetUrl: "javascript:alert(1)" },
+      });
+
+      expect(res.statusCode).toBe(400);
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: created.link.id } });
+      expect(row.targetUrl).toBe("https://example.com/scheme-edit");
+
+      await app.close();
+    });
+
+    it("404s an IDOR PATCH (forbidden id) and leaves the row unchanged", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "patch-idor.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/idor-edit",
+        slug: "patch-idor-slug",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const outsiderCookie = await signInAs(app, OUTSIDER_EMAIL);
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: outsiderCookie },
+        payload: { targetUrl: "https://example.com/attacker" },
+      });
+
+      expect(res.statusCode).toBe(404);
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: created.link.id } });
+      expect(row.targetUrl).toBe("https://example.com/idor-edit");
+
+      await app.close();
+    });
+
+    it("401s with no session", async () => {
+      const app = await buildApp({ prisma });
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: "/api/links/anything",
+        payload: { targetUrl: "https://example.com/x" },
+      });
+
+      expect(res.statusCode).toBe(401);
+
+      await app.close();
+    });
+  });
 });
