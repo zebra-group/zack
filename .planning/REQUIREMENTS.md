@@ -46,9 +46,9 @@
 - [x] **LINK-02**: Nutzer kann einen eigenen Slug für einen Kurzlink festlegen
 - [x] **LINK-03**: Nutzer kann die Kurzlink-Liste durchsuchen und nach Domain filtern
 - [ ] **LINK-04**: Nutzer kann die vollständige URL eines Kurzlinks in die Zwischenablage kopieren
-- [ ] **LINK-05**: Nutzer kann eine Link-Detailseite mit Attributen und Statistiken öffnen
-- [ ] **LINK-06**: Nutzer kann die Einstellungen eines Links bearbeiten
-- [ ] **LINK-07**: Nutzer kann einen Link löschen
+- [x] **LINK-05**: Nutzer kann eine Link-Detailseite mit Attributen und Statistiken öffnen
+- [x] **LINK-06**: Nutzer kann die Einstellungen eines Links bearbeiten
+- [x] **LINK-07**: Nutzer kann einen Link löschen
 - [x] **LINK-08**: Nutzer kann Links per CSV-Bulk-Import anlegen (`ziel_url, slug, domain`) mit Live-Validierungsvorschau (N gültig · M übersprungen)
 
 ### Redirect-Engine (Kernwert)
@@ -140,9 +140,9 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | LINK-02 | Phase 4 | Complete |
 | LINK-03 | Phase 4 | Complete |
 | LINK-04 | Phase 4 | Pending |
-| LINK-05 | Phase 4 | Pending |
-| LINK-06 | Phase 4 | Pending |
-| LINK-07 | Phase 4 | Pending |
+| LINK-05 | Phase 4 | Complete |
+| LINK-06 | Phase 4 | Complete |
+| LINK-07 | Phase 4 | Complete |
 | LINK-08 | Phase 4 | Complete |
 | UI-06 | Phase 4 | Pending |
 | REDIR-01 | Phase 5 | Pending |
