@@ -62,6 +62,19 @@ const updateLinkSchema = z.object({
 });
 
 /**
+ * IN-02 fix (04-REVIEW.md): an explicit ceiling on the raw CSV text length,
+ * rather than relying on Fastify's un-stated implicit `bodyLimit` default
+ * (1 MiB) as the only real constraint on this resource-sensitive endpoint
+ * (CSV parsing + up to `MAX_IMPORT_ROWS` DB round-trips). Sized comfortably
+ * above a realistic `MAX_IMPORT_ROWS`-row CSV: 500 rows x a generous
+ * ~2.3 KB/row (2048-char max targetUrl + slug + hostname + delimiters) is
+ * ~1.15 MB; this leaves headroom while staying well inside the explicit
+ * `bodyLimit` set on the Fastify instance (app.ts) so the JSON envelope
+ * (this field plus `defaultDomainId`) never itself trips that ceiling.
+ */
+const CSV_MAX_LENGTH = 1_800_000;
+
+/**
  * `POST /api/links/import/{preview,commit}` request-body allowlist
  * (LINK-08, D-05, T-04-MASS) — raw CSV text (read client-side via
  * `FileReader.readAsText()`) plus an optional fallback domain for rows
@@ -71,7 +84,7 @@ const updateLinkSchema = z.object({
  * `runImport` (lib/links.ts).
  */
 const importCsvSchema = z.object({
-  csv: z.string().min(1),
+  csv: z.string().min(1).max(CSV_MAX_LENGTH),
   defaultDomainId: z.string().optional(),
 });
 

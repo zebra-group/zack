@@ -106,6 +106,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     logger: nodeEnv === "production" ? true : { transport: { target: "pino-pretty" } },
     // WR-02 (D-07): see BuildAppOptions.trustProxy's header comment.
     trustProxy: options.trustProxy ?? false,
+    // IN-02 fix (04-REVIEW.md): explicit, visible request-body ceiling —
+    // was previously Fastify's un-stated implicit 1 MiB default, which a
+    // future Fastify version bump could silently change with no local
+    // signal. Sized to comfortably fit a CSV bulk-import request
+    // (routes/links.ts's `CSV_MAX_LENGTH`) plus its JSON envelope.
+    bodyLimit: 2 * 1024 * 1024, // 2 MiB
   });
 
   await registerCors(app, nodeEnv);
