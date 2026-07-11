@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: magic-link-auth-app-shell-domain-authorization-core
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-07-11T12:26:52.269Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-07-11T12:53:18.573Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 15
-  completed_plans: 12
+  completed_plans: 13
   percent: 10
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 02 (magic-link-auth-app-shell-domain-authorization-core) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-07-11 — Phase 02 execution started
 
@@ -66,6 +66,7 @@ Progress: [██████████] 100%
 | Phase 02 P01 | 20min | 2 tasks | 6 files |
 | Phase 02 P02 | 32min | 3 tasks | 7 files |
 | Phase 02 P03 | 5min | 1 tasks | 2 files |
+| Phase 02 P04 | 23min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,9 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-02: Confirmed empirically that better-auth/adapters/prisma re-exports the bundled @better-auth/prisma-adapter package (RESEARCH OQ-2 resolved) — no direct adapter dependency added
 - [Phase 02]: 02-02: User table doubles as the invite-only allowlist (RESEARCH OQ-3 resolved) — no separate AllowedEmail table; DomainMembership composite PK (userId,domainId) built for 02-03's requireDomainAccess
 - [Phase 02]: 02-03: requireDomainAccess/scopedDomainIds signature frozen exactly as researched — (prisma,userId,domainId,minRole)/(prisma,userId), zero route callers this phase
+- [Phase ?]: lib/auth.ts refactored from a singleton to a createAuth(prisma) factory (auth=createAuth(defaultPrisma) kept for production) so tests can bind auth writes to the same transaction-wrapped Prisma client as the rest of the harness
+- [Phase ?]: The tight magic-link rate limit is applied via a separate, more specific static route (POST /api/auth/sign-in/magic-link) ahead of the /api/auth/* wildcard catch-all, scoping it without touching other better-auth endpoints
+- [Phase ?]: vitest.config.ts test env extended with BASE_URL/BETTER_AUTH_SECRET/SMTP_* placeholders since app.ts now transitively imports lib/auth.ts/lib/mailer.ts for every test file calling buildApp()
 
 ### Pending Todos
 
@@ -118,6 +122,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T12:26:03.324Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-07-11T12:53:18.534Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None

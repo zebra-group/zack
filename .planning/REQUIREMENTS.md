@@ -17,9 +17,9 @@
 ### Authentifizierung (better-auth)
 
 - [x] **AUTH-01**: Nutzer kann auf der Login-Seite per E-Mail-Eingabe einen Magic Link anfordern
-- [ ] **AUTH-02**: Nutzer wird durch Klick auf einen gültigen, einmalig nutzbaren Magic Link (15 Min gültig) angemeldet
-- [ ] **AUTH-03**: Nutzersitzung bleibt über Browser-Refresh hinweg bestehen
-- [ ] **AUTH-04**: Nutzer kann sich von jeder Seite abmelden
+- [x] **AUTH-02**: Nutzer wird durch Klick auf einen gültigen, einmalig nutzbaren Magic Link (15 Min gültig) angemeldet
+- [x] **AUTH-03**: Nutzersitzung bleibt über Browser-Refresh hinweg bestehen
+- [x] **AUTH-04**: Nutzer kann sich von jeder Seite abmelden
 - [ ] **AUTH-05**: Admin kann OIDC/SSO durch Eingabe von Issuer-URL, Client-ID und Client-Secret aktivieren
 - [ ] **AUTH-06**: Nutzer kann sich bei aktivem SSO über den konfigurierten OIDC-Provider anmelden
 - [ ] **AUTH-07**: Per SSO neu angelegte Nutzer erhalten automatisch die Rolle „Mitglied"
@@ -126,9 +126,9 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
 | AUTH-01 | Phase 2 | Complete |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
-| AUTH-04 | Phase 2 | Pending |
+| AUTH-02 | Phase 2 | Complete |
+| AUTH-03 | Phase 2 | Complete |
+| AUTH-04 | Phase 2 | Complete |
 | UI-01 | Phase 2 | Pending |
 | UI-02 | Phase 2 | Pending |
 | UI-03 | Phase 2 | Pending |

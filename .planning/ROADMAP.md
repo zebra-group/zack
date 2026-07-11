@@ -85,7 +85,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The user's session survives a browser refresh, and the user can log out from any page in the app.
   4. Once signed in, the user navigates a persistent 212px sidebar + scrollable content shell matching the Hi-Fi prototype's design tokens (Geist typography, lime accent, spacing/radii) and can toggle between Light and Dark themes.
 
-**Plans**: 3/6 plans executed
+**Plans**: 4/6 plans executed
 **UI hint**: yes
 
 **Wave 1**
@@ -99,7 +99,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Wave 3** *(blocked on Wave 2)*
 
 - [x] 02-03-PLAN.md — TDD authorization core: requireDomainAccess / scopedDomainIds (D-02, real Postgres)
-- [ ] 02-04-PLAN.md — Mount /api/auth/* + helmet + rate-limit + admin seed + AUTH-01..04 + D-01 neutral-response integration tests
+- [x] 02-04-PLAN.md — Mount /api/auth/* + helmet + rate-limit + admin seed + AUTH-01..04 + D-01 neutral-response integration tests
 - [ ] 02-05-PLAN.md — Theme tokens/fonts/store + authSession store + Login (Idle/Sent) + magic-link error views
 
 **Wave 4** *(blocked on Wave 3)*
@@ -238,7 +238,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 9/9 | Complete   | 2026-07-10 |
-| 2. Magic-Link Auth, App Shell & Domain Authorization Core | 3/6 | In Progress|  |
+| 2. Magic-Link Auth, App Shell & Domain Authorization Core | 4/6 | In Progress|  |
 | 3. Domains & Multi-Domain TLS Routing | 0/TBD | Not started | - |
 | 4. Links Management & Bulk Import | 0/TBD | Not started | - |
 | 5. Core Redirect Engine | 0/TBD | Not started | - |
