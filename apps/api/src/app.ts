@@ -36,6 +36,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { prisma as defaultPrisma } from "./db.js";
 import type { PrismaClient } from "./generated/prisma/client.js";
 import { auth as defaultAuth, createAuth } from "./lib/auth.js";
+import type { DnsResolver } from "./lib/dnsClient.js";
 import { authRoute } from "./routes/auth.js";
 import { canaryRoute } from "./routes/canary.js";
 import { domainsRoute } from "./routes/domains.js";
@@ -75,6 +76,15 @@ export type BuildAppOptions = {
    * `auth` singleton, bound to `db.ts`'s client, cannot be reused here).
    */
   prisma?: PrismaClient;
+  /**
+   * DNS resolver wired into `domainsRoute`'s `POST /:id/verify` (Phase 3,
+   * DOMAIN-02). Defaults to `nodeDnsResolver` (real `node:dns/promises`
+   * lookups) inside `domainsRoute` itself when omitted. Tests override this
+   * with a fake resolver so the verify route's status-transition logic is
+   * deterministic and CI never touches live DNS (RESEARCH Environment
+   * Availability, 03-PATTERNS.md Pattern 2).
+   */
+  dnsResolver?: DnsResolver;
 };
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -100,7 +110,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     { prefix: "/api" },
   );
   await app.register(authRoute(auth));
-  await app.register(domainsRoute(prisma, auth));
+  await app.register(domainsRoute(prisma, auth, options.dnsResolver));
   await app.register(healthRoute);
   await app.register(redirectRoute);
 
