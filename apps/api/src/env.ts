@@ -43,6 +43,11 @@ export const envSchema = z.object({
       message:
         "BETTER_AUTH_SECRET is still the .env.example placeholder — generate a real secret (e.g. `openssl rand -base64 32`).",
     }),
+  // First-admin bootstrap (D-01): the invite-only allowlist starts empty,
+  // so a fresh deployment must name one seeded owner/admin email or nobody
+  // can ever log in. Required (not optional) — fail fast at boot rather
+  // than silently shipping an un-loginable instance.
+  INITIAL_ADMIN_EMAIL: z.email(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -26,3 +26,11 @@ allowBuilds:
   cpu-features: false
   protobufjs: false
   ssh2: false
+  # Transitive optional dependency of better-auth's kysely/drizzle adapter
+  # packages (pulled in because better-auth@1.6.x now bundles ALL its
+  # first-party adapter subpackages, including ones this project never
+  # imports). This project is Postgres-only (better-auth/adapters/prisma,
+  # bundled path per 02-RESEARCH.md A1) and never touches SQLite — same
+  # "no blanket lifecycle-script enablement" rationale as cpu-features/
+  # protobufjs/ssh2 above (threat T-01-02).
+  better-sqlite3: false
