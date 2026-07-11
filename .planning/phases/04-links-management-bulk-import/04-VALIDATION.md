@@ -1,8 +1,8 @@
 ---
 phase: 04
 slug: links-management-bulk-import
-status: draft
-nyquist_compliant: false
+status: planned
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-07-11
 ---
@@ -38,11 +38,22 @@ created: 2026-07-11
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| {N}-01-01 | 01 | 1 | LINK-01 | T-04-XX | {expected secure behavior} | unit | `{command}` | ❌ W0 | ⬜ pending |
+| 04-01-01 | 01 | 1 | LINK-01, LINK-08 | T-04-SC-Gate | csv-parse/nanoid installed only after human supply-chain sign-off | human-check | blocking-human checkpoint (npmjs.com verify) | ❌ W0 | ⬜ pending |
+| 04-01-02 | 01 | 1 | LINK-01, LINK-08 | T-04-SC-Gate | both packages resolve under ESM; no unapproved build script | integration | `pnpm --filter @kurzly/api exec node -e "…" && tsc --noEmit` | ❌ W0 | ⬜ pending |
+| 04-02-01 | 02 | 2 | LINK-01 | — | Link model migrated to real Postgres; generated client exposes Link | migration | `pnpm --filter @kurzly/api exec prisma migrate status && grep -c slug generated/…/Link.ts` | ❌ W0 | ⬜ pending |
+| 04-02-02 | 02 | 2 | LINK-01, LINK-02 | T-04-BYPASS, T-04-SCHEME, T-04-RESERVED, T-04-AUTHZ, T-04-RACE | single validated write path; reject non-http(s); reserved+per-domain-unique slug; non-member denied | integration | `pnpm --filter @kurzly/api test -- --run test/links.integration.test.ts` (+ single-insert-site grep=1) | ❌ W0 | ⬜ pending |
+| 04-02-03 | 02 | 2 | LINK-01, LINK-02, LINK-03 | T-04-AUTHZ, T-04-MASS | POST create (auto/custom slug); GET scoped list/search/filter; body allowlist | integration | `pnpm --filter @kurzly/api test -- --run test/links.integration.test.ts` | ❌ W0 | ⬜ pending |
+| 04-03-01 | 03 | 3 | LINK-05, LINK-07 | T-04-IDOR | detail/delete gated by findUnique→requireDomainAccess(link.domainId); 404-for-both | integration | `pnpm --filter @kurzly/api test -- --run test/links.integration.test.ts` | ❌ W0 | ⬜ pending |
+| 04-03-02 | 03 | 3 | LINK-06 | T-04-BYPASS, T-04-SCHEME, T-04-MASS | edit target/slug via validated core; same reserved/collision/scheme rules; no domain change | integration | `pnpm --filter @kurzly/api test -- --run test/links.integration.test.ts` | ❌ W0 | ⬜ pending |
+| 04-04-01 | 04 | 4 | LINK-08 | T-04-BYPASS | runImport parses once, sequential loop, single insert site preserved | integration | comment-filtered `link.create(` grep=1 + `tsc --noEmit` | ❌ W0 | ⬜ pending |
+| 04-04-02 | 04 | 4 | LINK-08 | T-04-BYPASS, T-04-AUTHZ, T-04-RESERVED, T-04-DOS | no-bypass proof (commit count==validCount, zero rows for skipped); 4 skip reasons; preview zero-write; row cap | integration | `pnpm --filter @kurzly/api test -- --run test/links-import.integration.test.ts` | ❌ W0 | ⬜ pending |
+| 04-05-01 | 05 | 5 | LINK-03, LINK-04, UI-06 | T-04-UIAUTHZ, T-04-COPYLEAK | server-driven search/filter; full-URL copy + toast; create/delete toasts | component | `pnpm --filter @kurzly/web test -- --run src/views/LinksView.test.ts src/components/LinkFormModal.test.ts` | ❌ W0 | ⬜ pending |
+| 04-05-02 | 05 | 5 | LINK-05, LINK-06 | T-04-UIAUTHZ | detail attributes + placeholder stats; edit via modal (D-04 warning); delete | component | `pnpm --filter @kurzly/web test -- --run src/views/LinkDetailView.test.ts` | ❌ W0 | ⬜ pending |
+| 04-05-03 | 05 | 5 | LINK-08 | T-04-PREVIEWDRIFT | server-driven live preview (N valid/M skipped) with 4 skip reasons; two-phase commit | component | `pnpm --filter @kurzly/web test -- --run src/views/LinksImportView.test.ts` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
-*Planner populates concrete rows from the RESEARCH.md ## Validation Architecture section during planning.*
+*Rows populated by the planner from RESEARCH.md ## Validation Architecture. "❌ W0" = the test file is a Wave 0 gap created RED-first inside the owning plan's TDD tasks.*
 
 ---
 

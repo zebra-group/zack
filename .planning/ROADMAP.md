@@ -147,8 +147,28 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User searches/filters the link list by domain, copies a link's full URL to the clipboard (with a toast confirmation), opens its detail page (attributes + stats), edits its settings, or deletes it.
   3. User bulk-imports links from a CSV (`ziel_url, slug, domain`) with a live validation preview (N valid / M skipped); rows using a reserved slug or a domain the importing user isn't authorized for are skipped exactly as manual creation would reject them.
 
-**Plans**: TBD
+**Plans**: 5 plans
 **UI hint**: yes
+
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — Supply-chain sign-off + install csv-parse/nanoid (blocking-human checkpoint)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 04-02-PLAN.md — Link schema + [BLOCKING] migrate + DTOs + validateLinkInput/createLink/previewLink/updateLink core + POST/GET /api/links (LINK-01/02/03)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 04-03-PLAN.md — Link-by-id detail/edit/delete with IDOR guard (LINK-05/06/07, D-04)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 04-04-PLAN.md — CSV import preview+commit, two-phase, D-01 no-bypass proof (LINK-08)
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 04-05-PLAN.md — Links frontend: list/search/filter, create/edit/delete, detail, import (LINK-03/04/05/06/07/08, UI-06)
 
 ### Phase 5: Core Redirect Engine
 
@@ -253,7 +273,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 9/9 | Complete   | 2026-07-10 |
 | 2. Magic-Link Auth, App Shell & Domain Authorization Core | 6/6 | Complete    | 2026-07-11 |
 | 3. Domains & Multi-Domain TLS Routing | 4/4 | Complete    | 2026-07-11 |
-| 4. Links Management & Bulk Import | 0/TBD | Not started | - |
+| 4. Links Management & Bulk Import | 0/5 | Planned | - |
 | 5. Core Redirect Engine | 0/TBD | Not started | - |
 | 6. Internal Tracking & Analytics | 0/TBD | Not started | - |
 | 7. QR Codes (Static + Dynamic, QR Studio) | 0/TBD | Not started | - |
