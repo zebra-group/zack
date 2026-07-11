@@ -140,3 +140,7 @@ None - no external service configuration required. This plan only extends docume
 ---
 *Phase: 03-domains-multi-domain-tls-routing*
 *Completed: 2026-07-11*
+
+## Self-Check: PASSED
+
+All created/modified files verified present on disk (domainResolution.ts, tlsCheck.ts, domainResolution.test.ts, tlsCheck.integration.test.ts, reverse-proxy.md, this SUMMARY). All 5 task commit hashes (2a752db, 01bec1f, 7068163, b439d9b, 094691f) verified present in `git log --oneline --all`.
