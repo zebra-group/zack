@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { prisma } from "./setupFileEach.js";
 import {
   ForbiddenError,
@@ -75,6 +75,39 @@ describe("Authorization core (D-02)", () => {
       await expect(
         requireDomainAccess(prisma, user.id, domain.id, "member"),
       ).rejects.toThrow(ForbiddenError);
+    });
+
+    it("CR-01 regression: DENIES access when the membership row holds a role outside the known enum (fail-closed, not fail-open)", async () => {
+      // `DomainMembership.role` is now a native Postgres enum (schema.prisma),
+      // so this can no longer happen via any normal Prisma write — this test
+      // stubs `findUnique`'s resolved value directly to prove the CODE-level
+      // guard in `requireDomainAccess` is ALSO fail-closed (defense-in-depth),
+      // independent of the schema constraint. Before the CR-01 fix,
+      // `ROLE_RANK["not-a-real-role"]` evaluated to `undefined`, and
+      // `undefined < ROLE_RANK[minRole]` is always `false` in JS — so the
+      // guard condition `!membership || false` was `false` and access was
+      // silently GRANTED. This must now throw.
+      const user = await seedUser();
+      const domain = await prisma.domain.create({ data: {} });
+      const findUniqueSpy = vi
+        .spyOn(prisma.domainMembership, "findUnique")
+        .mockResolvedValueOnce({
+          userId: user.id,
+          domainId: domain.id,
+          // Deliberately outside the Role enum — simulates a bypass of the
+          // schema-level constraint (e.g. a stale build, a downgraded
+          // migration, or a direct SQL write) to prove the code guard alone
+          // still denies.
+          role: "not-a-real-role",
+        } as never);
+
+      try {
+        await expect(
+          requireDomainAccess(prisma, user.id, domain.id, "member"),
+        ).rejects.toThrow(ForbiddenError);
+      } finally {
+        findUniqueSpy.mockRestore();
+      }
     });
   });
 

@@ -105,6 +105,19 @@ model Domain {
   memberships DomainMembership[]
 }
 
+/// Domain-scoped role hierarchy (D-02, CR-01 fix). A native Postgres enum
+/// (not a plain TEXT column) so an invalid/typo'd role value can never be
+/// persisted in the first place — defense-in-depth alongside the
+/// `requireDomainAccess` code-level guard in
+/// apps/api/src/lib/authorization.ts, which independently denies access if
+/// it ever encounters a role outside this set. Keep in sync with
+/// `ROLE_RANK`/`ROLE_HIERARCHY` (authorization.ts / packages/shared).
+enum Role {
+  member
+  admin
+  owner
+}
+
 /// Domain-scoped role membership (D-02) — the single row
 /// `requireDomainAccess`/`scopedDomainIds` (apps/api/src/lib/authorization.ts,
 /// built in 02-03) query against. Composite PK enforces exactly one role
@@ -113,7 +126,7 @@ model Domain {
 model DomainMembership {
   userId   String
   domainId String
-  role     String // "member" | "admin" | "owner" — see ROLE_HIERARCHY in packages/shared
+  role     Role
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   domain Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
