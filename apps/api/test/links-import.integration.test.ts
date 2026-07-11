@@ -388,4 +388,81 @@ describe("CSV bulk import (LINK-08, D-01/D-05)", () => {
       await app.close();
     });
   });
+
+  describe("WR-10: partial-import safety on a mid-loop unexpected error", () => {
+    it("stops processing, reports partial:true, and never loses the rows already committed", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const ownedDomainId = await seedOwnedDomain(ownerId, "wr10-owned.example.com");
+
+      const csv = [
+        "ziel_url,slug,domain",
+        "https://example.com/wr10-row1,wr10-row1,wr10-owned.example.com",
+        "https://example.com/wr10-row2,wr10-row2,wr10-owned.example.com",
+        "https://example.com/wr10-row3,wr10-row3,wr10-owned.example.com",
+      ].join("\n");
+
+      // Simulates a transient DB failure on the SECOND row's write: row 1
+      // commits normally, row 2's create throws an unexpected (non-P2002)
+      // error, row 3 is never attempted.
+      const originalCreate = prisma.link.create.bind(prisma.link);
+      let createCallCount = 0;
+      const createSpy = vi.spyOn(prisma.link, "create").mockImplementation((...args: unknown[]) => {
+        createCallCount += 1;
+        if (createCallCount === 2) {
+          throw new Error("simulated transient DB failure");
+        }
+        // @ts-expect-error - forwarding the real call's exact arguments through the spy.
+        return originalCreate(...args);
+      });
+
+      try {
+        const res = await app.inject({
+          method: "POST",
+          url: "/api/links/import/commit",
+          headers: { cookie: ownerCookie },
+          payload: { csv, defaultDomainId: ownedDomainId },
+        });
+
+        expect(res.statusCode).toBe(200);
+        const body = res.json();
+        expect(body.partial).toBe(true);
+        expect(body.importedCount).toBe(1);
+
+        // Row 1 was committed and durably persisted; rows 2/3 left zero trace.
+        const persisted = await prisma.link.findMany({ where: { domainId: ownedDomainId } });
+        expect(persisted).toHaveLength(1);
+        expect(persisted[0]?.slug).toBe("wr10-row1");
+      } finally {
+        createSpy.mockRestore();
+      }
+
+      await app.close();
+    });
+
+    it("a normal full run (no unexpected error) reports partial:false", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const ownedDomainId = await seedOwnedDomain(ownerId, "wr10-normal.example.com");
+
+      const csv = [
+        "ziel_url,slug,domain",
+        "https://example.com/wr10-normal-row1,wr10-normal-row1,wr10-normal.example.com",
+      ].join("\n");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links/import/commit",
+        headers: { cookie: ownerCookie },
+        payload: { csv, defaultDomainId: ownedDomainId },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().partial).toBe(false);
+
+      await app.close();
+    });
+  });
 });

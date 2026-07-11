@@ -140,4 +140,12 @@ export type ImportCommitResult = {
   importedCount: number;
   skippedCount: number;
   rows: ImportRowResult[];
+  /**
+   * WR-10 fix (04-REVIEW.md): `true` when the commit stopped EARLY due to
+   * an unexpected (non-validation) error partway through the CSV — `rows`
+   * reflects exactly the rows that were durably imported/skipped before
+   * that point; any rows after it were never attempted. Optional/`false`
+   * for a run that processed the entire CSV normally.
+   */
+  partial?: boolean;
 };
