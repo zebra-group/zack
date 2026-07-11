@@ -32,6 +32,16 @@ export async function seedInitialAdmin(prisma: PrismaClient, email: string): Pro
       // signup form — this is a direct DB seed); the email's local part is
       // a reasonable placeholder the operator can change later once a
       // profile-editing screen exists.
+      //
+      // IN-01: `email` is validated by `z.email()` in env.ts's
+      // `INITIAL_ADMIN_EMAIL` before this function is ever called, which
+      // guarantees an "@" is present — so `.split("@")[0]` can never
+      // actually be `undefined` for THIS caller. The `?? email` fallback
+      // is kept (not dropped) as deliberate defense-in-depth against a
+      // hypothetical future caller that bypasses the env schema, AND
+      // because `tsconfig.base.json`'s `noUncheckedIndexedAccess` types
+      // `.split("@")[0]` as `string | undefined` regardless — dropping the
+      // fallback is a type error, not just a style choice.
       name: email.split("@")[0] ?? email,
       email,
       emailVerified: true,
