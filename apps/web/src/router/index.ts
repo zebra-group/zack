@@ -12,6 +12,7 @@ import { useAuthSessionStore } from "../stores/authSession";
 import AuthErrorView from "../views/AuthErrorView.vue";
 import ComingSoonView from "../views/ComingSoonView.vue";
 import DashboardView from "../views/DashboardView.vue";
+import DomainsView from "../views/DomainsView.vue";
 import LoginView from "../views/LoginView.vue";
 
 const router = createRouter({
@@ -56,7 +57,7 @@ const router = createRouter({
     {
       path: "/domains",
       name: "domains",
-      component: ComingSoonView,
+      component: DomainsView,
       meta: { requiresAuth: true, label: "Domains" },
     },
     {
