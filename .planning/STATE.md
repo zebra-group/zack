@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 03
 current_phase_name: domains-multi-domain-tls-routing
-status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-07-11T16:07:50.479Z"
+status: verifying
+stopped_at: Completed 03-04-PLAN.md (Phase 03 complete)
+last_updated: "2026-07-11T16:21:35.246Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 10
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 19
-  completed_plans: 18
-  percent: 20
+  completed_plans: 19
+  percent: 30
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 
 Phase: 03 (domains-multi-domain-tls-routing) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-11 — Phase 03 execution started
 
 Progress: [██████████] 100%
@@ -73,6 +73,7 @@ Progress: [██████████] 100%
 | Phase 03 P01 | 20min | 3 tasks | 11 files |
 | Phase 03 P02 | 13min | 2 tasks | 5 files |
 | Phase 03 P03 | 10min | 3 tasks | 6 files |
+| Phase 03 P04 | 15min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,8 @@ Recent decisions affecting current work:
 - [Phase ?]: A failed verify leaves verifiedAt untouched — only a successful check ever stamps it, preserving pending-vs-has-failed-before information
 - [Phase 03]: 03-03: resolveActiveDomainByHost/GET /api/tls-check kept exactly to RESEARCH Pattern 4/3's spec — frozen signature for Phase 5 redirect engine reuse — Deny-by-default host guard + operator-delegated TLS ask endpoint satisfies DOMAIN-03 and Success Criterion 4 without deviation
 - [Phase 03]: 03-03: reverse-proxy.md's Caddy example uses ask-only form (no interval/burst), Domain.status is the authoritative gate — RESEARCH State of the Art flags interval/burst as deprecated in favor of Caddy's permission module
+- [Phase 03]: 03-04: ApiError class (extends Error, carries .status) added to api.ts so DomainsView can map 409/429 to exact locked copy; all prior throw sites migrated for consistency
+- [Phase 03]: 03-04: verify failures (DNS-mismatch or 429) render as an inline .verify-error-row under the domain row, never a toast — only a successful verify toasts, per 03-UI-SPEC.md's DNS-Verify-Interaction contract
 
 ### Pending Todos
 
@@ -139,6 +142,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T16:07:50.438Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-07-11T16:21:35.210Z
+Stopped at: Completed 03-04-PLAN.md (Phase 03 complete)
 Resume file: None

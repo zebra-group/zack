@@ -165,3 +165,7 @@ Per 03-UI-SPEC.md and the project's standing UI-03 pixel-fidelity requirement, t
 ---
 *Phase: 03-domains-multi-domain-tls-routing*
 *Completed: 2026-07-11*
+
+## Self-Check: PASSED
+
+All created/modified files verified present on disk (api.ts, DomainsView.vue, router/index.ts, DomainsView.test.ts, this SUMMARY). All 3 task commit hashes (84ebacb, 864877b, cdbe0cf) verified present in `git log --oneline --all`.
