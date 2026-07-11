@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 02
 current_phase_name: magic-link-auth-app-shell-domain-authorization-core
-status: executing
+status: verifying
 stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-07-11T13:04:02.454Z"
+last_updated: "2026-07-11T13:16:09.459Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 10
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 15
-  completed_plans: 14
-  percent: 10
+  completed_plans: 15
+  percent: 20
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 
 Phase: 02 (magic-link-auth-app-shell-domain-authorization-core) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-11 — Phase 02 execution started
 
 Progress: [██████████] 100%
@@ -68,6 +68,7 @@ Progress: [██████████] 100%
 | Phase 02 P03 | 5min | 1 tasks | 2 files |
 | Phase 02 P04 | 23min | 3 tasks | 10 files |
 | Phase 02 P05 | 7min | 3 tasks | 9 files |
+| Phase 02 P06 | 7min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,8 @@ Recent decisions affecting current work:
 - [Phase ?]: vitest.config.ts test env extended with BASE_URL/BETTER_AUTH_SECRET/SMTP_* placeholders since app.ts now transitively imports lib/auth.ts/lib/mailer.ts for every test file calling buildApp()
 - [Phase ?]: [Phase 02]: 02-05: theme store's watch() uses flush:'sync' so body[data-theme]/localStorage stay synchronously consistent with the reactive theme ref (Pinia/Vue's default 'pre' flush would defer the DOM write to a microtask)
 - [Phase ?]: [Phase 02]: 02-05: getSession() normalizes better-auth's raw null|{session,user} get-session response into the shared AuthSession DTO at the api.ts boundary, not left for stores/components to interpret
+- [Phase ?]: [Phase 02]: 02-06: main.ts awaits router.isReady() before app.mount() so the beforeEach guard's redirect always resolves before App.vue's first render (no flash of a protected view for unauthenticated users)
+- [Phase ?]: [Phase 02]: 02-06: test/App.test.ts rewritten (not deleted) for App.vue's new layout-switching behavior since the Phase 1 walking-skeleton canary UI it tested was fully replaced
 
 ### Pending Todos
 
@@ -125,6 +128,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T13:03:13.407Z
+Last session: 2026-07-11T13:15:11.530Z
 Stopped at: Completed 02-04-PLAN.md
 Resume file: None

@@ -14,7 +14,7 @@ Kurzly ships as ten focused phases that build strictly bottom-up: a real-Postgre
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Test Infrastructure, Monorepo & Deployment Scaffolding** - Docker-Compose-hostable stack, ENV-driven config, persistent Postgres volume, and the real-Postgres TDD harness every later phase depends on (completed 2026-07-10)
-- [ ] **Phase 2: Magic-Link Auth, App Shell & Domain Authorization Core** - Users sign in via magic link into a pixel-accurate, theme-aware dashboard shell; the shared server-side domain-authorization helper is built here, ahead of anything it must gate
+- [x] **Phase 2: Magic-Link Auth, App Shell & Domain Authorization Core** - Users sign in via magic link into a pixel-accurate, theme-aware dashboard shell; the shared server-side domain-authorization helper is built here, ahead of anything it must gate (completed 2026-07-11)
 - [ ] **Phase 3: Domains & Multi-Domain TLS Routing** - Admins register and DNS-verify their own domains, gated on-demand TLS issuance, host-header validated
 - [ ] **Phase 4: Links Management & Bulk Import** - Users create, search, edit, and bulk-CSV-import short links across their domains through one authorized creation path
 - [ ] **Phase 5: Core Redirect Engine** - Every short-link visit resolves correctly, safely, and fast — expiration, password-gate, and bot/OG precedence enforced with zero premature leakage
@@ -85,7 +85,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The user's session survives a browser refresh, and the user can log out from any page in the app.
   4. Once signed in, the user navigates a persistent 212px sidebar + scrollable content shell matching the Hi-Fi prototype's design tokens (Geist typography, lime accent, spacing/radii) and can toggle between Light and Dark themes.
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans complete
 **UI hint**: yes
 
 **Wave 1**
@@ -104,7 +104,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 02-06-PLAN.md — App Shell (212px sidebar) + Dashboard + Coming-soon + router auth guard + logout wiring
+- [x] 02-06-PLAN.md — App Shell (212px sidebar) + Dashboard + Coming-soon + router auth guard + logout wiring
 
 ### Phase 3: Domains & Multi-Domain TLS Routing
 
@@ -238,7 +238,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 9/9 | Complete   | 2026-07-10 |
-| 2. Magic-Link Auth, App Shell & Domain Authorization Core | 5/6 | In Progress|  |
+| 2. Magic-Link Auth, App Shell & Domain Authorization Core | 6/6 | Complete   | 2026-07-11 |
 | 3. Domains & Multi-Domain TLS Routing | 0/TBD | Not started | - |
 | 4. Links Management & Bulk Import | 0/TBD | Not started | - |
 | 5. Core Redirect Engine | 0/TBD | Not started | - |

@@ -84,7 +84,7 @@
 
 ### Dashboard-UI & öffentliche Seiten
 
-- [ ] **UI-01**: Nutzer navigiert einen persistenten App-Shell (212px Sidebar + scrollbarer Content) gemäß Hi-Fi-Prototyp
+- [x] **UI-01**: Nutzer navigiert einen persistenten App-Shell (212px Sidebar + scrollbarer Content) gemäß Hi-Fi-Prototyp
 - [x] **UI-02**: Nutzer kann zwischen Light- und Dark-Theme umschalten
 - [x] **UI-03**: Alle Dashboard-Screens entsprechen pixelgenau den Design-Tokens des Prototyps (Geist-Fonts, Lime-Akzent `#d7ff01`, Spacing, Radii)
 - [ ] **UI-04**: Besucher sieht eine öffentliche Passwort-Seite (außerhalb des Dashboards) für geschützte Links
@@ -129,7 +129,7 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | AUTH-02 | Phase 2 | Complete |
 | AUTH-03 | Phase 2 | Complete |
 | AUTH-04 | Phase 2 | Complete |
-| UI-01 | Phase 2 | Pending |
+| UI-01 | Phase 2 | Complete |
 | UI-02 | Phase 2 | Complete |
 | UI-03 | Phase 2 | Complete |
 | DOMAIN-01 | Phase 3 | Pending |
