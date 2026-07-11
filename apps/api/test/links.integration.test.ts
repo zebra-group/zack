@@ -654,4 +654,183 @@ describe("Link core + routes (LINK-01/02/03, D-01/D-02/D-03)", () => {
       await app.close();
     });
   });
+
+  describe("GET /api/links/:id (route layer, IDOR guard — LINK-05)", () => {
+    it("200s with the LinkDTO for a link in the caller's own domain", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "detail-happy.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/detail",
+        slug: "detail-happy",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: ownerCookie },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body).toMatchObject({
+        id: created.link.id,
+        domainId,
+        slug: "detail-happy",
+        targetUrl: "https://example.com/detail",
+      });
+
+      await app.close();
+    });
+
+    it("404s for a non-existent link id", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/links/does-not-exist",
+        headers: { cookie: ownerCookie },
+      });
+
+      expect(res.statusCode).toBe(404);
+
+      await app.close();
+    });
+
+    it("404s (identical body to non-existent) for a link the caller cannot access — no existence leak", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "detail-forbidden.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/forbidden",
+        slug: "detail-forbidden",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const outsiderCookie = await signInAs(app, OUTSIDER_EMAIL);
+
+      const forbiddenRes = await app.inject({
+        method: "GET",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: outsiderCookie },
+      });
+      const nonexistentRes = await app.inject({
+        method: "GET",
+        url: "/api/links/does-not-exist",
+        headers: { cookie: outsiderCookie },
+      });
+
+      expect(forbiddenRes.statusCode).toBe(404);
+      expect(nonexistentRes.statusCode).toBe(404);
+      expect(forbiddenRes.json()).toEqual(nonexistentRes.json());
+
+      await app.close();
+    });
+
+    it("401s with no session", async () => {
+      const app = await buildApp({ prisma });
+
+      const res = await app.inject({ method: "GET", url: "/api/links/anything" });
+
+      expect(res.statusCode).toBe(401);
+
+      await app.close();
+    });
+  });
+
+  describe("DELETE /api/links/:id (route layer, IDOR guard — LINK-07)", () => {
+    it("204s and removes the row for an accessible link", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "delete-happy.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/delete",
+        slug: "delete-happy",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: ownerCookie },
+      });
+
+      expect(res.statusCode).toBe(204);
+      const row = await prisma.link.findUnique({ where: { id: created.link.id } });
+      expect(row).toBeNull();
+
+      await app.close();
+    });
+
+    it("404s and writes nothing for a non-existent id", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+
+      const before = await prisma.link.count();
+      const res = await app.inject({
+        method: "DELETE",
+        url: "/api/links/does-not-exist",
+        headers: { cookie: ownerCookie },
+      });
+
+      expect(res.statusCode).toBe(404);
+      const after = await prisma.link.count();
+      expect(after).toBe(before);
+
+      await app.close();
+    });
+
+    it("404s and leaves the row intact for a link the caller cannot access", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "delete-forbidden.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/delete-forbidden",
+        slug: "delete-forbidden",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const outsiderCookie = await signInAs(app, OUTSIDER_EMAIL);
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: outsiderCookie },
+      });
+
+      expect(res.statusCode).toBe(404);
+      const row = await prisma.link.findUnique({ where: { id: created.link.id } });
+      expect(row).not.toBeNull();
+
+      await app.close();
+    });
+
+    it("401s with no session", async () => {
+      const app = await buildApp({ prisma });
+
+      const res = await app.inject({ method: "DELETE", url: "/api/links/anything" });
+
+      expect(res.statusCode).toBe(401);
+
+      await app.close();
+    });
+  });
 });
