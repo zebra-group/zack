@@ -56,4 +56,16 @@ describe("Fastify app route ordering (health, SPA fallback, 404, redirect stub)"
 
     await app.close();
   });
+
+  it("GET /api/auth/get-session reaches the better-auth handler (JSON response), never the SPA shell (Pitfall 5)", async () => {
+    const app = await buildApp();
+
+    const res = await app.inject({ method: "GET", url: "/api/auth/get-session" });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("application/json");
+    expect(res.body).not.toContain("<html");
+
+    await app.close();
+  });
 });

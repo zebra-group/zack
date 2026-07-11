@@ -1,14 +1,28 @@
 /**
- * better-auth instance (AUTH-01..04, D-01, D-02b).
+ * better-auth instance factory (AUTH-01..04, D-01, D-02b).
  *
- * Single-client discipline (Pitfall 2, T-02-02): imports the SAME `prisma`
- * singleton `db.ts` already constructs (Prisma 7 + `@prisma/adapter-pg`) —
- * never a second `PrismaClient`. `prismaAdapter` comes from the BUNDLED
- * `better-auth/adapters/prisma` import (re-exports the first-party
- * `@better-auth/prisma-adapter` package, which ships as a transitive
- * dependency of `better-auth` itself — see 02-01-SUMMARY.md and
- * RESEARCH.md OQ-2's resolution). `@better-auth/prisma-adapter` is
- * deliberately NOT a direct dependency of `apps/api/package.json`.
+ * `createAuth(prisma)` is a factory — mirrors `routes/canary.ts`'s
+ * `canaryRoute(prisma)` pattern (RESEARCH Pattern 4/Standard Stack
+ * convention) — so callers supply the Prisma client the instance's
+ * `prismaAdapter` and the D-01 allowlist check (`isEmailAllowed`) both
+ * query through. Production (`app.ts`'s default path) wires `db.ts`'s
+ * singleton via the `auth` export below (Single-client discipline,
+ * Pitfall 2, T-02-02 — never a second ad hoc `PrismaClient`). Tests
+ * (02-04 Task 3, `auth.integration.test.ts`) wire the SAME
+ * transaction-wrapped client `test/setupFileEach.ts` uses via
+ * `buildApp({ prisma })` (D-09) — without this factory, the `auth`
+ * singleton would always be bound to `db.ts`'s default client, which
+ * points at a placeholder/unreachable `DATABASE_URL` under Vitest AND
+ * (even if pointed at the real testcontainers URL) would run on a
+ * SEPARATE physical connection whose writes are invisible to — and never
+ * rolled back with — the test's own BEGIN/ROLLBACK transaction.
+ *
+ * `prismaAdapter` comes from the BUNDLED `better-auth/adapters/prisma`
+ * import (re-exports the first-party `@better-auth/prisma-adapter`
+ * package, which ships as a transitive dependency of `better-auth` itself
+ * — see 02-01-SUMMARY.md and RESEARCH.md OQ-2's resolution).
+ * `@better-auth/prisma-adapter` is deliberately NOT a direct dependency of
+ * `apps/api/package.json`.
  *
  * `magicLink()` is the ONLY login plugin (no email/password, no SSO in
  * this phase). `disableSignUp: true` blocks auto-creation of a `User` row
@@ -30,7 +44,8 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { magicLink } from "better-auth/plugins";
-import { prisma } from "../db.js";
+import { prisma as defaultPrisma } from "../db.js";
+import type { PrismaClient } from "../generated/prisma/client.js";
 import { isEmailAllowed } from "./allowlist.js";
 import { sendMagicLinkEmail } from "./mailer.js";
 
@@ -42,31 +57,35 @@ function requireEnv(key: string): string {
   return value;
 }
 
-export const auth = betterAuth({
-  baseURL: requireEnv("BASE_URL"),
-  secret: requireEnv("BETTER_AUTH_SECRET"),
-  database: prismaAdapter(prisma, { provider: "postgresql" }),
-  session: {
-    // 7-day sliding session (AUTH-03): survives a browser refresh, and the
-    // 1-day `updateAge` refreshes the expiry on activity rather than
-    // forcing a hard 7-day logout.
-    expiresIn: 60 * 60 * 24 * 7,
-    updateAge: 60 * 60 * 24,
-  },
-  plugins: [
-    magicLink({
-      expiresIn: 900, // 15 minutes — AUTH-02
-      disableSignUp: true, // D-01 — no auto-signup, invite-only
-      sendMagicLink: async ({ email, url }) => {
-        // D-01 neutral response: the allowlist check lives INSIDE this
-        // callback, never in a separate pre-check route (T-02-01). A
-        // non-allowlisted email returns silently — no throw, no error
-        // object — so better-auth's own response to the client is
-        // byte-identical to the allowlisted path.
-        const allowed = await isEmailAllowed(prisma, email);
-        if (!allowed) return;
-        await sendMagicLinkEmail({ to: email, url });
-      },
-    }),
-  ],
-});
+export function createAuth(prisma: PrismaClient) {
+  return betterAuth({
+    baseURL: requireEnv("BASE_URL"),
+    secret: requireEnv("BETTER_AUTH_SECRET"),
+    database: prismaAdapter(prisma, { provider: "postgresql" }),
+    session: {
+      // 7-day sliding session (AUTH-03): survives a browser refresh, and the
+      // 1-day `updateAge` refreshes the expiry on activity rather than
+      // forcing a hard 7-day logout.
+      expiresIn: 60 * 60 * 24 * 7,
+      updateAge: 60 * 60 * 24,
+    },
+    plugins: [
+      magicLink({
+        expiresIn: 900, // 15 minutes — AUTH-02
+        disableSignUp: true, // D-01 — no auto-signup, invite-only
+        sendMagicLink: async ({ email, url }) => {
+          // D-01 neutral response: the allowlist check lives INSIDE this
+          // callback, never in a separate pre-check route (T-02-01). A
+          // non-allowlisted email returns silently — no throw, no error
+          // object — so better-auth's own response to the client is
+          // byte-identical to the allowlisted path.
+          const allowed = await isEmailAllowed(prisma, email);
+          if (!allowed) return;
+          await sendMagicLinkEmail({ to: email, url });
+        },
+      }),
+    ],
+  });
+}
+
+export const auth = createAuth(defaultPrisma);
