@@ -116,7 +116,7 @@ describe("LinksView", () => {
     expect(rows[1]!.text()).toContain("/xyz789");
   });
 
-  it("typing in the search field calls listLinks with the matching q param", async () => {
+  it("typing in the search field calls listLinks with the matching q param after the debounce (WR-08)", async () => {
     listDomains.mockResolvedValue([]);
     listLinks.mockResolvedValue([]);
 
@@ -124,9 +124,47 @@ describe("LinksView", () => {
     listLinks.mockClear();
 
     await wrapper.find(".search-input").setValue("hello");
+    // Debounced (WR-08, 04-REVIEW.md) — wait it out for real rather than
+    // mocking timers, to avoid entangling this with @vue/test-utils'
+    // flushPromises (which itself uses a real setTimeout(0) internally).
+    await new Promise((resolve) => setTimeout(resolve, 350));
     await flushPromises();
 
     expect(listLinks).toHaveBeenCalledWith({ q: "hello" });
+  });
+
+  it("WR-08: discards a stale search response that resolves after a newer one", async () => {
+    listDomains.mockResolvedValue([]);
+    listLinks.mockResolvedValueOnce([]); // initial load on mount
+
+    const { wrapper } = await mountLinksView();
+    listLinks.mockClear();
+
+    let resolveStale: (value: LinkDTO[]) => void = () => {};
+    const stalePromise = new Promise<LinkDTO[]>((resolve) => {
+      resolveStale = resolve;
+    });
+    const freshResult = [makeLink({ id: "fresh", slug: "fresh-slug" })];
+
+    listLinks.mockImplementationOnce(() => stalePromise); // first (stale) debounced call
+    listLinks.mockResolvedValueOnce(freshResult); // second (fresh) debounced call
+
+    await wrapper.find(".search-input").setValue("a");
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    await flushPromises();
+
+    await wrapper.find(".search-input").setValue("ab");
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    await flushPromises();
+
+    // Resolve the stale (first) request AFTER the fresh (second) one has
+    // already resolved and rendered.
+    resolveStale([makeLink({ id: "stale", slug: "stale-slug" })]);
+    await flushPromises();
+
+    const text = wrapper.text();
+    expect(text).toContain("fresh-slug");
+    expect(text).not.toContain("stale-slug");
   });
 
   it("clicking a domain filter tab calls listLinks with the matching domainId param", async () => {
