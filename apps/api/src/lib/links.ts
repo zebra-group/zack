@@ -487,6 +487,16 @@ export async function runImport(
   defaultDomainId: string | undefined,
   mutate: boolean,
 ): Promise<ImportRunResult> {
+  // IN-05 (04-REVIEW.md, accepted — no action, per the review's own
+  // recommendation): `csv-parse` fully parses `csvText` into `rows` BEFORE
+  // the `MAX_IMPORT_ROWS` cap below is checked, so an oversized-but-short
+  // row CSV pays the full parse cost ahead of rejection. Low practical
+  // impact given IN-02's now-EXPLICIT `CSV_MAX_LENGTH` (routes/links.ts)
+  // and the endpoint's `LINK_IMPORT_RATE_LIMIT` (5 req/15min,
+  // plugins/rateLimit.ts) both already bound the same resource. A
+  // streaming parse with early-abort would close this fully but is not
+  // justified at current scale — revisit only if this becomes a measured
+  // problem.
   const rows: CsvRow[] = parse(csvText, { columns: true, skip_empty_lines: true, trim: true });
   if (rows.length > MAX_IMPORT_ROWS) {
     throw new Error(`CSV exceeds ${MAX_IMPORT_ROWS} row limit`);
