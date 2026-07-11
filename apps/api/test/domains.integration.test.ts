@@ -12,6 +12,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
+import type { DnsResolver } from "../src/lib/dnsClient.js";
 import { seedInitialAdmin } from "../src/lib/admin-seed.js";
 import { sendMagicLinkEmail } from "../src/lib/mailer.js";
 import { prisma } from "./setupFileEach.js";
@@ -69,6 +70,18 @@ async function signInAs(
     url: `/api/auth/magic-link/verify?token=${encodeURIComponent(token)}`,
   });
   return toCookieHeader(verifyRes.headers["set-cookie"]);
+}
+
+/**
+ * Injectable fake resolver (03-02, mirrors dnsClient.test.ts) — used to
+ * deterministically drive the verify route's status transitions without
+ * ever touching real DNS in CI (RESEARCH Environment Availability).
+ */
+function fakeDnsResolver(cnameRecords: string[], aRecords: string[]): DnsResolver {
+  return {
+    resolveCname: async () => cnameRecords,
+    resolve4: async () => aRecords,
+  };
 }
 
 describe("Domain registration + list (DOMAIN-01, D-04, RESEARCH A1)", () => {
@@ -273,6 +286,276 @@ describe("Domain registration + list (DOMAIN-01, D-04, RESEARCH A1)", () => {
       const res = await app.inject({ method: "GET", url: "/api/domains" });
 
       expect(res.statusCode).toBe(401);
+
+      await app.close();
+    });
+  });
+
+  describe("POST /api/domains/:id/verify (DOMAIN-02, D-04)", () => {
+    it("owner/admin + matching fake resolver → 200, status flips to active, verifiedAt + lastCheckedAt set", async () => {
+      const matchingResolver = fakeDnsResolver(["shortener.kurzly.local"], []);
+      const app = await buildApp({ prisma, dnsResolver: matchingResolver });
+      const cookieHeader = await signInAs(app, ADMIN_EMAIL);
+
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: cookieHeader },
+        payload: { hostname: "verify-match.example.com", type: "subdomain" },
+      });
+      const domainId = created.json().id as string;
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/domains/${domainId}/verify`,
+        headers: { cookie: cookieHeader },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.status).toBe("active");
+
+      const row = await prisma.domain.findUniqueOrThrow({ where: { id: domainId } });
+      expect(row.status).toBe("active");
+      expect(row.verifiedAt).not.toBeNull();
+      expect(row.lastCheckedAt).not.toBeNull();
+      expect(row.lastCheckError).toBeNull();
+
+      await app.close();
+    });
+
+    it("owner/admin + non-matching fake resolver → 200, status flips to failed, lastCheckError set", async () => {
+      const nonMatchingResolver = fakeDnsResolver(["wrong.target.example"], []);
+      const app = await buildApp({ prisma, dnsResolver: nonMatchingResolver });
+      const cookieHeader = await signInAs(app, ADMIN_EMAIL);
+
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: cookieHeader },
+        payload: { hostname: "verify-mismatch.example.com", type: "subdomain" },
+      });
+      const domainId = created.json().id as string;
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/domains/${domainId}/verify`,
+        headers: { cookie: cookieHeader },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.status).toBe("failed");
+
+      const row = await prisma.domain.findUniqueOrThrow({ where: { id: domainId } });
+      expect(row.status).toBe("failed");
+      expect(row.lastCheckError).toBeTruthy();
+      expect(row.verifiedAt).toBeNull();
+
+      await app.close();
+    });
+
+    it("member-role caller → 403 (deny-by-default, requireDomainAccess admin+)", async () => {
+      const app = await buildApp({ prisma, dnsResolver: fakeDnsResolver(["irrelevant"], []) });
+      const ownerCookie = await signInAs(app, ADMIN_EMAIL);
+
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: ownerCookie },
+        payload: { hostname: "verify-member-denied.example.com", type: "subdomain" },
+      });
+      const domainId = created.json().id as string;
+
+      const memberCookie = await signInAs(app, SECOND_USER_EMAIL);
+      const memberSession = await app.inject({
+        method: "GET",
+        url: "/api/auth/get-session",
+        headers: { cookie: memberCookie },
+      });
+      const memberUserId = memberSession.json()?.user?.id as string;
+      await prisma.domainMembership.create({
+        data: { userId: memberUserId, domainId, role: "member" },
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/domains/${domainId}/verify`,
+        headers: { cookie: memberCookie },
+      });
+
+      expect(res.statusCode).toBe(403);
+
+      await app.close();
+    });
+
+    it("unknown domain id → 403 (deny-by-default, no membership row)", async () => {
+      const app = await buildApp({ prisma, dnsResolver: fakeDnsResolver([], []) });
+      const cookieHeader = await signInAs(app, ADMIN_EMAIL);
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/domains/nonexistent-domain-id/verify",
+        headers: { cookie: cookieHeader },
+      });
+
+      expect(res.statusCode).toBe(403);
+
+      await app.close();
+    });
+  });
+
+  describe("DELETE /api/domains/:id (D-04)", () => {
+    it("owner/admin → 204 and the row is gone", async () => {
+      const app = await buildApp({ prisma });
+      const cookieHeader = await signInAs(app, ADMIN_EMAIL);
+
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: cookieHeader },
+        payload: { hostname: "delete-me.example.com", type: "subdomain" },
+      });
+      const domainId = created.json().id as string;
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/domains/${domainId}`,
+        headers: { cookie: cookieHeader },
+      });
+
+      expect(res.statusCode).toBe(204);
+
+      const row = await prisma.domain.findUnique({ where: { id: domainId } });
+      expect(row).toBeNull();
+
+      await app.close();
+    });
+
+    it("member-role caller → 403", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, ADMIN_EMAIL);
+
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: ownerCookie },
+        payload: { hostname: "delete-member-denied.example.com", type: "subdomain" },
+      });
+      const domainId = created.json().id as string;
+
+      const memberCookie = await signInAs(app, SECOND_USER_EMAIL);
+      const memberSession = await app.inject({
+        method: "GET",
+        url: "/api/auth/get-session",
+        headers: { cookie: memberCookie },
+      });
+      const memberUserId = memberSession.json()?.user?.id as string;
+      await prisma.domainMembership.create({
+        data: { userId: memberUserId, domainId, role: "member" },
+      });
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/domains/${domainId}`,
+        headers: { cookie: memberCookie },
+      });
+
+      expect(res.statusCode).toBe(403);
+
+      const row = await prisma.domain.findUnique({ where: { id: domainId } });
+      expect(row).not.toBeNull();
+
+      await app.close();
+    });
+  });
+
+  describe("GET /api/domains/:id/instructions (DOMAIN-04, D-04)", () => {
+    it("subdomain → returns a CNAME record line", async () => {
+      const app = await buildApp({ prisma });
+      const cookieHeader = await signInAs(app, ADMIN_EMAIL);
+
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: cookieHeader },
+        payload: { hostname: "instructions-sub.example.com", type: "subdomain" },
+      });
+      const domainId = created.json().id as string;
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/domains/${domainId}/instructions`,
+        headers: { cookie: cookieHeader },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.type).toBe("subdomain");
+      expect(body.instructions).toContain("IN  CNAME");
+      expect(body.alternativeForApex).toBeNull();
+
+      await app.close();
+    });
+
+    it("apex → returns an A record line plus a non-null ALIAS alternative", async () => {
+      const app = await buildApp({ prisma });
+      const cookieHeader = await signInAs(app, ADMIN_EMAIL);
+
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: cookieHeader },
+        payload: { hostname: "instructions-apex.example.com", type: "apex" },
+      });
+      const domainId = created.json().id as string;
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/domains/${domainId}/instructions`,
+        headers: { cookie: cookieHeader },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.type).toBe("apex");
+      expect(body.instructions).toContain("IN  A");
+      expect(body.alternativeForApex).toBeTruthy();
+      expect(body.alternativeForApex).toContain("ALIAS");
+
+      await app.close();
+    });
+
+    it("member-role caller → 403", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, ADMIN_EMAIL);
+
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: ownerCookie },
+        payload: { hostname: "instructions-member-denied.example.com", type: "subdomain" },
+      });
+      const domainId = created.json().id as string;
+
+      const memberCookie = await signInAs(app, SECOND_USER_EMAIL);
+      const memberSession = await app.inject({
+        method: "GET",
+        url: "/api/auth/get-session",
+        headers: { cookie: memberCookie },
+      });
+      const memberUserId = memberSession.json()?.user?.id as string;
+      await prisma.domainMembership.create({
+        data: { userId: memberUserId, domainId, role: "member" },
+      });
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/domains/${domainId}/instructions`,
+        headers: { cookie: memberCookie },
+      });
+
+      expect(res.statusCode).toBe(403);
 
       await app.close();
     });
