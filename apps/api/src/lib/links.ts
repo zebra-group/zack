@@ -175,7 +175,20 @@ async function resolveSlug(
   return { ok: false, error: "SLUG_GENERATION_EXHAUSTED" };
 }
 
-export type ValidatedLink = { domainId: string; targetUrl: string; slug: string; title?: string };
+/**
+ * `title?: string | null` (WR-02 fix, 04-REVIEW.md): `null` is a genuine
+ * "clear the title" signal that must survive all the way to Prisma's
+ * `update` call, distinct from `undefined` ("field omitted, don't touch
+ * it"). Widened alongside `ValidateLinkInputParams.title` below so a
+ * PATCH's `title: null` is never collapsed into `undefined` on the way
+ * through this core.
+ */
+export type ValidatedLink = {
+  domainId: string;
+  targetUrl: string;
+  slug: string;
+  title?: string | null;
+};
 export type ValidationResult =
   | { ok: true; data: ValidatedLink }
   | { ok: false; error: LinkErrorCode };
@@ -185,7 +198,7 @@ export type ValidateLinkInputParams = {
   domainId: string;
   targetUrl: string;
   slug?: string;
-  title?: string;
+  title?: string | null;
   /** Set by `updateLink` so a link's own current slug never false-collides with itself. */
   excludeLinkId?: string;
 };

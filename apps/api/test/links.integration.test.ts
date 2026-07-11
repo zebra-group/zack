@@ -1091,5 +1091,152 @@ describe("Link core + routes (LINK-01/02/03, D-01/D-02/D-03)", () => {
 
       await app.close();
     });
+
+    it("WR-01: an explicit empty-string slug 400s instead of silently regenerating a new slug", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "patch-empty-slug.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/empty-slug",
+        slug: "patch-empty-slug-original",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: ownerCookie },
+        payload: { slug: "" },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error).toBe("SLUG_INVALID_SHAPE");
+
+      // The slug must be UNCHANGED — never silently regenerated.
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: created.link.id } });
+      expect(row.slug).toBe("patch-empty-slug-original");
+
+      await app.close();
+    });
+
+    it("WR-01: a whitespace-only slug 400s the same way as an empty string", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "patch-whitespace-slug.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/whitespace-slug",
+        slug: "patch-whitespace-slug-original",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: ownerCookie },
+        payload: { slug: "   " },
+      });
+
+      expect(res.statusCode).toBe(400);
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: created.link.id } });
+      expect(row.slug).toBe("patch-whitespace-slug-original");
+
+      await app.close();
+    });
+
+    it("WR-01: an OMITTED slug keeps the current slug unchanged (control case)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "patch-omitted-slug.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/omitted-slug",
+        slug: "patch-omitted-slug-original",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: ownerCookie },
+        payload: { targetUrl: "https://example.com/omitted-slug-2" },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().slug).toBe("patch-omitted-slug-original");
+
+      await app.close();
+    });
+
+    it("WR-02: title:null clears an existing title", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "patch-title-clear.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/title-clear",
+        slug: "patch-title-clear",
+        title: "Original Title",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: created.link.id } });
+      expect(row.title).toBe("Original Title");
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: ownerCookie },
+        payload: { title: null },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().title).toBeNull();
+
+      const clearedRow = await prisma.link.findUniqueOrThrow({ where: { id: created.link.id } });
+      expect(clearedRow.title).toBeNull();
+
+      await app.close();
+    });
+
+    it("WR-02: an OMITTED title keeps the current title unchanged (control case)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "patch-title-keep.example.com");
+      const created = await createLink(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com/title-keep",
+        slug: "patch-title-keep",
+        title: "Keep Me",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) throw new Error("setup failed");
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${created.link.id}`,
+        headers: { cookie: ownerCookie },
+        payload: { targetUrl: "https://example.com/title-keep-2" },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().title).toBe("Keep Me");
+
+      await app.close();
+    });
   });
 });
