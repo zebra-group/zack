@@ -21,7 +21,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { Link, PrismaClient } from "../generated/prisma/client.js";
 import type { createAuth } from "../lib/auth.js";
-import { createLink, type LinkErrorCode, toLinkDto } from "../lib/links.js";
+import { createLink, type LinkErrorCode, toLinkDto, updateLink } from "../lib/links.js";
 import { ForbiddenError, requireDomainAccess, scopedDomainIds } from "../lib/authorization.js";
 import { LINK_CREATE_RATE_LIMIT } from "../plugins/rateLimit.js";
 
@@ -38,6 +38,18 @@ const createLinkSchema = z.object({
   targetUrl: z.string().min(1),
   slug: z.string().optional(),
   title: z.string().max(200).optional(),
+});
+
+/**
+ * PATCH request-body allowlist (D-04, T-04-MASS) — deliberately excludes
+ * `domainId`/`createdBy`/`id`: the domain a Link belongs to is NOT
+ * editable via this route (LINK-06 scope), and a client can never re-home
+ * a Link to another domain or spoof its creator via edit.
+ */
+const updateLinkSchema = z.object({
+  targetUrl: z.string().min(1).optional(),
+  slug: z.string().optional(),
+  title: z.string().max(200).nullable().optional(),
 });
 
 /** Maps a `LinkErrorCode` (lib/links.ts) to the HTTP status the route returns. */
@@ -183,6 +195,50 @@ export function linksRoute(prisma: PrismaClient, auth: Auth) {
 
       await prisma.link.delete({ where: { id } });
       return reply.code(204).send();
+    });
+
+    // PATCH /api/links/:id — edit target/title/slug (LINK-06, D-04), same
+    // IDOR guard as GET/DELETE. Delegates every write to lib/links.ts's
+    // updateLink (the D-01 sole Prisma-Link-update call site) — this route
+    // never touches the Link row directly. domainId is deliberately NOT
+    // editable (allowlist excludes it); the domain that resolveOwnedLink
+    // already authorized against is carried forward unchanged. A field
+    // omitted from the body keeps its current persisted value (slug
+    // omitted -> re-validates the link's OWN current slug via
+    // excludeLinkId, never a false SLUG_TAKEN, per D-04's re-save
+    // guarantee).
+    app.patch("/api/links/:id", async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = await resolveUserId(auth, request);
+      if (!userId) return reply.code(401).send({ error: "Unauthorized" });
+
+      const { id } = request.params as { id: string };
+      const link = await resolveOwnedLink(prisma, userId, id);
+      if (!link) return reply.code(404).send({ error: "Not found" });
+
+      const parsed = updateLinkSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Invalid link data" });
+      }
+
+      const result = await updateLink(prisma, id, {
+        userId,
+        domainId: link.domainId,
+        targetUrl: parsed.data.targetUrl ?? link.targetUrl,
+        slug: parsed.data.slug ?? link.slug,
+        title:
+          parsed.data.title !== undefined ? (parsed.data.title ?? undefined) : (link.title ?? undefined),
+      });
+
+      if (!result.ok) {
+        if (result.error === "NOT_FOUND") {
+          // Cannot occur in practice — resolveOwnedLink already proved the
+          // row exists — but keep the branch so the mapping stays total.
+          return reply.code(404).send({ error: "Not found" });
+        }
+        return reply.code(statusForLinkError(result.error)).send({ error: result.error });
+      }
+
+      return reply.send(toLinkDto(result.link));
     });
   };
 }
