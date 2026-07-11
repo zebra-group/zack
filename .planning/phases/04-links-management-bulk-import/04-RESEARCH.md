@@ -525,7 +525,12 @@ async function generateUniqueSlug(prisma: PrismaClient, domainId: string): Promi
 
 **If this table is empty:** N/A — see entries above; all are low-to-moderate risk and none block planning.
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All three resolved with the recommended option and bound to the plans (confirmed at plan-review, 2026-07-11):
+> 1. **createdBy on user removal** → RESOLVED: nullable `createdBy` + `onDelete: SetNull` (data-preserving) — applied in 04-02 Task 1 (Link schema).
+> 2. **Custom-slug charset/length** → RESOLVED: `[a-zA-Z0-9_-]`, length 2–32 — applied in 04-02 Task 2 (validateLinkInput custom-slug rule).
+> 3. **CSV row limit as ENV var?** → RESOLVED: No — `MAX_IMPORT_ROWS = 500` stays a code-level safety constant (not operator-tunable), applied in 04-04 Task 1. INFRA-02 governs deployment/instance config, not internal safety bounds.
 
 1. **Should `createdBy` cascade-delete or null-out when a User is removed (Phase 9, TEAM-05)?**
    - What we know: `DomainMembership.userId` uses `onDelete: Cascade`. Links reference a creator too.
