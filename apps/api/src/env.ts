@@ -16,6 +16,20 @@
 import { z } from "zod";
 
 /**
+ * Single source of truth for the Domain-verification fallback literals
+ * (IN-02) — `envSchema`'s own `.default()`s below reference these directly,
+ * and `routes/domains.ts`'s `computeVerificationTarget` imports the SAME
+ * constants for its `process.env`-read fallback (that module intentionally
+ * reads `process.env` directly rather than the parsed `loadEnv()` result,
+ * see its own header comment, so it needs its own fallback — but now both
+ * boot paths can never drift apart on what that fallback actually is).
+ */
+export const DOMAIN_VERIFICATION_DEFAULTS = {
+  CNAME_TARGET: "shortener.kurzly.local",
+  A_RECORD_IP: "0.0.0.0",
+} as const;
+
+/**
  * Exported so `test/env-example-drift.test.ts` can introspect the schema
  * shape and assert `.env.example` documents exactly this key set — the
  * schema is the single source of truth (see plan 01-04 task 2).
@@ -64,12 +78,12 @@ export const envSchema = z.object({
   // owners must point their DNS at. Optional with a fail-safe default so a
   // fresh deployment still boots before the operator configures a real
   // value; used to compute Domain.verificationTarget for `type: subdomain`.
-  CNAME_TARGET: z.string().min(1).optional().default("shortener.kurzly.local"),
+  CNAME_TARGET: z.string().min(1).optional().default(DOMAIN_VERIFICATION_DEFAULTS.CNAME_TARGET),
   // Domain verification (Phase 3, D-02) — the fixed A-record IPv4 apex
   // domain owners must point their DNS at. Optional with a fail-safe
   // default (mirrors CNAME_TARGET); used to compute Domain.verificationTarget
   // for `type: apex`.
-  A_RECORD_IP: z.ipv4().optional().default("0.0.0.0"),
+  A_RECORD_IP: z.ipv4().optional().default(DOMAIN_VERIFICATION_DEFAULTS.A_RECORD_IP),
 });
 
 export type Env = z.infer<typeof envSchema>;
