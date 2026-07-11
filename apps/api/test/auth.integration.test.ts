@@ -141,6 +141,22 @@ describe("Magic-link authentication (AUTH-01..04, D-01 neutral response)", () =>
     expect(rawSetCookie).toBeDefined();
     const rawCookies = Array.isArray(rawSetCookie) ? rawSetCookie : [rawSetCookie];
     expect(rawCookies.some((cookie) => /httponly/i.test(cookie ?? ""))).toBe(true);
+    // IN-02: `SameSite=Lax` is unconditional in better-auth's cookie
+    // defaults (dist/cookies/index.mjs) — assert it so a future config
+    // change (or a better-auth major bump) fails this test instead of
+    // silently shipping a weaker default.
+    expect(rawCookies.some((cookie) => /samesite=lax/i.test(cookie ?? ""))).toBe(true);
+    // `Secure` is NOT asserted here: better-auth derives it from whether
+    // `BASE_URL` starts with "https://" (same source file) — this test
+    // suite's `BASE_URL` is `http://localhost:3000` (vitest.config.ts's
+    // test env, mirroring local dev), so `Secure` is correctly absent in
+    // THIS environment. Confirmed empirically: the raw header here is
+    // `...; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax` with no
+    // `Secure` token. Asserting `Secure` present would be a false claim
+    // about this test's own config, not a regression guard — the
+    // `BASE_URL`->`Secure` derivation is better-auth's own behavior, not
+    // this codebase's, and isn't re-tested here.
+    expect(rawCookies.some((cookie) => /;\s*secure(;|$)/i.test(cookie ?? ""))).toBe(false);
 
     await app.close();
   });
