@@ -13,6 +13,9 @@ import AuthErrorView from "../views/AuthErrorView.vue";
 import ComingSoonView from "../views/ComingSoonView.vue";
 import DashboardView from "../views/DashboardView.vue";
 import DomainsView from "../views/DomainsView.vue";
+import LinkDetailView from "../views/LinkDetailView.vue";
+import LinksImportView from "../views/LinksImportView.vue";
+import LinksView from "../views/LinksView.vue";
 import LoginView from "../views/LoginView.vue";
 
 const router = createRouter({
@@ -39,7 +42,19 @@ const router = createRouter({
     {
       path: "/links",
       name: "links",
-      component: ComingSoonView,
+      component: LinksView,
+      meta: { requiresAuth: true, label: "Links" },
+    },
+    {
+      path: "/links/import",
+      name: "links-import",
+      component: LinksImportView,
+      meta: { requiresAuth: true, label: "Links" },
+    },
+    {
+      path: "/links/:id",
+      name: "link-detail",
+      component: LinkDetailView,
       meta: { requiresAuth: true, label: "Links" },
     },
     {
