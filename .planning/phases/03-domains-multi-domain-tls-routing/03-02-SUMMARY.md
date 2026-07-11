@@ -171,3 +171,7 @@ None - no external service configuration required. `VERIFY_RATE_LIMIT` (10/5min)
 ---
 *Phase: 03-domains-multi-domain-tls-routing*
 *Completed: 2026-07-11*
+
+## Self-Check: PASSED
+
+All created/modified files verified present on disk (dnsClient.ts, dnsClient.test.ts, routes/domains.ts, app.ts, domains.integration.test.ts, this SUMMARY). All 4 task commit hashes (d425010, 5cda540, 7c80111, 618bf13) verified present in `git log --oneline --all`.
