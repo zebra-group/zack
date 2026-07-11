@@ -13,7 +13,7 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import type { DomainDTO, LinkDTO } from "@kurzly/shared";
-import { createLink, deleteLink, listDomains, listLinks, updateLink } from "../api";
+import { createLink, deleteLink, listDomains, listLinks, mapLinkFormError, updateLink } from "../api";
 import LinkFormModal from "../components/LinkFormModal.vue";
 
 const router = useRouter();
@@ -94,6 +94,22 @@ function selectDomain(domainId: string | null): void {
   loadLinks();
 }
 
+// WR-09 fix (04-REVIEW.md): `mapLinkFormError` returns `{}` for ANY error
+// it cannot render as an inline field error — not just a raw network
+// failure (non-ApiError), but also an `ApiError` whose `code` this
+// mapper has no case for (e.g. a 403 the modal has no dedicated field
+// for). Either way the modal would otherwise show NOTHING: no inline
+// error, no toast, submission just silently does nothing. Falling back to
+// a toast whenever no field error was produced closes that gap
+// completely, not only the non-ApiError slice of it.
+function reportFormError(err: unknown): void {
+  formError.value = err;
+  const mapped = mapLinkFormError(err);
+  if (!mapped.targetUrlError && !mapped.slugError) {
+    showToast("Speichern fehlgeschlagen. Bitte erneut versuchen.");
+  }
+}
+
 function openCreateModal(): void {
   formError.value = null;
   showCreateModal.value = true;
@@ -128,7 +144,7 @@ async function handleCreateSubmit(payload: {
     closeCreateModal();
     showToast(`${hostnameFor(created.domainId)}/${created.slug} erstellt`);
   } catch (err) {
-    formError.value = err;
+    reportFormError(err);
   }
 }
 
@@ -160,7 +176,7 @@ async function handleEditSubmit(payload: { targetUrl: string; slug?: string }): 
     closeEditModal();
     showToast("Änderungen gespeichert");
   } catch (err) {
-    formError.value = err;
+    reportFormError(err);
   }
 }
 

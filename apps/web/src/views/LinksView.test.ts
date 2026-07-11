@@ -206,6 +206,23 @@ describe("LinksView", () => {
     expect(wrapper.find(".toast").text()).toBe("s.meinefirma.de/neu1 erstellt");
   });
 
+  it("WR-09: a non-ApiError create failure (e.g. a network error) surfaces a fallback toast instead of failing silently", async () => {
+    listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+    listLinks.mockResolvedValue([]);
+    createLink.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const { wrapper } = await mountLinksView();
+
+    await wrapper.find(".primary-button").trigger("click");
+    await flushPromises();
+
+    await wrapper.find(".field-input.mono").setValue("https://example.com/n");
+    await wrapper.find(".btn-primary").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find(".toast").text()).toBe("Speichern fehlgeschlagen. Bitte erneut versuchen.");
+  });
+
   it("copy composes the FULL https URL, calls the clipboard, and toasts 'Link kopiert'", async () => {
     listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
     listLinks.mockResolvedValue([makeLink({ id: "l1", domainId: "d1", slug: "abc123" })]);
