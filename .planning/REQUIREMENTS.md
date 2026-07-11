@@ -37,7 +37,7 @@
 
 - [ ] **DOMAIN-01**: Admin kann eine eigene Domain/Subdomain registrieren; sie wird mit Status „DNS ausstehend" angelegt
 - [ ] **DOMAIN-02**: Admin kann die DNS-Konfiguration (CNAME) einer Domain prüfen; bei Erfolg wechselt sie auf „Aktiv"
-- [ ] **DOMAIN-03**: System stellt für verifizierte Domains automatisch TLS-Zertifikate aus (Let's Encrypt, on-demand, gated per verifiziertem Domain-Status)
+- [ ] **DOMAIN-03**: Kurzly verifiziert den Domain-Status und stellt einen `ask`/Status-Endpoint bereit (`GET /api/tls-check?domain=<host>` → 200 bei „Aktiv", sonst 404), den der Reverse-Proxy des Betreibers abfragt, um TLS-Zertifikate on-demand (Let's Encrypt) nur für verifizierte Domains auszustellen — Kurzly terminiert selbst kein TLS (betreiber-delegiert gemäß D-01)
 - [ ] **DOMAIN-04**: Admin sieht pro Domain die DNS-Anleitung (CNAME-Ziel)
 
 ### Link-Verwaltung

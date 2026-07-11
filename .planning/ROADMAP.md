@@ -108,7 +108,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 ### Phase 3: Domains & Multi-Domain TLS Routing
 
-**Goal**: Admins can register their own domains/subdomains, verify DNS, and have the system automatically issue TLS certificates on demand once verified — establishing the domain layer the redirect engine will resolve every request against.
+**Goal**: Admins can register their own domains/subdomains, verify DNS, and have TLS certificates issued on demand once verified — via operator-delegated TLS (per D-01): Kurzly exposes the verified-status `ask` endpoint that the operator's reverse proxy (Caddy/Traefik) queries to obtain certificates only for verified domains; Kurzly terminates no TLS itself — establishing the domain layer the redirect engine will resolve every request against.
 **Mode:** mvp
 **Depends on**: Phase 2
 **Requirements**: DOMAIN-01, DOMAIN-02, DOMAIN-03, DOMAIN-04
@@ -116,7 +116,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
   1. Admin registers a domain/subdomain, which is created with status "DNS pending."
   2. Admin triggers a DNS check; a correctly configured CNAME flips the domain to "Active," while an incorrect one leaves it pending.
-  3. Admin sees the required CNAME target/instructions for each domain, and TLS certificates are automatically issued (Let's Encrypt, on-demand) only for domains that have reached "Active" status.
+  3. Admin sees the required CNAME target/instructions for each domain, and Kurzly exposes an `ask`/status endpoint (`GET /api/tls-check?domain=<host>` → 200 for "Active", 404 otherwise) that the operator's reverse proxy queries to issue TLS certificates on-demand (Let's Encrypt) only for domains that have reached "Active" status — Kurzly terminates no certificates itself (operator-delegated per D-01).
   4. A request carrying a spoofed or unregistered `Host`/`X-Forwarded-Host` header is rejected rather than silently matched to any domain.
 
 **Plans**: 4 plans
