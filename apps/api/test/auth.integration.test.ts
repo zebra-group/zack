@@ -42,7 +42,16 @@ function extractToken(magicLinkUrl: string): string {
   return token;
 }
 
-/** Requests a magic link for `email` and returns the captured verify URL. */
+/**
+ * Requests a magic link for `email` and returns the captured verify URL.
+ *
+ * Sends `callbackURL`/`errorCallbackURL` (CR-02) mirroring the real client
+ * request (`apps/web/src/views/LoginView.vue`'s `sendMagicLink()`) — without
+ * these, better-auth's verify endpoint falls back to `callbackURL`
+ * (default "/") for BOTH success and failure, which is exactly the bug
+ * CR-02 fixes and would make the negative-path assertions below pass
+ * vacuously against the pre-fix behavior.
+ */
 async function requestMagicLinkUrl(
   app: Awaited<ReturnType<typeof buildApp>>,
   email: string,
@@ -50,7 +59,7 @@ async function requestMagicLinkUrl(
   await app.inject({
     method: "POST",
     url: "/api/auth/sign-in/magic-link",
-    payload: { email },
+    payload: { email, callbackURL: "/", errorCallbackURL: "/auth/error" },
   });
   const call = vi.mocked(sendMagicLinkEmail).mock.calls.at(-1);
   const url = call?.[0]?.url;
@@ -136,34 +145,58 @@ describe("Magic-link authentication (AUTH-01..04, D-01 neutral response)", () =>
     await app.close();
   });
 
-  it("AUTH-02 negative: an invalid/never-issued token does not sign in and leaks nothing (redirect to error, no session cookie)", async () => {
+  it("AUTH-02 negative: an invalid/never-issued token does not sign in, leaks nothing, and lands on the D-05 error screen (CR-02)", async () => {
     const app = await buildApp({ prisma });
 
+    // A genuine (tampered/typo'd/expired) magic-link URL always carries the
+    // errorCallbackURL query param the client requested (CR-02) — mirror
+    // that here rather than testing a URL shape that never occurs in the
+    // real flow.
     const res = await app.inject({
       method: "GET",
-      url: "/api/auth/magic-link/verify?token=totally-bogus-token-that-was-never-issued",
+      url: "/api/auth/magic-link/verify?token=totally-bogus-token-that-was-never-issued&errorCallbackURL=%2Fauth%2Ferror",
     });
 
     expect(res.statusCode).toBe(302);
     expect(res.headers.location).toContain("error=INVALID_TOKEN");
+    // CR-02 regression: assert the actual redirect PATH, not just a
+    // substring of the query string — a substring check passes whether the
+    // redirect lands on /auth/error (correct, D-05) or on / (the bug: the
+    // router guard then silently bounces to /login with no explanation and
+    // AuthErrorView.vue is never reached).
+    expect(new URL(res.headers.location as string, "http://localhost").pathname).toBe(
+      "/auth/error",
+    );
     expect(res.headers["set-cookie"]).toBeUndefined();
 
     await app.close();
   });
 
-  it("AUTH-02 negative: an already-used token cannot sign in a second time (single-use enforcement)", async () => {
+  it("AUTH-02 negative: an already-used token cannot sign in a second time (single-use enforcement) and lands on the D-05 error screen (CR-02)", async () => {
     const app = await buildApp({ prisma });
 
     const magicLinkUrl = await requestMagicLinkUrl(app, ADMIN_EMAIL);
-    const token = extractToken(magicLinkUrl);
-    const verifyUrl = `/api/auth/magic-link/verify?token=${encodeURIComponent(token)}`;
+    // Preserve the FULL emailed URL (including the errorCallbackURL query
+    // param better-auth embedded per CR-02's fixed sign-in request), not
+    // just the bare token — reconstructing from `token` alone would silently
+    // drop errorCallbackURL and test the pre-fix fallback behavior instead.
+    const parsedMagicLinkUrl = new URL(magicLinkUrl);
+    const verifyUrl = `${parsedMagicLinkUrl.pathname}${parsedMagicLinkUrl.search}`;
 
     const first = await app.inject({ method: "GET", url: verifyUrl });
-    expect(first.statusCode).toBe(200);
+    // With `callbackURL` supplied (CR-02), a successful verify redirects to
+    // it instead of returning the session as JSON directly (contrast with
+    // the AUTH-02 positive test above, which omits callbackURL).
+    expect(first.statusCode).toBe(302);
+    expect(first.headers.location).not.toContain("error=");
+    expect(first.headers["set-cookie"]).toBeDefined();
 
     const second = await app.inject({ method: "GET", url: verifyUrl });
     expect(second.statusCode).toBe(302);
     expect(second.headers.location).toContain("error=INVALID_TOKEN");
+    expect(new URL(second.headers.location as string, "http://localhost").pathname).toBe(
+      "/auth/error",
+    );
     expect(second.headers["set-cookie"]).toBeUndefined();
 
     await app.close();
