@@ -366,6 +366,10 @@ export function linksRoute(prisma: PrismaClient, auth: Auth) {
             importedCount: result.validCount,
             skippedCount: result.skippedCount,
             rows: result.rows,
+            // WR-10 fix (04-REVIEW.md): surface a partial/aborted commit
+            // precisely instead of the caller only ever seeing a bare
+            // count with no signal that the CSV wasn't fully processed.
+            partial: result.partial ?? false,
           };
           return reply.send(response);
         } catch (err) {

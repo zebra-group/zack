@@ -152,6 +152,31 @@ describe("LinksImportView", () => {
     expect(wrapper.find(".toast").text()).toBe("1 Links importiert");
   });
 
+  it("WR-10: a partial commit result shows a distinct 'aborted, please check' toast", async () => {
+    listDomains.mockResolvedValue([]);
+    previewImport.mockResolvedValue({
+      validCount: 1,
+      skippedCount: 0,
+      rows: [{ zielUrl: "https://example.com/a", slug: "a", domain: null, valid: true, reason: null }],
+    } satisfies ImportPreviewResult);
+    commitImport.mockResolvedValue({
+      importedCount: 1,
+      skippedCount: 0,
+      rows: [],
+      partial: true,
+    } satisfies ImportCommitResult);
+
+    const { wrapper } = await mountImportView();
+    await selectCsvFile(wrapper);
+
+    await wrapper.find(".btn-primary").trigger("click");
+    await flushPromises();
+
+    expect(commitImport).toHaveBeenCalled();
+    expect(wrapper.find(".toast").text()).toContain("1 Links importiert");
+    expect(wrapper.find(".toast").text()).toContain("vorzeitig abgebrochen");
+  });
+
   it("renders no client-side re-validation — the preview reflects only the backend result", async () => {
     listDomains.mockResolvedValue([]);
     previewImport.mockResolvedValue({

@@ -383,6 +383,16 @@ export type ImportRunResult = {
   validCount: number;
   skippedCount: number;
   rows: ImportRowResult[];
+  /**
+   * WR-10 fix (04-REVIEW.md): `true` when `runImport`'s row loop stopped
+   * EARLY because of an unexpected (non-validation) error — e.g. a
+   * transient DB connectivity blip — partway through the CSV. `rows`
+   * reflects exactly the rows processed (and, for `commitImport`, durably
+   * written) before that point; any rows after it were never attempted.
+   * Always `false`/omitted for a run that processed every row, including
+   * one where every row was a normal validation skip.
+   */
+  partial?: boolean;
 };
 
 /**
@@ -480,32 +490,55 @@ export async function runImport(
     const slug = row.slug ?? null;
     const domain = row.domain ?? null;
 
-    const domainId = await resolveRowDomainId(prisma, row, defaultDomainId);
-    const customSlug = row.slug?.trim() || undefined;
+    // WR-10 fix (04-REVIEW.md): each row's work is wrapped so an
+    // UNEXPECTED error (e.g. a transient DB connectivity blip — NOT a
+    // validation outcome, those are handled below via `outcome.ok`)
+    // cannot unwind past rows already durably written by `createLink`
+    // (mutate=true) and leave the caller with a bare failure and no idea
+    // which rows actually committed. On such an error, stop processing
+    // immediately and return exactly what was collected so far, flagged
+    // `partial: true`, instead of letting the exception propagate.
+    try {
+      const domainId = await resolveRowDomainId(prisma, row, defaultDomainId);
+      const customSlug = row.slug?.trim() || undefined;
 
-    if (domainId && customSlug) {
-      const dedupeKey = `${domainId}:${customSlug}`;
-      if (seenSlugs.has(dedupeKey)) {
-        results.push({ zielUrl, slug, domain, valid: false, reason: "duplicate_in_file" });
-        continue;
+      if (domainId && customSlug) {
+        const dedupeKey = `${domainId}:${customSlug}`;
+        if (seenSlugs.has(dedupeKey)) {
+          results.push({ zielUrl, slug, domain, valid: false, reason: "duplicate_in_file" });
+          continue;
+        }
+        seenSlugs.add(dedupeKey);
       }
-      seenSlugs.add(dedupeKey);
-    }
 
-    const outcome = domainId
-      ? await (mutate ? createLink : previewLink)(prisma, {
-          userId,
-          domainId,
-          targetUrl: row.ziel_url ?? "",
-          slug: customSlug,
-        })
-      : ({ ok: false, error: "UNAUTHORIZED_DOMAIN" } as const);
+      const outcome = domainId
+        ? await (mutate ? createLink : previewLink)(prisma, {
+            userId,
+            domainId,
+            targetUrl: row.ziel_url ?? "",
+            slug: customSlug,
+          })
+        : ({ ok: false, error: "UNAUTHORIZED_DOMAIN" } as const);
 
-    if (!outcome.ok) {
-      results.push({ zielUrl, slug, domain, valid: false, reason: mapErrorToSkipReason(outcome.error) });
-    } else {
-      validCount += 1;
-      results.push({ zielUrl, slug, domain, valid: true, reason: null });
+      if (!outcome.ok) {
+        results.push({
+          zielUrl,
+          slug,
+          domain,
+          valid: false,
+          reason: mapErrorToSkipReason(outcome.error),
+        });
+      } else {
+        validCount += 1;
+        results.push({ zielUrl, slug, domain, valid: true, reason: null });
+      }
+    } catch {
+      return {
+        validCount,
+        skippedCount: results.length - validCount,
+        rows: results,
+        partial: true,
+      };
     }
   }
 

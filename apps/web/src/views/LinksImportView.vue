@@ -126,7 +126,18 @@ async function handleCommit(): Promise<void> {
   isCommitting.value = true;
   try {
     const result = await commitImport(csvText.value, defaultDomainId.value || undefined);
-    showToast(`${result.importedCount} Links importiert`);
+    // WR-10 fix (04-REVIEW.md): a `partial` commit (the backend stopped
+    // early after an unexpected mid-loop error) gets a DIFFERENT message —
+    // the rows in `importedCount` are real/durable, but the CSV was not
+    // fully processed, so a flat "N Links importiert" would misleadingly
+    // read as complete success.
+    if (result.partial) {
+      showToast(
+        `${result.importedCount} Links importiert – Import wurde vorzeitig abgebrochen, bitte Liste prüfen.`,
+      );
+    } else {
+      showToast(`${result.importedCount} Links importiert`);
+    }
     setTimeout(() => {
       router.push({ name: "links" });
     }, 900);
