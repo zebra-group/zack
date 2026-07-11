@@ -31,7 +31,18 @@ export const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.email(),
   BASE_URL: z.url(),
-  BETTER_AUTH_SECRET: z.string().min(32),
+  // `.min(32)` alone lets `.env.example`'s own documented placeholder
+  // value pass validation as-is (it happens to be >= 32 chars) — the
+  // `.refine()` explicitly rejects that literal string so an operator who
+  // copies `.env.example` -> `.env` without editing this line fails fast
+  // instead of silently shipping a publicly-known signing secret (WR-06).
+  BETTER_AUTH_SECRET: z
+    .string()
+    .min(32)
+    .refine((v) => v !== "changeme-generate-a-real-32-plus-char-secret", {
+      message:
+        "BETTER_AUTH_SECRET is still the .env.example placeholder — generate a real secret (e.g. `openssl rand -base64 32`).",
+    }),
 });
 
 export type Env = z.infer<typeof envSchema>;

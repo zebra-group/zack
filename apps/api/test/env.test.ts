@@ -63,6 +63,20 @@ describe("parseEnv()", () => {
     expect(paths).toContain("BETTER_AUTH_SECRET");
   });
 
+  it("rejects the .env.example placeholder BETTER_AUTH_SECRET even though it is >= 32 chars (WR-06)", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      BETTER_AUTH_SECRET: "changeme-generate-a-real-32-plus-char-secret",
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected failure");
+    const paths = result.issues.map((issue) => issue.path.join("."));
+    expect(paths).toContain("BETTER_AUTH_SECRET");
+  });
+
   it("rejects a non-URL DATABASE_URL and a non-email SMTP_FROM", async () => {
     const { parseEnv } = await import("../src/env.js");
 
