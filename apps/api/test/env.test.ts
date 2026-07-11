@@ -23,6 +23,7 @@ const VALID_SOURCE: NodeJS.ProcessEnv = {
   SMTP_FROM: "no-reply@example.com",
   BASE_URL: "https://kurzly.example.com",
   BETTER_AUTH_SECRET: "a".repeat(32),
+  INITIAL_ADMIN_EMAIL: "admin@example.com",
 };
 
 describe("parseEnv()", () => {
