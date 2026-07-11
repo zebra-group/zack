@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 03
-current_phase_name: Domains & Multi-Domain TLS Routing
+current_phase_name: domains-multi-domain-tls-routing
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-07-11T15:09:40.434Z"
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-07-11T15:34:22.639Z"
 last_activity: 2026-07-11
-last_activity_desc: Phase 02 complete, transitioned to Phase 03
+last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 10
   completed_phases: 2
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 19
+  completed_plans: 16
   percent: 20
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-10)
 
 **Core value:** Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hosted, ohne Drittanbieter-Tracking.
-**Current focus:** Phase 02 — magic-link-auth-app-shell-domain-authorization-core
+**Current focus:** Phase 03 — domains-multi-domain-tls-routing
 
 ## Current Position
 
-Phase: 03 — Domains & Multi-Domain TLS Routing
-Plan: Not started
+Phase: 03 (domains-multi-domain-tls-routing) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-07-11 — Phase 02 complete, transitioned to Phase 03
+Last activity: 2026-07-11 — Phase 03 execution started
 
 Progress: [██████████] 100%
 
@@ -70,6 +70,7 @@ Progress: [██████████] 100%
 | Phase 02 P04 | 23min | 3 tasks | 10 files |
 | Phase 02 P05 | 7min | 3 tasks | 9 files |
 | Phase 02 P06 | 7min | 3 tasks | 8 files |
+| Phase 03 P01 | 20min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 02]: 02-05: getSession() normalizes better-auth's raw null|{session,user} get-session response into the shared AuthSession DTO at the api.ts boundary, not left for stores/components to interpret
 - [Phase ?]: [Phase 02]: 02-06: main.ts awaits router.isReady() before app.mount() so the beforeEach guard's redirect always resolves before App.vue's first render (no flash of a protected view for unauthenticated users)
 - [Phase ?]: [Phase 02]: 02-06: test/App.test.ts rewritten (not deleted) for App.vue's new layout-switching behavior since the Phase 1 walking-skeleton canary UI it tested was fully replaced
+- [Phase ?]: [Phase 03]: 03-01: prisma migrate dev refuses to run non-interactively even with --create-only on any confirmation-shaped warning (e.g. unique constraint on an empty table) — authored the migration via prisma migrate diff (temporary shadowDatabaseUrl, reverted) against a throwaway container, applied non-interactively via prisma migrate deploy
+- [Phase ?]: [Phase 03]: 03-01: domainsRoute(prisma, auth) domain creation bootstraps its own owner DomainMembership in a single $transaction (RESEARCH A1) — the one exception to requireDomainAccess since no domainId exists pre-creation
 
 ### Pending Todos
 
@@ -129,6 +132,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T13:15:11.530Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-07-11T15:34:22.603Z
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None
