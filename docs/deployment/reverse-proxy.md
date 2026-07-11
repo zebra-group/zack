@@ -82,6 +82,63 @@ Caddy stores certificates in the `caddy-data` volume — treat it like the
 force a fresh ACME issuance (and risk Let's Encrypt rate limits) on every
 redeploy.
 
+### On-Demand TLS Integration (Caddy `ask` → `/api/tls-check`)
+
+**Kurzly does not issue or terminate TLS certificates itself (D-01).** It
+never runs an in-app ACME client and never handles private keys — TLS
+issuance and termination are entirely the operator's own reverse proxy's
+responsibility. What Kurzly *does* provide is a read-only, session-free
+status endpoint — `GET /api/tls-check` — that your proxy can query before
+it decides whether to request a Let's Encrypt certificate for a hostname it
+doesn't already have a static site block for. This matters for Kurzly's
+multi-domain model: teams register custom short-link domains dynamically
+through the dashboard, so the proxy can't know the full domain list ahead
+of time the way a single static `Caddyfile` block does.
+
+Caddy supports this natively via its `on_demand_tls` global option plus an
+`ask` hook. Add both a global `on_demand_tls` block and a wildcard `:443`
+site that opts into on-demand issuance:
+
+```caddyfile
+{
+    on_demand_tls {
+        ask http://app:3000/api/tls-check
+    }
+}
+
+# Your existing static site block(s) from above still work as-is and take
+# precedence. Any Host Caddy does NOT already have a static block for falls
+# through to this wildcard on-demand block instead.
+:443 {
+    tls {
+        on_demand
+    }
+    reverse_proxy app:3000
+}
+```
+
+How this works: on the *first* TLS handshake for a hostname Caddy doesn't
+recognize, it calls `GET http://app:3000/api/tls-check?domain=<sni-hostname>`
+— appending the hostname it just saw in the TLS SNI as the `domain` query
+parameter — and only proceeds to request a Let's Encrypt certificate if
+Kurzly responds `200`. A `404` (unregistered, still pending DNS
+verification, or failed verification) tells Caddy to refuse the handshake
+instead of provisioning a certificate for a domain nobody has verified
+ownership of. Both responses are empty-bodied and carry no other
+information (no target URL, no account, no distinguishing detail beyond
+the status code) — Kurzly's `resolveActiveDomainByHost` guard behind this
+endpoint does an exact-match, deny-by-default lookup against the `Domain`
+table, so a spoofed or partial hostname can never slip through. Once
+issued, the certificate is cached and renewed by Caddy as usual — the ask
+endpoint is only consulted again on a fresh, previously-unseen hostname.
+
+Use the `ask`-only form shown above — do **not** add the older
+`interval`/`burst` options some examples online still show alongside
+`ask`; those are deprecated in favor of Caddy's `permission` module, and
+are redundant here anyway since Kurzly's own `Domain.status === 'active'`
+check is already the authoritative gate on whether a certificate should be
+issued.
+
 ---
 
 ## Option 2: nginx + certbot
@@ -200,6 +257,32 @@ Mounting the Docker socket gives Traefik read access to container labels
 across the host; if that's an unacceptable trust boundary for your
 deployment, use the file-based (non-Docker) provider instead and maintain
 static router config the same way as the nginx example above.
+
+### Dynamic domains with Traefik / certbot (no native `ask` webhook)
+
+Unlike Caddy, Traefik has no built-in equivalent to `on_demand_tls.ask` —
+it does not expose a webhook a client can veto certificate issuance
+through. If you're hosting multiple dynamically-registered custom
+short-link domains behind Traefik (or a generic nginx+certbot setup), the
+practical options are:
+
+- **Traefik file provider + a small polling script:** run a lightweight
+  script (a cron job or sidecar container) that periodically calls
+  `GET /api/domains`, filters for `status === "active"`, and rewrites a
+  dynamic-config file (Traefik's file provider) with one router per active
+  hostname. Traefik picks up file-provider changes automatically without a
+  restart. This keeps issuance in sync with Kurzly's verified-domain state
+  without needing a real-time `ask` hook.
+- **certbot, polled the same way:** if you're on the nginx+certbot setup
+  from Option 2 instead, the same polling script can drive a
+  `certbot certonly --webroot -d <hostname>` call per newly-active domain
+  it discovers, then reload nginx.
+
+Either way, only issue certificates for domains `GET /api/domains` (or,
+per-domain, `GET /api/tls-check?domain=<hostname>` returning `200`)
+reports as verified/active — never issue a certificate purely because a
+domain row exists in `pending` state, since that means DNS ownership
+hasn't been proven yet.
 
 ---
 
