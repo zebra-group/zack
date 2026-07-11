@@ -68,4 +68,30 @@ describe("App.vue", () => {
     expect(wrapper.find(".sidebar").exists()).toBe(true);
     expect(wrapper.text()).toContain("Übersicht");
   });
+
+  it("IN-03: redirects an already-authenticated session away from /login to the dashboard", async () => {
+    // Each call gets a fresh Response — its body can only be read once.
+    mockFetch.mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({ session: {}, user: { id: "u1", email: "operator@kurzly.example" } }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    await router.push("/login");
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: { plugins: [pinia, router] },
+    });
+    await flushPromises();
+
+    expect(router.currentRoute.value.name).toBe("dashboard");
+    expect(wrapper.find(".sidebar").exists()).toBe(true);
+    expect(wrapper.text()).not.toContain("Magic Link senden");
+  });
 });

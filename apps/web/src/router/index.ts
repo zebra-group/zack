@@ -69,17 +69,29 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
-  if (!to.meta.requiresAuth) {
-    return true;
-  }
-
   const authSession = useAuthSessionStore();
 
   // Rehydrate the session on first navigation (or whenever no user is
-  // cached yet). fetchSession() never throws — a failed/unreachable
-  // request just leaves `user` unauthenticated.
-  if (!authSession.user) {
+  // cached yet) for EITHER a protected route or `/login` itself (IN-03) —
+  // `/login` needs the session too, so an already-authenticated user who
+  // navigates straight to /login (e.g. a stale bookmark/back-button) gets
+  // redirected to the dashboard below instead of re-rendering the Idle
+  // login form. fetchSession() never throws — a failed/unreachable request
+  // just leaves `user` unauthenticated.
+  if ((to.meta.requiresAuth || to.name === "login") && !authSession.user) {
     await authSession.fetchSession();
+  }
+
+  // IN-03: symmetric to the requiresAuth guard below — an already-
+  // authenticated user has no reason to see the login form. Not a security
+  // boundary (T-02-14, same as the guard below): this is a UX redirect
+  // only, the session cookie/API access is unaffected either way.
+  if (to.name === "login" && authSession.isAuthenticated) {
+    return { name: "dashboard" };
+  }
+
+  if (!to.meta.requiresAuth) {
+    return true;
   }
 
   if (!authSession.isAuthenticated) {
