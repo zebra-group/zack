@@ -68,4 +68,40 @@ describe("Fastify app route ordering (health, SPA fallback, 404, redirect stub)"
 
     await app.close();
   });
+
+  it("WR-02: trustProxy:true derives request.ip from X-Forwarded-For (reverse-proxy topology)", async () => {
+    const app = await buildApp({ trustProxy: true });
+    let observedIp: string | undefined;
+    app.addHook("onRequest", async (request) => {
+      observedIp = request.ip;
+    });
+
+    await app.inject({
+      method: "GET",
+      url: "/health",
+      headers: { "x-forwarded-for": "203.0.113.7" },
+    });
+
+    expect(observedIp).toBe("203.0.113.7");
+
+    await app.close();
+  });
+
+  it("WR-02: trustProxy left unset (default false) ignores X-Forwarded-For — no shared rate-limit bucket by default", async () => {
+    const app = await buildApp();
+    let observedIp: string | undefined;
+    app.addHook("onRequest", async (request) => {
+      observedIp = request.ip;
+    });
+
+    await app.inject({
+      method: "GET",
+      url: "/health",
+      headers: { "x-forwarded-for": "203.0.113.7" },
+    });
+
+    expect(observedIp).not.toBe("203.0.113.7");
+
+    await app.close();
+  });
 });

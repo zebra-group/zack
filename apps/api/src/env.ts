@@ -48,6 +48,18 @@ export const envSchema = z.object({
   // can ever log in. Required (not optional) — fail fast at boot rather
   // than silently shipping an un-loginable instance.
   INITIAL_ADMIN_EMAIL: z.email(),
+  // WR-02 fix: `docker-compose.yml` documents TLS/reverse-proxy termination
+  // as "the operator's own responsibility" — the documented production
+  // topology sits behind a reverse proxy. Without `trustProxy` wired into
+  // Fastify, `request.ip` (and therefore `@fastify/rate-limit`'s default
+  // per-IP key) resolves to the proxy's own address for every request,
+  // collapsing every user's rate-limit bucket into one shared bucket — a
+  // single bad actor's 5 bogus magic-link requests would then lock out
+  // every legitimate user for 15 minutes. Default `false` (fail safe: an
+  // operator running this directly on the public internet without a proxy
+  // must opt in explicitly, or `request.ip` would otherwise trust a
+  // spoofable X-Forwarded-For header from any client).
+  TRUST_PROXY: z.coerce.boolean().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;
