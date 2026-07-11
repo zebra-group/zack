@@ -63,6 +63,18 @@ export const AUTO_SLUG_RETRY_LIMIT = 5;
  * truth for "a Link slug must never shadow a system/app route." Matching
  * is case-insensitive (`RESERVED_SLUGS.has(slug.toLowerCase())`) even
  * though per-domain slug UNIQUENESS stays case-sensitive.
+ *
+ * IN-01 (04-REVIEW.md): five entries below are currently unreachable AS
+ * reserved-word checks specifically — `customSlugSchema` (below) rejects
+ * them on SHAPE first (returning `SLUG_INVALID_SHAPE`, not `SLUG_RESERVED`,
+ * per the WR-07 fix), so `RESERVED_SLUGS.has()` never actually runs for
+ * these: `.well-known`/`favicon.ico`/`robots.txt`/`index.html` (all
+ * contain `.`, which `customSlugSchema`'s `[a-zA-Z0-9_-]` regex forbids)
+ * and `q` (1 char, below `customSlugSchema`'s `.min(2)`). Still correctly
+ * rejected end-to-end today — just via the shape branch, not this Set —
+ * so a future relaxation of `customSlugSchema` (e.g. allowing
+ * single-character slugs or dots) must NOT assume this Set alone still
+ * covers them; re-verify.
  */
 export const RESERVED_SLUGS = new Set([
   "api",
@@ -87,6 +99,7 @@ export type LinkErrorCode =
   | "INVALID_TARGET_URL"
   | "SLUG_TAKEN"
   | "SLUG_RESERVED"
+  | "SLUG_INVALID_SHAPE"
   | "SLUG_GENERATION_EXHAUSTED";
 
 /** Custom-slug shape (RESEARCH Open Question 2/A4): 2-32 chars, `[a-zA-Z0-9_-]`. */
@@ -126,8 +139,14 @@ async function resolveSlug(
   excludeLinkId?: string,
 ): Promise<SlugResolution> {
   if (slug && slug.length > 0) {
+    // WR-07 fix (04-REVIEW.md): a shape violation (too short/long, or a
+    // character outside [a-zA-Z0-9_-]) is a DIFFERENT problem than an
+    // actually-reserved word — it gets its own error code so the client
+    // can render an accurate message ("invalid characters/length" vs
+    // "this word is reserved") instead of a misleading "reserved" message
+    // for e.g. a slug containing a space or a single-character slug.
     const shapeCheck = customSlugSchema.safeParse(slug);
-    if (!shapeCheck.success) return { ok: false, error: "SLUG_RESERVED" };
+    if (!shapeCheck.success) return { ok: false, error: "SLUG_INVALID_SHAPE" };
 
     if (RESERVED_SLUGS.has(slug.toLowerCase())) {
       return { ok: false, error: "SLUG_RESERVED" };
@@ -361,6 +380,7 @@ export function mapErrorToSkipReason(code: LinkErrorCode): LinkSkipReason {
       return "invalid_url";
     case "SLUG_TAKEN":
     case "SLUG_RESERVED":
+    case "SLUG_INVALID_SHAPE":
     case "SLUG_GENERATION_EXHAUSTED":
       return "slug_conflict";
     case "UNAUTHORIZED_DOMAIN":
