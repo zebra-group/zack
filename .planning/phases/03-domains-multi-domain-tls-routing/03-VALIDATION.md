@@ -38,11 +38,19 @@ created: 2026-07-11
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| {N}-01-01 | 01 | 1 | DOMAIN-01 | T-03-XX | {expected secure behavior} | unit | `{command}` | ❌ W0 | ⬜ pending |
+| 03-01-01 | 01 | 1 | DOMAIN-01 | T-03-06 | Extended Domain schema migrated to real Postgres; generated client exposes new fields | migrate/typecheck | `pnpm --filter @kurzly/api exec prisma migrate status` | ❌ W0 | ⬜ pending |
+| 03-01-02 | 01 | 1 | DOMAIN-01 | T-03-06 | New env vars validated + documented; fail-safe defaults; drift guard green | integration | `pnpm --filter @kurzly/api test -- test/env-example-drift.test.ts` | ❌ W0 | ⬜ pending |
+| 03-01-03 | 01 | 1 | DOMAIN-01 | T-03-03a | Session-gated create bootstraps owner membership in one tx; list scoped; 401/409/400 | integration | `pnpm --filter @kurzly/api test -- test/domains.integration.test.ts` | ❌ W0 | ⬜ pending |
+| 03-02-01 | 02 | 2 | DOMAIN-02 | T-03-01 | DNS verify is injectable, timeout-bounded, never-throwing, DNS-only (no fetch) | unit | `pnpm --filter @kurzly/api test -- test/dnsClient.test.ts` | ❌ W0 | ⬜ pending |
+| 03-02-02 | 02 | 2 | DOMAIN-02, DOMAIN-04 | T-03-03b, T-03-05 | verify/delete/instructions admin-gated (403 member); status transitions; CNAME/A records | integration | `pnpm --filter @kurzly/api test -- test/domains.integration.test.ts` | ❌ W0 | ⬜ pending |
+| 03-03-01 | 03 | 3 | DOMAIN-03 | T-03-02 | resolveActiveDomainByHost exact-match, deny-by-default; spoof/partial/pending/failed → null | unit | `pnpm --filter @kurzly/api test -- test/domainResolution.test.ts` | ❌ W0 | ⬜ pending |
+| 03-03-02 | 03 | 3 | DOMAIN-03 | T-03-04 | ask endpoint 200 active / 404 else, empty body, no session, rejects spoofed host | integration | `pnpm --filter @kurzly/api test -- test/tlsCheck.integration.test.ts` | ❌ W0 | ⬜ pending |
+| 03-03-03 | 03 | 3 | DOMAIN-03 | T-03-04 | reverse-proxy.md documents Caddy on_demand_tls.ask; TLS is operator's job (D-01) | doc-grep | `grep -c "tls-check" docs/deployment/reverse-proxy.md` | ❌ W0 | ⬜ pending |
+| 03-04-01 | 04 | 3 | DOMAIN-01/02/04 | T-03-09 | Typed domain client fns compile against DomainDTO | typecheck | `pnpm --filter @kurzly/web exec tsc --noEmit` | ❌ W0 | ⬜ pending |
+| 03-04-02 | 04 | 3 | DOMAIN-01/02/04 | T-03-10 | /domains renders DomainsView at 860px; D-01 TLS hint wording | typecheck/build | `pnpm --filter @kurzly/web build` | ❌ W0 | ⬜ pending |
+| 03-04-03 | 04 | 3 | DOMAIN-01/02/04 | T-03-09 | list/add/verify/instructions/delete-confirm/empty proven with mocked api | component | `pnpm --filter @kurzly/web test -- test/DomainsView.test.ts` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
-
-*Planner populates concrete rows from the RESEARCH.md ## Validation Architecture section during planning.*
 
 ---
 

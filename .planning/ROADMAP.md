@@ -119,8 +119,21 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Admin sees the required CNAME target/instructions for each domain, and TLS certificates are automatically issued (Let's Encrypt, on-demand) only for domains that have reached "Active" status.
   4. A request carrying a spoofed or unregistered `Host`/`X-Forwarded-Host` header is rejected rather than silently matched to any domain.
 
-**Plans**: TBD
+**Plans**: 4 plans
 **UI hint**: yes
+
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Domain schema extension + enums + [BLOCKING] migrate/generate + owner-bootstrap create/list (DOMAIN-01)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 03-02-PLAN.md — Injectable SSRF-safe DNS verification + verify/delete/instructions routes (DOMAIN-02, DOMAIN-04)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 03-03-PLAN.md — tls-check ask endpoint + resolveActiveDomainByHost host-guard + reverse-proxy docs (DOMAIN-03)
+- [ ] 03-04-PLAN.md — DomainsView frontend + typed api client + /domains route swap (DOMAIN-01/02/04 UI)
 
 ### Phase 4: Links Management & Bulk Import
 
@@ -239,7 +252,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 9/9 | Complete   | 2026-07-10 |
 | 2. Magic-Link Auth, App Shell & Domain Authorization Core | 6/6 | Complete    | 2026-07-11 |
-| 3. Domains & Multi-Domain TLS Routing | 0/TBD | Not started | - |
+| 3. Domains & Multi-Domain TLS Routing | 0/4 | Not started | - |
 | 4. Links Management & Bulk Import | 0/TBD | Not started | - |
 | 5. Core Redirect Engine | 0/TBD | Not started | - |
 | 6. Internal Tracking & Analytics | 0/TBD | Not started | - |
