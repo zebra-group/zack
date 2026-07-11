@@ -6,14 +6,14 @@ current_phase: 02
 current_phase_name: magic-link-auth-app-shell-domain-authorization-core
 status: executing
 stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-07-11T12:53:18.573Z"
+last_updated: "2026-07-11T13:04:02.454Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
   percent: 10
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 02 (magic-link-auth-app-shell-domain-authorization-core) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-07-11 — Phase 02 execution started
 
@@ -67,6 +67,7 @@ Progress: [██████████] 100%
 | Phase 02 P02 | 32min | 3 tasks | 7 files |
 | Phase 02 P03 | 5min | 1 tasks | 2 files |
 | Phase 02 P04 | 23min | 3 tasks | 10 files |
+| Phase 02 P05 | 7min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,8 @@ Recent decisions affecting current work:
 - [Phase ?]: lib/auth.ts refactored from a singleton to a createAuth(prisma) factory (auth=createAuth(defaultPrisma) kept for production) so tests can bind auth writes to the same transaction-wrapped Prisma client as the rest of the harness
 - [Phase ?]: The tight magic-link rate limit is applied via a separate, more specific static route (POST /api/auth/sign-in/magic-link) ahead of the /api/auth/* wildcard catch-all, scoping it without touching other better-auth endpoints
 - [Phase ?]: vitest.config.ts test env extended with BASE_URL/BETTER_AUTH_SECRET/SMTP_* placeholders since app.ts now transitively imports lib/auth.ts/lib/mailer.ts for every test file calling buildApp()
+- [Phase ?]: [Phase 02]: 02-05: theme store's watch() uses flush:'sync' so body[data-theme]/localStorage stay synchronously consistent with the reactive theme ref (Pinia/Vue's default 'pre' flush would defer the DOM write to a microtask)
+- [Phase ?]: [Phase 02]: 02-05: getSession() normalizes better-auth's raw null|{session,user} get-session response into the shared AuthSession DTO at the api.ts boundary, not left for stores/components to interpret
 
 ### Pending Todos
 
@@ -122,6 +125,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T12:53:18.534Z
+Last session: 2026-07-11T13:03:13.407Z
 Stopped at: Completed 02-04-PLAN.md
 Resume file: None
