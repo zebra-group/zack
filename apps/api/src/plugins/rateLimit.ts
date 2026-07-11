@@ -50,6 +50,21 @@ export const TLS_CHECK_RATE_LIMIT = {
   timeWindow: "1 minute",
 } as const;
 
+/**
+ * Applied to `POST /api/domains` (Phase 3 review IN-01) — mirrors
+ * `VERIFY_RATE_LIMIT`'s shape/rationale: creation only requires an
+ * authenticated allowlisted session (same trust boundary as any other
+ * allowlisted action), but without a dedicated override it fell back to the
+ * permissive 100-req/15-min global default, letting a careless-but-legitimate
+ * client create up to 100 pending `Domain` rows in that window. Tighter than
+ * the global default, looser than `MAGIC_LINK_RATE_LIMIT` (no email-bombing
+ * risk here — just row-creation noise).
+ */
+export const DOMAIN_CREATE_RATE_LIMIT = {
+  max: 20,
+  timeWindow: "15 minutes",
+} as const;
+
 export async function registerRateLimit(app: FastifyInstance): Promise<void> {
   await app.register(rateLimit, {
     global: true,
