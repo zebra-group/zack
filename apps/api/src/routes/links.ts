@@ -19,10 +19,10 @@
 import { fromNodeHeaders } from "better-auth/node";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import type { PrismaClient } from "../generated/prisma/client.js";
+import type { Link, PrismaClient } from "../generated/prisma/client.js";
 import type { createAuth } from "../lib/auth.js";
 import { createLink, type LinkErrorCode, toLinkDto } from "../lib/links.js";
-import { scopedDomainIds } from "../lib/authorization.js";
+import { ForbiddenError, requireDomainAccess, scopedDomainIds } from "../lib/authorization.js";
 import { LINK_CREATE_RATE_LIMIT } from "../plugins/rateLimit.js";
 
 type Auth = ReturnType<typeof createAuth>;
@@ -63,6 +63,35 @@ function statusForLinkError(error: LinkErrorCode): number {
 async function resolveUserId(auth: Auth, request: FastifyRequest): Promise<string | undefined> {
   const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
   return session?.user?.id;
+}
+
+/**
+ * The IDOR guard (RESEARCH Pitfall 4, T-04-IDOR) every Link-by-ID route
+ * must run before any read/write: unlike Domain routes (where `:id` IS the
+ * domain), a Link's `:id` is one join away from its domain, so
+ * `requireDomainAccess` alone is not enough — we must first `findUnique`
+ * the Link to learn its `domainId`. Returns `null` for BOTH "no such
+ * Link" AND "Link exists but the caller lacks member+ access to its
+ * domain" — the caller must never be able to distinguish the two (no
+ * existence oracle), matching this codebase's `tlsCheck.ts`-established
+ * information-disclosure discipline.
+ */
+async function resolveOwnedLink(
+  prisma: PrismaClient,
+  userId: string,
+  id: string,
+): Promise<Link | null> {
+  const link = await prisma.link.findUnique({ where: { id } });
+  if (!link) return null;
+
+  try {
+    await requireDomainAccess(prisma, userId, link.domainId, "member");
+  } catch (err) {
+    if (err instanceof ForbiddenError) return null;
+    throw err;
+  }
+
+  return link;
 }
 
 export function linksRoute(prisma: PrismaClient, auth: Auth) {
@@ -127,6 +156,33 @@ export function linksRoute(prisma: PrismaClient, auth: Auth) {
       });
 
       return reply.send(links.map(toLinkDto));
+    });
+
+    // GET /api/links/:id — detail (LINK-05), IDOR-guarded (T-04-IDOR): the
+    // shared resolveOwnedLink helper returns 404 for both not-found and
+    // forbidden so a caller can never distinguish the two.
+    app.get("/api/links/:id", async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = await resolveUserId(auth, request);
+      if (!userId) return reply.code(401).send({ error: "Unauthorized" });
+
+      const { id } = request.params as { id: string };
+      const link = await resolveOwnedLink(prisma, userId, id);
+      if (!link) return reply.code(404).send({ error: "Not found" });
+
+      return reply.send(toLinkDto(link));
+    });
+
+    // DELETE /api/links/:id — delete (LINK-07), same IDOR guard as GET.
+    app.delete("/api/links/:id", async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = await resolveUserId(auth, request);
+      if (!userId) return reply.code(401).send({ error: "Unauthorized" });
+
+      const { id } = request.params as { id: string };
+      const link = await resolveOwnedLink(prisma, userId, id);
+      if (!link) return reply.code(404).send({ error: "Not found" });
+
+      await prisma.link.delete({ where: { id } });
+      return reply.code(204).send();
     });
   };
 }
