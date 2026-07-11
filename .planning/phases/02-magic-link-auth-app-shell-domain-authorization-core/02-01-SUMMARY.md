@@ -156,3 +156,7 @@ None beyond the deviation documented above.
 ---
 *Phase: 02-magic-link-auth-app-shell-domain-authorization-core*
 *Completed: 2026-07-11*
+
+## Self-Check: PASSED
+
+All modified files confirmed present on disk (apps/api/package.json, apps/api/src/env.ts, .env.example, apps/api/test/env.test.ts, pnpm-workspace.yaml, this SUMMARY). Commit `235a2f5` confirmed in `git log`.
