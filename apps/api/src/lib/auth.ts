@@ -81,7 +81,21 @@ export function createAuth(prisma: PrismaClient) {
           // byte-identical to the allowlisted path.
           const allowed = await isEmailAllowed(prisma, email);
           if (!allowed) return;
-          await sendMagicLinkEmail({ to: email, url });
+          // WR-01 fix: better-auth `await`s this callback before responding
+          // to the client, so awaiting the SMTP send here would make an
+          // allowlisted email's response measurably slower than a
+          // non-allowlisted one (which returns right after the single fast
+          // DB lookup above) — a timing side-channel that leaks account
+          // existence, exactly what this module's header comment and
+          // `lib/allowlist.ts`'s own comment call out as unacceptable.
+          // Fire-and-forget instead: the mail send still happens, but the
+          // response no longer waits on it, so both branches return in
+          // comparable wall-clock time. Errors are logged, not thrown —
+          // throwing here would surface as a distinguishable non-200
+          // response, reintroducing the same leak this fix closes.
+          void sendMagicLinkEmail({ to: email, url }).catch((error: unknown) => {
+            console.error(`Failed to send magic-link email to ${email}:`, error);
+          });
         },
       }),
     ],
