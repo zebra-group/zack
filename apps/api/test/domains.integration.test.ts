@@ -296,6 +296,38 @@ describe("Domain registration + list (DOMAIN-01, D-04, RESEARCH A1)", () => {
 
       await app.close();
     });
+
+    it("WR-02: 400s a whitespace-only hostname (fails format validation post-normalization)", async () => {
+      const app = await buildApp({ prisma });
+      const cookieHeader = await signInAs(app, ADMIN_EMAIL);
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: cookieHeader },
+        payload: { hostname: "   ", type: "subdomain" },
+      });
+
+      expect(res.statusCode).toBe(400);
+
+      await app.close();
+    });
+
+    it("WR-02: 400s a malformed hostname (invalid charset, no dot)", async () => {
+      const app = await buildApp({ prisma });
+      const cookieHeader = await signInAs(app, ADMIN_EMAIL);
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: cookieHeader },
+        payload: { hostname: "not_a_valid_host!!", type: "subdomain" },
+      });
+
+      expect(res.statusCode).toBe(400);
+
+      await app.close();
+    });
   });
 
   describe("GET /api/domains", () => {
