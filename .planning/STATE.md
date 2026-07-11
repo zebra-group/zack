@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: domains-multi-domain-tls-routing
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-07-11T15:34:22.639Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-07-11T15:52:35.875Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 10
   completed_phases: 2
   total_plans: 19
-  completed_plans: 16
+  completed_plans: 17
   percent: 20
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 03 (domains-multi-domain-tls-routing) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-07-11 — Phase 03 execution started
 
@@ -71,6 +71,7 @@ Progress: [██████████] 100%
 | Phase 02 P05 | 7min | 3 tasks | 9 files |
 | Phase 02 P06 | 7min | 3 tasks | 8 files |
 | Phase 03 P01 | 20min | 3 tasks | 11 files |
+| Phase 03 P02 | 13min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 02]: 02-06: test/App.test.ts rewritten (not deleted) for App.vue's new layout-switching behavior since the Phase 1 walking-skeleton canary UI it tested was fully replaced
 - [Phase ?]: [Phase 03]: 03-01: prisma migrate dev refuses to run non-interactively even with --create-only on any confirmation-shaped warning (e.g. unique constraint on an empty table) — authored the migration via prisma migrate diff (temporary shadowDatabaseUrl, reverted) against a throwaway container, applied non-interactively via prisma migrate deploy
 - [Phase ?]: [Phase 03]: 03-01: domainsRoute(prisma, auth) domain creation bootstraps its own owner DomainMembership in a single $transaction (RESEARCH A1) — the one exception to requireDomainAccess since no domainId exists pre-creation
+- [Phase ?]: verifyDomain treats DNS mismatches as expected non-error outcomes; only lookup failures (ENOTFOUND/ENODATA/DNS_TIMEOUT) populate error
+- [Phase ?]: GET /:id/instructions is admin-gated (not just any member) since it discloses the operator's exact DNS target for a domain
+- [Phase ?]: A failed verify leaves verifiedAt untouched — only a successful check ever stamps it, preserving pending-vs-has-failed-before information
 
 ### Pending Todos
 
@@ -132,6 +136,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T15:34:22.603Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-07-11T15:52:35.839Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
