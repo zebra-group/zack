@@ -147,7 +147,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User searches/filters the link list by domain, copies a link's full URL to the clipboard (with a toast confirmation), opens its detail page (attributes + stats), edits its settings, or deletes it.
   3. User bulk-imports links from a CSV (`ziel_url, slug, domain`) with a live validation preview (N valid / M skipped); rows using a reserved slug or a domain the importing user isn't authorized for are skipped exactly as manual creation would reject them.
 
-**Plans**: 3/5 plans executed
+**Plans**: 4/5 plans executed
 **UI hint**: yes
 
 **Wave 1**
@@ -164,7 +164,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 04-04-PLAN.md — CSV import preview+commit, two-phase, D-01 no-bypass proof (LINK-08)
+- [x] 04-04-PLAN.md — CSV import preview+commit, two-phase, D-01 no-bypass proof (LINK-08)
 
 **Wave 5** *(blocked on Wave 4)*
 
@@ -273,7 +273,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 9/9 | Complete   | 2026-07-10 |
 | 2. Magic-Link Auth, App Shell & Domain Authorization Core | 6/6 | Complete    | 2026-07-11 |
 | 3. Domains & Multi-Domain TLS Routing | 4/4 | Complete    | 2026-07-11 |
-| 4. Links Management & Bulk Import | 3/5 | In Progress|  |
+| 4. Links Management & Bulk Import | 4/5 | In Progress|  |
 | 5. Core Redirect Engine | 0/TBD | Not started | - |
 | 6. Internal Tracking & Analytics | 0/TBD | Not started | - |
 | 7. QR Codes (Static + Dynamic, QR Studio) | 0/TBD | Not started | - |

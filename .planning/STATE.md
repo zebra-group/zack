@@ -6,14 +6,14 @@ current_phase: 04
 current_phase_name: links-management-bulk-import
 status: executing
 stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-07-11T20:23:31.058Z"
+last_updated: "2026-07-11T20:38:53.597Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 10
   completed_phases: 3
   total_plans: 24
-  completed_plans: 22
+  completed_plans: 23
   percent: 30
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 04 (links-management-bulk-import) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-07-11 — Phase 04 execution started
 
@@ -78,6 +78,7 @@ Progress: [██████████] 100%
 | Phase 04 P01 | 6min | 2 tasks | 2 files |
 | Phase 04 P02 | 14min | 3 tasks | 8 files |
 | Phase 04 P03 | 12min | 2 tasks | 2 files |
+| Phase 04 P04 | 22min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 04]: 04-02: GET /api/links silently narrows an out-of-scope ?domainId= to [] rather than 403ing, matching GET /api/domains's scope-silently-never-leak convention
 - [Phase ?]: resolveOwnedLink stays route-layer plumbing in routes/links.ts (not lib/links.ts's D-01 core) — composes requireDomainAccess with a link-specific lookup, not a shared validation rule.
 - [Phase ?]: PATCH's title: null currently means 'keep existing title' (not clear it) since updateLink's ValidatedLink.title has no null variant and lib/links.ts is out of this plan's files_modified scope.
+- [Phase 04]: runImport(mutate) shared by preview/commit reuses @kurzly/shared LinkSkipReason/ImportRowResult types instead of redeclaring them locally
 
 ### Pending Todos
 
@@ -152,6 +154,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T20:23:31.012Z
+Last session: 2026-07-11T20:36:07.426Z
 Stopped at: Completed 04-03-PLAN.md
 Resume file: None
