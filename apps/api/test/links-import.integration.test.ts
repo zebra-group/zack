@@ -387,6 +387,24 @@ describe("CSV bulk import (LINK-08, D-01/D-05)", () => {
 
       await app.close();
     });
+
+    it("IN-02: 400s a request whose csv field exceeds the explicit CSV_MAX_LENGTH ceiling", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+
+      const oversizedCsv = "ziel_url,slug,domain\n".padEnd(1_900_000, "a");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links/import/preview",
+        headers: { cookie: ownerCookie },
+        payload: { csv: oversizedCsv },
+      });
+
+      expect(res.statusCode).toBe(400);
+
+      await app.close();
+    });
   });
 
   describe("WR-10: partial-import safety on a mid-loop unexpected error", () => {
