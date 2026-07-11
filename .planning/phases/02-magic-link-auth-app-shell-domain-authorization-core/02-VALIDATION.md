@@ -67,7 +67,10 @@ created: 2026-07-11
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Pixel-fidelity of App Shell vs. Hi-Fi prototype | UI-03 | Visual pixel comparison is not reliably automatable | Compare rendered shell against design_handoff prototype at 1440px, Light + Dark |
+| Pixel-fidelity of App Shell (212px sidebar + Dashboard + Coming-soon) vs. Hi-Fi prototype | UI-03 | Visual pixel comparison is not reliably automatable | Compare rendered shell (plan 02-06) against design_handoff prototype (Kurzly Prototyp.dc.html) at 1440px, Light + Dark; record drift in the 02-06 Task Summary |
+| Pixel-fidelity of Login (Idle/Sent) + magic-link error page vs. prototype | UI-03 | Visual pixel comparison is not reliably automatable | Compare rendered auth views (plan 02-05) against the prototype at 1440px, Light + Dark; record drift in the 02-05 Task Summary |
+
+**Sign-off:** Design/owner visual review of the UI-03 pixel-fidelity gates above is **required before the `/gsd-verify-work` gate** — the phase is not verifiable-complete until the manual Light + Dark comparison for both the App Shell (02-06) and the auth views (02-05) is signed off and any drift is either fixed or explicitly accepted.
 
 *If none: "All phase behaviors have automated verification."*
 
