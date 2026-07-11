@@ -17,10 +17,13 @@
  *      directly on `app`, not nested in the `/api`-prefixed scope above,
  *      since its own route urls already include the `/api/auth` segment —
  *      see routes/auth.ts's header comment).
- *   6. `GET /health`.
- *   7. The redirect-handler stub `GET /:slug` (Phase 5 replaces this).
- *   8. `@fastify/static` (`wildcard: false` — see plugins/static.ts).
- *   9. `setNotFoundHandler`: JSON 404 for unmatched `/api/*` paths, the SPA
+ *   6. `POST/GET /api/domains` (Phase 3, DOMAIN-01 — registered directly on
+ *      `app` for the same reason as the auth catch-all: its own route urls
+ *      already include the `/api/domains` segment).
+ *   7. `GET /health`.
+ *   8. The redirect-handler stub `GET /:slug` (Phase 5 replaces this).
+ *   9. `@fastify/static` (`wildcard: false` — see plugins/static.ts).
+ *   10. `setNotFoundHandler`: JSON 404 for unmatched `/api/*` paths, the SPA
  *      shell (`index.html`) for every other unmatched path.
  *
  * API routes (including the auth catch-all) are registered before the
@@ -35,6 +38,7 @@ import type { PrismaClient } from "./generated/prisma/client.js";
 import { auth as defaultAuth, createAuth } from "./lib/auth.js";
 import { authRoute } from "./routes/auth.js";
 import { canaryRoute } from "./routes/canary.js";
+import { domainsRoute } from "./routes/domains.js";
 import { healthRoute } from "./routes/health.js";
 import { redirectRoute } from "./routes/redirect.js";
 import { registerCors } from "./plugins/cors.js";
@@ -96,6 +100,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     { prefix: "/api" },
   );
   await app.register(authRoute(auth));
+  await app.register(domainsRoute(prisma, auth));
   await app.register(healthRoute);
   await app.register(redirectRoute);
 
