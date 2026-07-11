@@ -238,7 +238,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure, Monorepo & Deployment Scaffolding | 9/9 | Complete   | 2026-07-10 |
-| 2. Magic-Link Auth, App Shell & Domain Authorization Core | 6/6 | Complete   | 2026-07-11 |
+| 2. Magic-Link Auth, App Shell & Domain Authorization Core | 6/6 | Complete    | 2026-07-11 |
 | 3. Domains & Multi-Domain TLS Routing | 0/TBD | Not started | - |
 | 4. Links Management & Bulk Import | 0/TBD | Not started | - |
 | 5. Core Redirect Engine | 0/TBD | Not started | - |
