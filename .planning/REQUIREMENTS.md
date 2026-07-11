@@ -122,7 +122,7 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 1 | In Progress |
+| INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
 | AUTH-01 | Phase 2 | Pending |
