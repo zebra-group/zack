@@ -16,6 +16,7 @@ generator client {
 // This supersedes the plan/RESEARCH.md guidance, which predates this
 // point-release breaking change; keeping this note so Phase 2 doesn't
 // reintroduce `url` here.
+
 datasource db {
   provider = "postgresql"
 }
@@ -23,8 +24,99 @@ datasource db {
 /// Walking-skeleton model used as the vehicle for the D-08 persistence-canary
 /// proof (data survives a docker-compose down/up cycle without -v) and as a
 /// base placeholder ahead of Phase 2's better-auth schema additions.
+
 model PersistenceCanary {
   id        String   @id @default(cuid())
   token     String   @unique
   createdAt DateTime @default(now())
+}
+
+model User {
+  id            String             @id
+  name          String
+  email         String
+  emailVerified Boolean            @default(false)
+  image         String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  memberships   DomainMembership[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+/// Minimal domain reference (D-02b) — exists purely so DomainMembership has
+/// something real to point at. Full lifecycle (name, DNS verification,
+/// TLS cert) is added in Phase 3; this phase builds nothing that reads
+/// beyond `id`.
+model Domain {
+  id          String             @id @default(cuid())
+  createdAt   DateTime           @default(now())
+  memberships DomainMembership[]
+}
+
+/// Domain-scoped role membership (D-02) — the single row
+/// `requireDomainAccess`/`scopedDomainIds` (apps/api/src/lib/authorization.ts,
+/// built in 02-03) query against. Composite PK enforces exactly one role
+/// per user per domain; cascade deletes so removing a User or Domain
+/// cleans up its memberships automatically.
+model DomainMembership {
+  userId   String
+  domainId String
+  role     String // "member" | "admin" | "owner" — see ROLE_HIERARCHY in packages/shared
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+
+  @@id([userId, domainId])
 }
