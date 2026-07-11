@@ -16,14 +16,23 @@
  * JSON body, since `createLink`'s own `validateLinkInput` only ever reads
  * the allowlisted fields off `parsed.data`, never `request.body` itself.
  */
+import type { ImportCommitResult, ImportPreviewResult } from "@kurzly/shared";
 import { fromNodeHeaders } from "better-auth/node";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { Link, PrismaClient } from "../generated/prisma/client.js";
 import type { createAuth } from "../lib/auth.js";
-import { createLink, type LinkErrorCode, toLinkDto, updateLink } from "../lib/links.js";
+import {
+  commitImport,
+  createLink,
+  type LinkErrorCode,
+  MAX_IMPORT_ROWS,
+  previewImport,
+  toLinkDto,
+  updateLink,
+} from "../lib/links.js";
 import { ForbiddenError, requireDomainAccess, scopedDomainIds } from "../lib/authorization.js";
-import { LINK_CREATE_RATE_LIMIT } from "../plugins/rateLimit.js";
+import { LINK_CREATE_RATE_LIMIT, LINK_IMPORT_RATE_LIMIT } from "../plugins/rateLimit.js";
 
 type Auth = ReturnType<typeof createAuth>;
 
@@ -51,6 +60,25 @@ const updateLinkSchema = z.object({
   slug: z.string().optional(),
   title: z.string().max(200).nullable().optional(),
 });
+
+/**
+ * `POST /api/links/import/{preview,commit}` request-body allowlist
+ * (LINK-08, D-05, T-04-MASS) — raw CSV text (read client-side via
+ * `FileReader.readAsText()`) plus an optional fallback domain for rows
+ * whose `domain` column is blank. `defaultDomainId` does NOT itself grant
+ * access to that domain — every row (default or explicit) still passes
+ * through `validateLinkInput`'s `requireDomainAccess` inside
+ * `runImport` (lib/links.ts).
+ */
+const importCsvSchema = z.object({
+  csv: z.string().min(1),
+  defaultDomainId: z.string().optional(),
+});
+
+/** True for the `Error` `runImport` throws when a CSV exceeds `MAX_IMPORT_ROWS` (lib/links.ts). */
+function isImportRowLimitError(err: unknown): err is Error {
+  return err instanceof Error && err.message.includes(`${MAX_IMPORT_ROWS} row limit`);
+}
 
 /** Maps a `LinkErrorCode` (lib/links.ts) to the HTTP status the route returns. */
 function statusForLinkError(error: LinkErrorCode): number {
@@ -239,6 +267,88 @@ export function linksRoute(prisma: PrismaClient, auth: Auth) {
       }
 
       return reply.send(toLinkDto(result.link));
+    });
+
+    // POST /api/links/import/preview — CSV bulk-import dry-run (LINK-08,
+    // D-01/D-05). Delegates to lib/links.ts's previewImport, which shares
+    // its ENTIRE parse+row-loop implementation with commitImport below
+    // (runImport, mutate=false) — this route never re-parses or
+    // re-validates a row independently, so preview can never drift from
+    // commit (RESEARCH Pitfall 2). Zero DB writes.
+    app.route({
+      method: "POST",
+      url: "/api/links/import/preview",
+      config: { rateLimit: LINK_IMPORT_RATE_LIMIT },
+      handler: async (request: FastifyRequest, reply: FastifyReply) => {
+        const userId = await resolveUserId(auth, request);
+        if (!userId) return reply.code(401).send({ error: "Unauthorized" });
+
+        const parsed = importCsvSchema.safeParse(request.body);
+        if (!parsed.success) {
+          return reply.code(400).send({ error: "Invalid import request" });
+        }
+
+        try {
+          const result = await previewImport(
+            prisma,
+            userId,
+            parsed.data.csv,
+            parsed.data.defaultDomainId,
+          );
+          const response: ImportPreviewResult = {
+            validCount: result.validCount,
+            skippedCount: result.skippedCount,
+            rows: result.rows,
+          };
+          return reply.send(response);
+        } catch (err) {
+          if (isImportRowLimitError(err)) {
+            return reply.code(400).send({ error: err.message });
+          }
+          throw err;
+        }
+      },
+    });
+
+    // POST /api/links/import/commit — CSV bulk-import commit (LINK-08,
+    // D-01/D-05). Delegates to lib/links.ts's commitImport (runImport,
+    // mutate=true), which calls createLink — the SAME sole insert site
+    // POST /api/links uses — row-by-row, SEQUENTIALLY. There is no
+    // second/bulk insert path in this handler; every write a caller can
+    // trigger here is structurally identical to a manual create.
+    app.route({
+      method: "POST",
+      url: "/api/links/import/commit",
+      config: { rateLimit: LINK_IMPORT_RATE_LIMIT },
+      handler: async (request: FastifyRequest, reply: FastifyReply) => {
+        const userId = await resolveUserId(auth, request);
+        if (!userId) return reply.code(401).send({ error: "Unauthorized" });
+
+        const parsed = importCsvSchema.safeParse(request.body);
+        if (!parsed.success) {
+          return reply.code(400).send({ error: "Invalid import request" });
+        }
+
+        try {
+          const result = await commitImport(
+            prisma,
+            userId,
+            parsed.data.csv,
+            parsed.data.defaultDomainId,
+          );
+          const response: ImportCommitResult = {
+            importedCount: result.validCount,
+            skippedCount: result.skippedCount,
+            rows: result.rows,
+          };
+          return reply.send(response);
+        } catch (err) {
+          if (isImportRowLimitError(err)) {
+            return reply.code(400).send({ error: err.message });
+          }
+          throw err;
+        }
+      },
     });
   };
 }
