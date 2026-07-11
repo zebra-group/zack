@@ -1,54 +1,57 @@
 <script setup lang="ts">
-// Walking skeleton dashboard (plan 01-07): the one real, interactive
-// browser -> API -> Postgres round-trip. Intentionally minimal — NOT the
-// Hi-Fi dashboard (Phase 2's UI slice replaces this).
-import { onMounted, ref } from "vue";
-import { createCanary, getCanary } from "./api";
+/**
+ * Root component (Phase 2 replaces the Phase 1 walking-skeleton canary UI).
+ * Fetches the session on mount and switches layout: the themeable AppShell
+ * for authenticated, non-public routes; a full-screen RouterView for the
+ * public auth routes (login/auth-error); and a minimal loading fallback
+ * while the session resolves for the first time.
+ *
+ * The router's own `beforeEach` guard (router/index.ts) already rehydrates
+ * the session and redirects unauthenticated users away from protected
+ * routes before this component ever renders them (main.ts awaits
+ * `router.isReady()` before mount) — the fetch here is a resilience
+ * refetch, not the primary auth-gate mechanism.
+ */
+import { computed, onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
+import AppShell from "./layouts/AppShell.vue";
+import { useAuthSessionStore } from "./stores/authSession";
 
-const total = ref<number | null>(null);
-const latest = ref<string | null>(null);
-const error = ref<string | null>(null);
-const loading = ref(false);
+const route = useRoute();
+const authSession = useAuthSessionStore();
+const sessionChecked = ref(false);
 
-async function loadCanary(): Promise<void> {
-  error.value = null;
-  try {
-    const status = await getCanary();
-    total.value = status.total;
-    latest.value = status.latest;
-  } catch {
-    error.value = "Failed to load canary status.";
-  }
-}
+onMounted(async () => {
+  await authSession.fetchSession();
+  sessionChecked.value = true;
+});
 
-async function writeCanary(): Promise<void> {
-  error.value = null;
-  loading.value = true;
-  try {
-    const result = await createCanary();
-    total.value = result.total;
-    latest.value = result.token;
-  } catch {
-    error.value = "Failed to write canary.";
-  } finally {
-    loading.value = false;
-  }
-}
-
-onMounted(loadCanary);
+const isPublicRoute = computed(() => route.meta.requiresAuth === false);
 </script>
 
 <template>
-  <main>
-    <h1>Kurzly</h1>
-    <p>Scaffold placeholder — dashboard UI arrives in a later phase.</p>
-
-    <section>
-      <h2>Persistence canary</h2>
-      <p v-if="error" role="alert">{{ error }}</p>
-      <p v-else>Total: {{ total ?? "…" }}</p>
-      <p v-if="latest">Latest token: {{ latest }}</p>
-      <button type="button" :disabled="loading" @click="writeCanary">Write canary</button>
-    </section>
-  </main>
+  <div id="app-root">
+    <AppShell v-if="authSession.isAuthenticated && !isPublicRoute" />
+    <RouterView v-else-if="isPublicRoute" />
+    <div v-else-if="!sessionChecked" class="loading">Lädt …</div>
+    <RouterView v-else />
+  </div>
 </template>
+
+<style scoped>
+#app-root {
+  width: 100%;
+  height: 100vh;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--bg);
+  color: var(--mut);
+  font-family: "Geist", system-ui, sans-serif;
+  font-size: 13.5px;
+}
+</style>
