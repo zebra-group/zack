@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 04
 current_phase_name: links-management-bulk-import
-status: executing
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-07-11T20:38:53.597Z"
+status: verifying
+stopped_at: Completed 04-05-PLAN.md
+last_updated: "2026-07-11T20:58:43.206Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 10
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 24
-  completed_plans: 23
-  percent: 30
+  completed_plans: 24
+  percent: 40
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 
 Phase: 04 (links-management-bulk-import) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-11 — Phase 04 execution started
 
 Progress: [██████████] 100%
@@ -79,6 +79,7 @@ Progress: [██████████] 100%
 | Phase 04 P02 | 14min | 3 tasks | 8 files |
 | Phase 04 P03 | 12min | 2 tasks | 2 files |
 | Phase 04 P04 | 22min | 2 tasks | 3 files |
+| Phase 04 P05 | 18min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -135,6 +136,9 @@ Recent decisions affecting current work:
 - [Phase ?]: resolveOwnedLink stays route-layer plumbing in routes/links.ts (not lib/links.ts's D-01 core) — composes requireDomainAccess with a link-specific lookup, not a shared validation rule.
 - [Phase ?]: PATCH's title: null currently means 'keep existing title' (not clear it) since updateLink's ValidatedLink.title has no null variant and lib/links.ts is out of this plan's files_modified scope.
 - [Phase 04]: runImport(mutate) shared by preview/commit reuses @kurzly/shared LinkSkipReason/ImportRowResult types instead of redeclaring them locally
+- [Phase ?]: [Phase 04]: 04-05: ApiError extended with an optional code field (best-effort parsed from the JSON error body) so LinkFormModal can precisely map inline field errors (INVALID_TARGET_URL vs SLUG_RESERVED both share HTTP 400) instead of relying on status alone.
+- [Phase ?]: [Phase 04]: 04-05: mapLinkFormError lives in api.ts, not inside LinkFormModal.vue's SFC — the generic declare module "*.vue" shim only declares a default export, so a named SFC export would not type-check under plain tsc --noEmit (no vue-tsc in this repo).
+- [Phase ?]: [Phase 04]: 04-05: Toast-then-delayed-navigate (~900ms) for LinkDetailView's delete and LinksImportView's commit preserves the strict per-view-ref/no-global-store toast convention while still showing the toast before the view unmounts on navigation.
 
 ### Pending Todos
 
@@ -154,6 +158,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T20:36:07.426Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-07-11T20:58:43.163Z
+Stopped at: Completed 04-05-PLAN.md
 Resume file: None

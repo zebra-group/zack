@@ -45,7 +45,7 @@
 - [x] **LINK-01**: Nutzer kann einen Kurzlink durch Wahl von Domain + Ziel-URL erstellen (leerer Slug → automatisch generiert)
 - [x] **LINK-02**: Nutzer kann einen eigenen Slug für einen Kurzlink festlegen
 - [x] **LINK-03**: Nutzer kann die Kurzlink-Liste durchsuchen und nach Domain filtern
-- [ ] **LINK-04**: Nutzer kann die vollständige URL eines Kurzlinks in die Zwischenablage kopieren
+- [x] **LINK-04**: Nutzer kann die vollständige URL eines Kurzlinks in die Zwischenablage kopieren
 - [x] **LINK-05**: Nutzer kann eine Link-Detailseite mit Attributen und Statistiken öffnen
 - [x] **LINK-06**: Nutzer kann die Einstellungen eines Links bearbeiten
 - [x] **LINK-07**: Nutzer kann einen Link löschen
@@ -89,7 +89,7 @@
 - [x] **UI-03**: Alle Dashboard-Screens entsprechen pixelgenau den Design-Tokens des Prototyps (Geist-Fonts, Lime-Akzent `#d7ff01`, Spacing, Radii)
 - [ ] **UI-04**: Besucher sieht eine öffentliche Passwort-Seite (außerhalb des Dashboards) für geschützte Links
 - [ ] **UI-05**: Besucher sieht eine öffentliche Ablauf-Seite für abgelaufene Links
-- [ ] **UI-06**: Nutzer erhält Toast-Bestätigungen für Aktionen (Erstellen, Kopieren, Import, Remap etc.)
+- [x] **UI-06**: Nutzer erhält Toast-Bestätigungen für Aktionen (Erstellen, Kopieren, Import, Remap etc.)
 
 ## v2 Requirements
 
@@ -139,12 +139,12 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | LINK-01 | Phase 4 | Complete |
 | LINK-02 | Phase 4 | Complete |
 | LINK-03 | Phase 4 | Complete |
-| LINK-04 | Phase 4 | Pending |
+| LINK-04 | Phase 4 | Complete |
 | LINK-05 | Phase 4 | Complete |
 | LINK-06 | Phase 4 | Complete |
 | LINK-07 | Phase 4 | Complete |
 | LINK-08 | Phase 4 | Complete |
-| UI-06 | Phase 4 | Pending |
+| UI-06 | Phase 4 | Complete |
 | REDIR-01 | Phase 5 | Pending |
 | REDIR-02 | Phase 5 | Pending |
 | REDIR-03 | Phase 5 | Pending |
