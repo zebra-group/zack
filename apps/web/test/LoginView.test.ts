@@ -41,7 +41,14 @@ describe("LoginView", () => {
       "/api/auth/sign-in/magic-link",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ email: "operator@kurzly.example" }),
+        // CR-02: `callbackURL`/`errorCallbackURL` must be sent so
+        // better-auth routes a failed verification to the dedicated
+        // /auth/error screen (D-05) instead of falling back to "/".
+        body: JSON.stringify({
+          email: "operator@kurzly.example",
+          callbackURL: "/",
+          errorCallbackURL: "/auth/error",
+        }),
       }),
     );
     expect(wrapper.text()).toContain("Link gesendet");

@@ -24,7 +24,19 @@ async function sendMagicLink(): Promise<void> {
     const response = await fetch("/api/auth/sign-in/magic-link", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.value }),
+      // CR-02 fix (D-05): without `errorCallbackURL`, better-auth's verify
+      // endpoint falls back to `callbackURL` (itself defaulting to "/") for
+      // BOTH success and failure — so a failed verification 302-redirects
+      // to "/", the router guard then silently bounces to /login with no
+      // error explanation, and the dedicated /auth/error screen is never
+      // reached. Supplying both explicitly routes failed verification to
+      // the generic, no-leak error page (D-05) and successful verification
+      // to the dashboard.
+      body: JSON.stringify({
+        email: email.value,
+        callbackURL: "/",
+        errorCallbackURL: "/auth/error",
+      }),
     });
 
     if (response.status === 429) {
