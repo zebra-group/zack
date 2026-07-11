@@ -242,6 +242,60 @@ describe("Domain registration + list (DOMAIN-01, D-04, RESEARCH A1)", () => {
 
       await app.close();
     });
+
+    it("CR-01: normalizes hostname casing + a trailing dot before persisting", async () => {
+      const app = await buildApp({ prisma });
+      const cookieHeader = await signInAs(app, ADMIN_EMAIL);
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: cookieHeader },
+        payload: { hostname: "Normalize-CR01.EXAMPLE.com.", type: "apex" },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.hostname).toBe("normalize-cr01.example.com");
+
+      const domainRow = await prisma.domain.findUniqueOrThrow({
+        where: { hostname: "normalize-cr01.example.com" },
+      });
+      expect(domainRow.hostname).toBe("normalize-cr01.example.com");
+
+      await app.close();
+    });
+
+    it("CR-01: a case/dot variant of an already-registered hostname is rejected as a 409 duplicate, not a second row (DNS-ownership-proof bypass closed)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, ADMIN_EMAIL);
+      const otherUserCookie = await signInAs(app, SECOND_USER_EMAIL);
+
+      const first = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: ownerCookie },
+        payload: { hostname: "casevariant.example.com", type: "subdomain" },
+      });
+      expect(first.statusCode).toBe(201);
+
+      // A different (unrelated, non-owning) user attempts to register a
+      // case+trailing-dot variant of the SAME hostname — must be rejected
+      // as a duplicate, never create a second row a second user could ride
+      // to a spoofed "active" status via DNS's own case/dot tolerance.
+      const second = await app.inject({
+        method: "POST",
+        url: "/api/domains",
+        headers: { cookie: otherUserCookie },
+        payload: { hostname: "CaseVariant.Example.COM.", type: "subdomain" },
+      });
+      expect(second.statusCode).toBe(409);
+
+      const count = await prisma.domain.count({ where: { hostname: "casevariant.example.com" } });
+      expect(count).toBe(1);
+
+      await app.close();
+    });
   });
 
   describe("GET /api/domains", () => {

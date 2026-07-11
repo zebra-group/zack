@@ -76,7 +76,11 @@ function selectType(type: "subdomain" | "apex"): void {
 }
 
 async function handleAddDomain(): Promise<void> {
-  const hostname = newHostname.value.trim();
+  // CR-01/WR-02: mirrors the server's normalizeHostname() so the row the
+  // UI optimistically appends after a 201 matches what actually got
+  // persisted — the server remains the authoritative normalization/
+  // validation point (T-03-09), this is purely a UX nicety.
+  const hostname = newHostname.value.trim().toLowerCase();
   if (!hostname) {
     showToast("Bitte eine Domain eingeben.");
     return;

@@ -13,6 +13,7 @@
  * exact-match lookup (Pitfall 1, Fastify CVE-2026-3635 context).
  */
 import type { Domain, PrismaClient } from "../generated/prisma/client.js";
+import { normalizeHostname } from "./hostname.js";
 
 export async function resolveActiveDomainByHost(
   prisma: PrismaClient,
@@ -20,7 +21,12 @@ export async function resolveActiveDomainByHost(
 ): Promise<Domain | null> {
   if (!rawHost) return null;
 
-  const normalized = rawHost.toLowerCase().split(":")[0]?.trim();
+  // Strip a trailing :port BEFORE normalizing (CR-01) — normalizeHostname
+  // is the SAME function `POST /api/domains` uses to canonicalize what it
+  // persists, so a stored hostname and an incoming Host/SNI always compare
+  // in identical form regardless of casing or a trailing dot.
+  const withoutPort = rawHost.split(":")[0] ?? "";
+  const normalized = normalizeHostname(withoutPort);
   if (!normalized) return null;
 
   const domain = await prisma.domain.findUnique({ where: { hostname: normalized } });
