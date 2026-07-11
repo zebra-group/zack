@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: magic-link-auth-app-shell-domain-authorization-core
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-07-11T11:56:39.447Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-07-11T12:19:48.318Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 10
   completed_phases: 1
   total_plans: 15
-  completed_plans: 10
+  completed_plans: 11
   percent: 10
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 02 (magic-link-auth-app-shell-domain-authorization-core) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-07-11 — Phase 02 execution started
 
@@ -64,6 +64,7 @@ Progress: [██████████] 100%
 | Phase 01 P08 | 35min | 3 tasks | 8 files |
 | Phase 01 P09 | 9min | 2 tasks | 2 files |
 | Phase 02 P01 | 20min | 2 tasks | 6 files |
+| Phase 02 P02 | 32min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,9 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-09: Reused the Dockerfile's placeholder-DATABASE_URL trick for CI's explicit prisma generate step since prisma.config.ts resolves DATABASE_URL eagerly via env() even for a connection-less generate call
 - [Phase 02]: 02-01: Operator-approved supply-chain sign-off for better-auth, @fastify/rate-limit, @fastify/helmet, @better-auth/cli at CLAUDE.md-pinned versions (T-02-SC-Gate)
 - [Phase 02]: 02-01: better-sqlite3 (transitive optional dep of better-auth's bundled kysely/drizzle adapters) set to allowBuilds: false in pnpm-workspace.yaml - Postgres-only project, same no-blanket-lifecycle-script rationale as Phase 1's cpu-features/protobufjs/ssh2
+- [Phase 02]: 02-02: auth.ts/mailer.ts read process.env directly with a requireEnv() guard (matching db.ts), not loadEnv() — avoids crashing tests that only set a placeholder DATABASE_URL
+- [Phase 02]: 02-02: Confirmed empirically that better-auth/adapters/prisma re-exports the bundled @better-auth/prisma-adapter package (RESEARCH OQ-2 resolved) — no direct adapter dependency added
+- [Phase 02]: 02-02: User table doubles as the invite-only allowlist (RESEARCH OQ-3 resolved) — no separate AllowedEmail table; DomainMembership composite PK (userId,domainId) built for 02-03's requireDomainAccess
 
 ### Pending Todos
 
@@ -112,6 +116,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T11:56:39.408Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-07-11T12:19:48.283Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
