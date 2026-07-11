@@ -65,6 +65,30 @@ export const DOMAIN_CREATE_RATE_LIMIT = {
   timeWindow: "15 minutes",
 } as const;
 
+/**
+ * Applied to `POST /api/links` (Phase 4, LINK-01, D-01) — mirrors
+ * `DOMAIN_CREATE_RATE_LIMIT`'s shape/rationale: manual creation only
+ * requires an authenticated member+ session (same trust boundary as any
+ * other authorized action), but without a dedicated override it would fall
+ * back to the permissive 100-req/15-min global default.
+ */
+export const LINK_CREATE_RATE_LIMIT = {
+  max: 20,
+  timeWindow: "15 minutes",
+} as const;
+
+/**
+ * Applied to `POST /api/links/import/preview` and `.../import/commit`
+ * (Phase 4, D-05, RESEARCH Security Domain CSV-DoS row) — a tighter bucket
+ * than `LINK_CREATE_RATE_LIMIT` since a single CSV import request can carry
+ * many rows worth of parsing/validation/DB work, making it a much heavier
+ * per-request cost than a single manual create.
+ */
+export const LINK_IMPORT_RATE_LIMIT = {
+  max: 5,
+  timeWindow: "15 minutes",
+} as const;
+
 export async function registerRateLimit(app: FastifyInstance): Promise<void> {
   await app.register(rateLimit, {
     global: true,
