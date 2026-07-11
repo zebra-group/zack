@@ -36,7 +36,25 @@ export async function requireDomainAccess(
     where: { userId_domainId: { userId, domainId } },
   });
 
-  if (!membership || ROLE_RANK[membership.role as Role] < ROLE_RANK[minRole]) {
+  // CR-01 fix: `ROLE_RANK[minRole]` must ALSO be validated — an
+  // out-of-enum `minRole` (a future caller passing a typo'd literal) would
+  // otherwise make every comparison `x < undefined` evaluate to `false`,
+  // silently granting access. `membership.role`'s rank is checked the same
+  // way: `ROLE_RANK[...]` on an unexpected value is `undefined`, and
+  // `undefined < n` is ALWAYS `false` in JS (never `true`, never a thrown
+  // error) — comparing against `undefined` directly, instead of relying on
+  // that comparison's truthiness, is what closes the fail-open bypass this
+  // fixes. Schema-level defense-in-depth: `DomainMembership.role` is now a
+  // native Postgres enum (see schema.prisma), so this branch should be
+  // unreachable in practice — this guard remains as the second layer.
+  const membershipRank = membership ? ROLE_RANK[membership.role] : undefined;
+  const requiredRank = ROLE_RANK[minRole];
+
+  if (
+    membershipRank === undefined ||
+    requiredRank === undefined ||
+    membershipRank < requiredRank
+  ) {
     throw new ForbiddenError(
       `User ${userId} lacks ${minRole}+ access to domain ${domainId}`,
     );
