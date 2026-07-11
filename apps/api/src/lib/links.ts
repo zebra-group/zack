@@ -378,6 +378,17 @@ export const MAX_IMPORT_ROWS = 500;
 
 export type CsvRow = { ziel_url?: string; slug?: string; domain?: string };
 
+/**
+ * The documented CSV column names (D-05, 04-UI-SPEC.md's format hint) —
+ * IN-04 fix (04-REVIEW.md): `runImport` checks the parsed header row
+ * against this set BEFORE entering the row loop, so a header that doesn't
+ * match (wrong casing, wrong names, a completely different file) produces
+ * ONE clear top-level error instead of every row silently resolving
+ * `row.ziel_url` to `undefined` and being reported as `invalid_url` with
+ * no hint that the real problem is the header itself.
+ */
+export const EXPECTED_CSV_COLUMNS = ["ziel_url", "slug", "domain"] as const;
+
 /** Shared shape of `previewImport`/`commitImport`'s return — the caller (routes/links.ts) maps this onto `ImportPreviewResult`/`ImportCommitResult` (@kurzly/shared). */
 export type ImportRunResult = {
   validCount: number;
@@ -479,6 +490,20 @@ export async function runImport(
   const rows: CsvRow[] = parse(csvText, { columns: true, skip_empty_lines: true, trim: true });
   if (rows.length > MAX_IMPORT_ROWS) {
     throw new Error(`CSV exceeds ${MAX_IMPORT_ROWS} row limit`);
+  }
+
+  // IN-04 fix (04-REVIEW.md): validate the parsed header BEFORE the row
+  // loop — see EXPECTED_CSV_COLUMNS's doc comment. Skipped when there are
+  // zero data rows (a header-only or blank file) so this never fires a
+  // false positive ahead of the real "no rows" case.
+  if (rows.length > 0) {
+    const headerKeys = new Set(Object.keys(rows[0] ?? {}));
+    const missingColumns = EXPECTED_CSV_COLUMNS.filter((col) => !headerKeys.has(col));
+    if (missingColumns.length > 0) {
+      throw new Error(
+        `CSV header does not match the expected columns (${EXPECTED_CSV_COLUMNS.join(", ")}); missing: ${missingColumns.join(", ")}`,
+      );
+    }
   }
 
   const seenSlugs = new Set<string>();

@@ -388,6 +388,55 @@ describe("CSV bulk import (LINK-08, D-01/D-05)", () => {
       await app.close();
     });
 
+    it("IN-04: 400s with a clear header-mismatch error when the CSV columns don't match ziel_url/slug/domain", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+
+      // Wrong casing/names — every row would otherwise silently resolve
+      // `row.ziel_url` to `undefined` and be reported as `invalid_url`
+      // with no hint the real problem is the header.
+      const csv = [
+        "Ziel_URL,Slug,Domain",
+        "https://example.com/mismatched-header,x,",
+      ].join("\n");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links/import/preview",
+        headers: { cookie: ownerCookie },
+        payload: { csv },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error).toMatch(/CSV header does not match/i);
+
+      await app.close();
+    });
+
+    it("IN-04: a matching header (even with unrelated extra columns) previews normally", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const ownedDomainId = await seedOwnedDomain(ownerId, "in04-extra-column.example.com");
+
+      const csv = [
+        "ziel_url,slug,domain,notes",
+        "https://example.com/in04-ok,in04-ok,in04-extra-column.example.com,ignored",
+      ].join("\n");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links/import/preview",
+        headers: { cookie: ownerCookie },
+        payload: { csv, defaultDomainId: ownedDomainId },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().validCount).toBe(1);
+
+      await app.close();
+    });
+
     it("IN-02: 400s a request whose csv field exceeds the explicit CSV_MAX_LENGTH ceiling", async () => {
       const app = await buildApp({ prisma });
       const ownerCookie = await signInAs(app, OWNER_EMAIL);
