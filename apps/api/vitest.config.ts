@@ -24,8 +24,24 @@ export default defineConfig({
     // (same one used by the Dockerfile's `prisma generate` step and CI)
     // is enough to satisfy the fail-fast check without a real DB
     // connection at import time.
+    //
+    // Phase 2 (02-04): `src/app.ts` now transitively imports
+    // `src/lib/auth.ts` (via `routes/auth.js`) for EVERY test file that
+    // calls `buildApp()`, not just auth-specific ones — and `lib/auth.ts` /
+    // `lib/mailer.ts` read `BASE_URL` / `BETTER_AUTH_SECRET` / `SMTP_*`
+    // directly from `process.env` at module-import time (see those files'
+    // header comments — same "don't call loadEnv() here" rationale as
+    // `db.ts`). These placeholders satisfy that fail-fast read; no real
+    // SMTP/BASE_URL config is required for tests, since
+    // `auth.integration.test.ts` mocks `lib/mailer.ts`'s
+    // `sendMagicLinkEmail` rather than performing a real SMTP send.
     env: {
       DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder",
+      BASE_URL: "http://localhost:3000",
+      BETTER_AUTH_SECRET: "vitest-test-secret-do-not-use-in-production-32-chars-min",
+      SMTP_HOST: "localhost",
+      SMTP_PORT: "1025",
+      SMTP_FROM: "test@kurzly.test",
     },
   },
 });

@@ -17,11 +17,22 @@
  * silently finds nothing to load there and production continues to get
  * its config exclusively from real process env vars (`docker-compose.yml`'s
  * `env_file: .env` on the host, not a file inside the image).
+ *
+ * Phase 2 (D-01, RESEARCH Pitfall 1/A3): after ENV validation and before
+ * the app starts accepting requests, `seedInitialAdmin` upserts a real
+ * `User` row for `INITIAL_ADMIN_EMAIL` so `disableSignUp: true`
+ * (lib/auth.ts) never locks out the first admin's own first login. `db.js`
+ * is imported dynamically here for the same reason `app.js` already is —
+ * its Prisma client construction must run strictly after `loadEnv()`.
  */
 import "dotenv/config";
 import { loadEnv } from "./env.js";
 
 const env = loadEnv();
+
+const { prisma } = await import("./db.js");
+const { seedInitialAdmin } = await import("./lib/admin-seed.js");
+await seedInitialAdmin(prisma, env.INITIAL_ADMIN_EMAIL);
 
 const { buildApp } = await import("./app.js");
 
