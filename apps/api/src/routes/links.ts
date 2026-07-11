@@ -249,13 +249,30 @@ export function linksRoute(prisma: PrismaClient, auth: Auth) {
         return reply.code(400).send({ error: "Invalid link data" });
       }
 
+      // WR-01 fix (04-REVIEW.md): an OMITTED slug means "keep current" —
+      // but an explicitly-provided empty/whitespace-only slug must NEVER
+      // silently regenerate a brand-new random slug (undermining D-04's
+      // "a slug change is always visible/warned-about" guarantee). Reject
+      // it as a validation error instead of letting it fall into
+      // resolveSlug's blank-slug auto-generation branch (lib/links.ts).
+      if (parsed.data.slug !== undefined && parsed.data.slug.trim().length === 0) {
+        return reply.code(400).send({ error: "SLUG_INVALID_SHAPE" });
+      }
+      const requestedSlug = parsed.data.slug?.trim();
+
       const result = await updateLink(prisma, id, {
         userId,
         domainId: link.domainId,
         targetUrl: parsed.data.targetUrl ?? link.targetUrl,
-        slug: parsed.data.slug ?? link.slug,
-        title:
-          parsed.data.title !== undefined ? (parsed.data.title ?? undefined) : (link.title ?? undefined),
+        slug: requestedSlug ?? link.slug,
+        // WR-02 fix (04-REVIEW.md): `title: null` must actually CLEAR the
+        // title, not collapse to "no change" — `null ?? undefined` used to
+        // evaluate to `undefined` (Prisma's "omit this field" signal), so
+        // an explicit `{ "title": null }` PATCH silently did nothing. Pass
+        // `null` through untouched when explicitly provided; only fall
+        // back to the link's current value when `title` was OMITTED
+        // entirely (`parsed.data.title === undefined`).
+        title: parsed.data.title !== undefined ? parsed.data.title : (link.title ?? undefined),
       });
 
       if (!result.ok) {
