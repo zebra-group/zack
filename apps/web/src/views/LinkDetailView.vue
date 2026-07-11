@@ -18,6 +18,7 @@ import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { DomainDTO, LinkDTO } from "@kurzly/shared";
 import { ApiError, deleteLink, getLink, listDomains, mapLinkFormError, updateLink } from "../api";
+import { formatDate } from "../lib/format";
 import LinkFormModal from "../components/LinkFormModal.vue";
 
 const route = useRoute();
@@ -152,13 +153,6 @@ async function confirmDelete(): Promise<void> {
 
 function goBack(): void {
   router.push({ name: "links" });
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  return `${dd}.${mm}.${d.getFullYear()}`;
 }
 
 load();
