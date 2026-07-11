@@ -95,14 +95,40 @@ model Verification {
   @@map("verification")
 }
 
-/// Minimal domain reference (D-02b) — exists purely so DomainMembership has
-/// something real to point at. Full lifecycle (name, DNS verification,
-/// TLS cert) is added in Phase 3; this phase builds nothing that reads
-/// beyond `id`.
+/// Domain model (extended in Phase 3 with hostname, type, status, DNS
+/// verification fields — D-01/D-02/D-03/D-04, RESEARCH Pattern 1/4).
 model Domain {
-  id          String             @id @default(cuid())
-  createdAt   DateTime           @default(now())
-  memberships DomainMembership[]
+  id                 String             @id @default(cuid())
+  hostname           String             @unique
+  type               DomainType
+  status             DomainStatus       @default(pending)
+  verificationTarget String
+  verifiedAt         DateTime?
+  lastCheckedAt      DateTime?
+  lastCheckError     String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  memberships        DomainMembership[]
+
+  @@index([status])
+}
+
+/// Domain type (D-02): subdomain (verified via CNAME) or apex domain
+/// (verified via A/ALIAS record). Native Postgres enum, mirrors the
+/// existing `Role` enum's precedent below.
+enum DomainType {
+  subdomain
+  apex
+}
+
+/// Domain lifecycle status (D-03): pending (never verified or awaiting
+/// re-check) -> active (last check succeeded) or failed (last check
+/// failed). Indexed via `@@index([status])` for the ask endpoint's fast
+/// active-domain lookup (RESEARCH Pitfall 3).
+enum DomainStatus {
+  pending
+  active
+  failed
 }
 
 /// Domain-scoped role hierarchy (D-02, CR-01 fix). A native Postgres enum

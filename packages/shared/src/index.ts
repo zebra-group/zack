@@ -35,11 +35,23 @@ export type DomainMembership = {
   role: Role;
 };
 
-export type Domain = {
+// Phase 3 (domains & multi-domain TLS routing, D-01..04)
+
+/**
+ * Full domain lifecycle DTO — replaces the Phase-2 placeholder `Domain`
+ * type above once every field crosses the JSON boundary. Date fields are
+ * `string | null` (ISO 8601), not `Date`, since DTOs only ever travel as
+ * JSON (apps/api's `toDomainDto()` mapping, apps/web's `api.ts` client).
+ */
+export type DomainDTO = {
   id: string;
+  hostname: string;
+  type: "subdomain" | "apex";
+  status: "pending" | "active" | "failed";
+  verifiedAt: string | null;
+  lastCheckedAt: string | null;
+  lastCheckError: string | null;
   createdAt: string;
-  // Minimal schema — full lifecycle (name, DNS verification, TLS) added
-  // in Phase 3.
 };
 
 export type AuthSession = {
