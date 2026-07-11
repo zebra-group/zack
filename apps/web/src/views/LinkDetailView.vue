@@ -17,7 +17,7 @@
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { DomainDTO, LinkDTO } from "@kurzly/shared";
-import { ApiError, deleteLink, getLink, listDomains, updateLink } from "../api";
+import { ApiError, deleteLink, getLink, listDomains, mapLinkFormError, updateLink } from "../api";
 import LinkFormModal from "../components/LinkFormModal.vue";
 
 const route = useRoute();
@@ -81,6 +81,21 @@ async function handleCopy(): Promise<void> {
   }
 }
 
+// WR-09 fix (04-REVIEW.md): `mapLinkFormError` returns `{}` for ANY error
+// it cannot render as an inline field error — not just a raw network
+// failure (non-ApiError), but also an `ApiError` whose `code` this mapper
+// has no case for. Either way the modal would otherwise show NOTHING: no
+// inline error, no toast, submission just silently does nothing. Falling
+// back to a toast whenever no field error was produced closes that gap
+// completely.
+function reportFormError(err: unknown): void {
+  formError.value = err;
+  const mapped = mapLinkFormError(err);
+  if (!mapped.targetUrlError && !mapped.slugError) {
+    showToast("Speichern fehlgeschlagen. Bitte erneut versuchen.");
+  }
+}
+
 function openEditModal(): void {
   formError.value = null;
   showEditModal.value = true;
@@ -107,7 +122,7 @@ async function handleEditSubmit(payload: { targetUrl: string; slug?: string }): 
     closeEditModal();
     showToast("Änderungen gespeichert");
   } catch (err) {
-    formError.value = err;
+    reportFormError(err);
   }
 }
 

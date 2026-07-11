@@ -149,6 +149,25 @@ describe("LinkDetailView", () => {
     expect(wrapper.text()).toContain("Änderungen gespeichert");
   });
 
+  it("WR-09: a non-ApiError edit failure (e.g. a network error) surfaces a fallback toast instead of failing silently", async () => {
+    listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+    getLink.mockResolvedValue(
+      makeLink({ id: "l1", domainId: "d1", slug: "abc123", targetUrl: "https://example.com/1" }),
+    );
+    updateLink.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const { wrapper } = await mountDetailView();
+
+    const buttons = wrapper.findAll(".action-button");
+    await buttons[1]!.trigger("click"); // ✎ Bearbeiten
+    await flushPromises();
+
+    await wrapper.find(".btn-primary").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find(".toast").text()).toBe("Speichern fehlgeschlagen. Bitte erneut versuchen.");
+  });
+
   it("delete requires confirmation, calls deleteLink, toasts, then navigates to /links", async () => {
     listDomains.mockResolvedValue([makeDomain({ id: "d1" })]);
     getLink.mockResolvedValue(makeLink({ id: "l1", domainId: "d1" }));
