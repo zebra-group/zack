@@ -187,3 +187,7 @@ None - no external service configuration required. Uses the `/api/auth/*` surfac
 ---
 *Phase: 02-magic-link-auth-app-shell-domain-authorization-core*
 *Completed: 2026-07-11*
+
+## Self-Check: PASSED
+
+All 8 declared created/modified files found on disk; all 3 task commit hashes (`6ac5ab0`, `e0d5fd8`, `efa5072`) found in git log.
