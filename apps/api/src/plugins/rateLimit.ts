@@ -26,6 +26,30 @@ export const MAGIC_LINK_RATE_LIMIT = {
   timeWindow: "15 minutes",
 } as const;
 
+/**
+ * Applied to `POST /api/domains/:id/verify` (Phase 3, RESEARCH Pitfall 4)
+ * via route-level `config: { rateLimit: VERIFY_RATE_LIMIT }` — looser than
+ * `MAGIC_LINK_RATE_LIMIT` (a DNS "check now" click is lower-risk than
+ * email-bombing) but still protective against DNS-amplification abuse
+ * against the operator's resolver and unnecessary Postgres write load.
+ */
+export const VERIFY_RATE_LIMIT = {
+  max: 10,
+  timeWindow: "5 minutes",
+} as const;
+
+/**
+ * Applied to `GET /api/tls-check` (Phase 3, RESEARCH Pitfall 3, Pattern 3)
+ * — generous since this endpoint sits directly on an operator reverse
+ * proxy's TLS handshake critical path (Caddy `on_demand_tls.ask`) and must
+ * respond in milliseconds; a legitimate proxy issues multiple lookups per
+ * new hostname/connection burst.
+ */
+export const TLS_CHECK_RATE_LIMIT = {
+  max: 60,
+  timeWindow: "1 minute",
+} as const;
+
 export async function registerRateLimit(app: FastifyInstance): Promise<void> {
   await app.register(rateLimit, {
     global: true,

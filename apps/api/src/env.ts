@@ -60,6 +60,16 @@ export const envSchema = z.object({
   // must opt in explicitly, or `request.ip` would otherwise trust a
   // spoofable X-Forwarded-For header from any client).
   TRUST_PROXY: z.coerce.boolean().default(false),
+  // Domain verification (Phase 3, D-02) — the fixed CNAME target subdomain
+  // owners must point their DNS at. Optional with a fail-safe default so a
+  // fresh deployment still boots before the operator configures a real
+  // value; used to compute Domain.verificationTarget for `type: subdomain`.
+  CNAME_TARGET: z.string().min(1).optional().default("shortener.kurzly.local"),
+  // Domain verification (Phase 3, D-02) — the fixed A-record IPv4 apex
+  // domain owners must point their DNS at. Optional with a fail-safe
+  // default (mirrors CNAME_TARGET); used to compute Domain.verificationTarget
+  // for `type: apex`.
+  A_RECORD_IP: z.ipv4().optional().default("0.0.0.0"),
 });
 
 export type Env = z.infer<typeof envSchema>;
