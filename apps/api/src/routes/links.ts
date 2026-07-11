@@ -93,6 +93,11 @@ function isImportRowLimitError(err: unknown): err is Error {
   return err instanceof Error && err.message.includes(`${MAX_IMPORT_ROWS} row limit`);
 }
 
+/** True for the `Error` `runImport` throws when the CSV header doesn't match EXPECTED_CSV_COLUMNS (IN-04, lib/links.ts). */
+function isImportHeaderMismatchError(err: unknown): err is Error {
+  return err instanceof Error && err.message.startsWith("CSV header does not match");
+}
+
 /** Maps a `LinkErrorCode` (lib/links.ts) to the HTTP status the route returns. */
 function statusForLinkError(error: LinkErrorCode): number {
   switch (error) {
@@ -341,7 +346,7 @@ export function linksRoute(prisma: PrismaClient, auth: Auth) {
           };
           return reply.send(response);
         } catch (err) {
-          if (isImportRowLimitError(err)) {
+          if (isImportRowLimitError(err) || isImportHeaderMismatchError(err)) {
             return reply.code(400).send({ error: err.message });
           }
           throw err;
@@ -386,7 +391,7 @@ export function linksRoute(prisma: PrismaClient, auth: Auth) {
           };
           return reply.send(response);
         } catch (err) {
-          if (isImportRowLimitError(err)) {
+          if (isImportRowLimitError(err) || isImportHeaderMismatchError(err)) {
             return reply.code(400).send({ error: err.message });
           }
           throw err;
