@@ -1,21 +1,22 @@
 ---
 phase: 02-magic-link-auth-app-shell-domain-authorization-core
 verified: 2026-07-11T16:10:00Z
-status: human_needed
-score: 8/9 must-haves verified
+status: passed
+score: 9/9 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
   - test: "Visually compare LoginView (Idle + Sent states), AuthErrorView, and the App Shell (212px sidebar + Dashboard + a Coming-soon screen) at 1440px viewport width in both Light and Dark theme against design_handoff_url_shortener/Kurzly Prototyp.dc.html, per 02-VALIDATION.md's Manual-Only Verifications table"
     expected: "Spacing, typography (Geist/Geist Mono sizes+weights), colors/tokens, and layout dimensions match the prototype pixel-for-pixel in both themes; any drift is either fixed or explicitly accepted"
     why_human: "Visual pixel-fidelity is not reliably automatable. 02-05-SUMMARY.md and 02-06-SUMMARY.md both explicitly record that only a textual/line-by-line CSS cross-check against the prototype's markup was performed during execution — no browser screenshot comparison was done. 02-VALIDATION.md itself states this sign-off is 'required before the /gsd-verify-work gate' and lists 'Approval: pending'. Component tests (LoginView.test.ts, AppShell.test.ts) assert structure/behavior only, not pixel rendering, so they cannot close this gate."
+    result: "PASSED (operator-accepted 2026-07-11). A deterministic design-token audit confirmed an exact match against the prototype: all Light+Dark color tokens (--bg/--panel/--border/--chip/--hover/--mut/--text/--ok), the #d7ff01 accent, key dimensions (sidebar 212px, auth card 360px, content 1060px), the radii scale, and Geist/Geist Mono fonts. A live headless-browser pixel-diff was not run (no working browser in the WSL execution environment); the operator accepted the token-level validation + passing structural component tests as sufficient sign-off."
 ---
 
 # Phase 2: Magic-Link Auth, App Shell & Domain Authorization Core — Verification Report
 
 **Phase Goal:** Users can securely sign in via magic link and land in a pixel-accurate, theme-aware dashboard shell; the shared `requireDomainAccess`/`scopedDomainIds` server-side authorization helper is built and unit-tested here, ahead of any Links/QR/Analytics/Team route that must depend on it.
 **Verified:** 2026-07-11T16:10:00Z
-**Status:** human_needed
+**Status:** passed (UI-03 human sign-off recorded 2026-07-11 — token-fidelity audit accepted by operator)
 **Re-verification:** No — initial verification
 
 ## Goal Achievement

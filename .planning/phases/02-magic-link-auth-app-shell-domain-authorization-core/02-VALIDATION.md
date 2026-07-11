@@ -85,4 +85,4 @@ created: 2026-07-11
 - [ ] Feedback latency < 90s
 - [ ] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-07-11 (UI-03 token-fidelity audit; operator-accepted)
