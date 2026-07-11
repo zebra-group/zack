@@ -47,11 +47,17 @@ export async function verifyDomain(
   resolver: DnsResolver = nodeDnsResolver,
   timeoutMs = 5000,
 ): Promise<{ verified: boolean; error?: string }> {
+  // WR-03: captured so the "resolver settles first" path (the common case)
+  // can clear the pending timeout instead of leaving it alive for up to
+  // `timeoutMs` after every successful/fast verify call — needless resource
+  // churn on a route that can be called repeatedly (rate-limited, but still
+  // up to 10x/5min per caller).
+  let timer: NodeJS.Timeout | undefined;
   try {
     const records = await Promise.race([
       type === "subdomain" ? resolver.resolveCname(hostname) : resolver.resolve4(hostname),
       new Promise<string[]>((_resolve, reject) => {
-        setTimeout(() => reject(new Error("DNS_TIMEOUT")), timeoutMs);
+        timer = setTimeout(() => reject(new Error("DNS_TIMEOUT")), timeoutMs);
       }),
     ]);
 
@@ -67,5 +73,7 @@ export async function verifyDomain(
       (err as NodeJS.ErrnoException).code ??
       (err instanceof Error ? err.message : "DNS_LOOKUP_FAILED");
     return { verified: false, error: code };
+  } finally {
+    clearTimeout(timer);
   }
 }
