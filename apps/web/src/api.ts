@@ -65,6 +65,12 @@ export interface LinkFormFieldErrors {
 const LINK_TARGET_URL_INVALID_MESSAGE = "Das sieht nicht wie eine gültige URL aus (https://…).";
 const LINK_SLUG_TAKEN_MESSAGE = "Dieser Slug ist bereits vergeben.";
 const LINK_SLUG_RESERVED_MESSAGE = "Dieser Slug ist reserviert und kann nicht verwendet werden.";
+// WR-07 fix (04-REVIEW.md): a distinct message from LINK_SLUG_RESERVED_MESSAGE
+// — a shape violation (length/characters) is a different problem than an
+// actually-reserved word, and telling the user "reserved" when the real
+// issue is invalid characters was actively misleading.
+const LINK_SLUG_INVALID_SHAPE_MESSAGE =
+  "Slug darf nur Buchstaben, Zahlen, - und _ enthalten, 2–32 Zeichen.";
 
 export function mapLinkFormError(err: unknown): LinkFormFieldErrors {
   if (!(err instanceof ApiError)) return {};
@@ -74,6 +80,8 @@ export function mapLinkFormError(err: unknown): LinkFormFieldErrors {
       return { targetUrlError: LINK_TARGET_URL_INVALID_MESSAGE };
     case "SLUG_RESERVED":
       return { slugError: LINK_SLUG_RESERVED_MESSAGE };
+    case "SLUG_INVALID_SHAPE":
+      return { slugError: LINK_SLUG_INVALID_SHAPE_MESSAGE };
     case "SLUG_TAKEN":
       return { slugError: LINK_SLUG_TAKEN_MESSAGE };
     default:

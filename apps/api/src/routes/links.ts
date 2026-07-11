@@ -87,6 +87,7 @@ function statusForLinkError(error: LinkErrorCode): number {
       return 403;
     case "INVALID_TARGET_URL":
     case "SLUG_RESERVED":
+    case "SLUG_INVALID_SHAPE":
       return 400;
     case "SLUG_TAKEN":
       return 409;

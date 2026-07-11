@@ -181,7 +181,12 @@ describe("Link core + routes (LINK-01/02/03, D-01/D-02/D-03)", () => {
       const ownerId = await resolveSessionUserId(app, ownerCookie);
       const domainId = await seedOwnedDomain(ownerId, "reserved-slug.example.com");
 
-      for (const candidate of ["api", "Health", "q"]) {
+      // "q" is deliberately excluded here (WR-07 fix, 04-REVIEW.md): it is
+      // 1 character, so it always fails customSlugSchema's shape check
+      // (.min(2)) BEFORE the RESERVED_SLUGS.has() branch is ever reached —
+      // asserting SLUG_RESERVED for it would prove the wrong thing. See
+      // "SLUG_INVALID_SHAPE" describe block below for its actual coverage.
+      for (const candidate of ["api", "Health"]) {
         const result = await validateLinkInput(prisma, {
           userId: ownerId,
           domainId,
@@ -191,6 +196,46 @@ describe("Link core + routes (LINK-01/02/03, D-01/D-02/D-03)", () => {
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.error).toBe("SLUG_RESERVED");
       }
+
+      await app.close();
+    });
+
+    it("SLUG_INVALID_SHAPE: a shape violation is reported distinctly from SLUG_RESERVED (WR-07)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "slug-invalid-shape.example.com");
+
+      // Too short (1 char) — also happens to be a RESERVED_SLUGS member
+      // ("q"), proving the shape check runs FIRST and wins.
+      const tooShort = await validateLinkInput(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com",
+        slug: "q",
+      });
+      expect(tooShort.ok).toBe(false);
+      if (!tooShort.ok) expect(tooShort.error).toBe("SLUG_INVALID_SHAPE");
+
+      // Too long (33 chars, over customSlugSchema's max(32)).
+      const tooLong = await validateLinkInput(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com",
+        slug: "a".repeat(33),
+      });
+      expect(tooLong.ok).toBe(false);
+      if (!tooLong.ok) expect(tooLong.error).toBe("SLUG_INVALID_SHAPE");
+
+      // Disallowed character (space) — outside [a-zA-Z0-9_-].
+      const badChar = await validateLinkInput(prisma, {
+        userId: ownerId,
+        domainId,
+        targetUrl: "https://example.com",
+        slug: "has space",
+      });
+      expect(badChar.ok).toBe(false);
+      if (!badChar.ok) expect(badChar.error).toBe("SLUG_INVALID_SHAPE");
 
       await app.close();
     });
@@ -266,7 +311,13 @@ describe("Link core + routes (LINK-01/02/03, D-01/D-02/D-03)", () => {
           slug: reserved,
         });
         expect(result.ok).toBe(false);
-        if (!result.ok) expect(result.error).toBe("SLUG_RESERVED");
+        // WR-07 fix (04-REVIEW.md): a handful of RESERVED_SLUGS entries
+        // (see IN-01's comment in lib/links.ts) are shape-invalid
+        // (contain "." or are 1 char) and are therefore rejected via
+        // SLUG_INVALID_SHAPE rather than SLUG_RESERVED — both still prove
+        // "this slug cannot be used to create a Link", which is what this
+        // test actually asserts.
+        if (!result.ok) expect(["SLUG_RESERVED", "SLUG_INVALID_SHAPE"]).toContain(result.error);
       }
 
       await app.close();
