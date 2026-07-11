@@ -37,7 +37,13 @@ describe("Schema push: better-auth + Domain/DomainMembership models (D-02b)", ()
     const user = await prisma.user.create({
       data: { id: "u_schema_push", name: "Schema Push", email: "schema-push@test.kurzly" },
     });
-    const domain = await prisma.domain.create({ data: {} });
+    const domain = await prisma.domain.create({
+      data: {
+        hostname: "schema-push.test.kurzly",
+        type: "subdomain",
+        verificationTarget: "shortener.kurzly.local",
+      },
+    });
     const membership = await prisma.domainMembership.create({
       data: { userId: user.id, domainId: domain.id, role: "owner" },
     });

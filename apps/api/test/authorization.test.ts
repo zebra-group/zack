@@ -18,6 +18,7 @@ import {
  */
 describe("Authorization core (D-02)", () => {
   let userSeq = 0;
+  let domainSeq = 0;
 
   async function seedUser() {
     userSeq += 1;
@@ -30,10 +31,28 @@ describe("Authorization core (D-02)", () => {
     });
   }
 
+  /**
+   * Phase 3 extended `Domain` with required `hostname`/`type`/
+   * `verificationTarget` fields (RESEARCH Pitfall 2) — this suite only
+   * exercises `requireDomainAccess`/`scopedDomainIds` against
+   * `DomainMembership` rows, so the Domain's own field values are
+   * incidental; a unique hostname per call just satisfies the schema.
+   */
+  async function seedDomain() {
+    domainSeq += 1;
+    return prisma.domain.create({
+      data: {
+        hostname: `authz-domain-${domainSeq}.test.kurzly`,
+        type: "subdomain",
+        verificationTarget: "shortener.kurzly.local",
+      },
+    });
+  }
+
   describe("requireDomainAccess", () => {
     it("resolves when an owner membership meets minRole 'admin' (owner rank 2 >= admin rank 1)", async () => {
       const user = await seedUser();
-      const domain = await prisma.domain.create({ data: {} });
+      const domain = await seedDomain();
       await prisma.domainMembership.create({
         data: { userId: user.id, domainId: domain.id, role: "owner" },
       });
@@ -45,7 +64,7 @@ describe("Authorization core (D-02)", () => {
 
     it("throws ForbiddenError when a member membership is below minRole 'admin' (member rank 0 < admin rank 1)", async () => {
       const user = await seedUser();
-      const domain = await prisma.domain.create({ data: {} });
+      const domain = await seedDomain();
       await prisma.domainMembership.create({
         data: { userId: user.id, domainId: domain.id, role: "member" },
       });
@@ -57,7 +76,7 @@ describe("Authorization core (D-02)", () => {
 
     it("resolves when an admin membership exactly meets minRole 'admin' (equal rank allowed)", async () => {
       const user = await seedUser();
-      const domain = await prisma.domain.create({ data: {} });
+      const domain = await seedDomain();
       await prisma.domainMembership.create({
         data: { userId: user.id, domainId: domain.id, role: "admin" },
       });
@@ -69,7 +88,7 @@ describe("Authorization core (D-02)", () => {
 
     it("throws ForbiddenError for an unknown user/domain pair (no membership row — deny-by-default)", async () => {
       const user = await seedUser();
-      const domain = await prisma.domain.create({ data: {} });
+      const domain = await seedDomain();
       // Deliberately no DomainMembership row created for this pair.
 
       await expect(
@@ -88,7 +107,7 @@ describe("Authorization core (D-02)", () => {
       // guard condition `!membership || false` was `false` and access was
       // silently GRANTED. This must now throw.
       const user = await seedUser();
-      const domain = await prisma.domain.create({ data: {} });
+      const domain = await seedDomain();
       const findUniqueSpy = vi
         .spyOn(prisma.domainMembership, "findUnique")
         .mockResolvedValueOnce({
@@ -114,8 +133,8 @@ describe("Authorization core (D-02)", () => {
   describe("scopedDomainIds", () => {
     it("returns exactly the domain IDs a user is a member of (order-independent, length 2)", async () => {
       const user = await seedUser();
-      const domainA = await prisma.domain.create({ data: {} });
-      const domainB = await prisma.domain.create({ data: {} });
+      const domainA = await seedDomain();
+      const domainB = await seedDomain();
       await prisma.domainMembership.create({
         data: { userId: user.id, domainId: domainA.id, role: "owner" },
       });
