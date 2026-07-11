@@ -38,6 +38,69 @@ Theme wird per `data-theme="dark"`-Attribut auf `<body>` (bzw. root-Element) ges
 
 ---
 
+## Design-Fidelity Waiver / Constraint Exceptions
+
+> **Diese Sektion ist ein formaler Waiver. Sie hebt für dieses Projekt drei generische Greenfield-Heuristiken auf, weil sie gegen eine höherrangige, projekt-eigene Hard-Requirement verstoßen. Checker und Auditor: die unten gelisteten Typografie- und Spacing-Werte sind KEINE Verstöße, sondern verbindliche, projekt-owner-freigegebene Tokens.**
+
+### Standing Sign-Off (bereits in den Projekt-Constraints verankert)
+
+Dieses Projekt arbeitet unter einem **gesperrten, pixelgenauen Design-Handoff** (`design_handoff_url_shortener/Kurzly Prototyp.dc.html` + `README.md`). Die Reproduktion dieser exakten Tokens ist keine Ermessensentscheidung des Researchers, sondern durch zwei übergeordnete, bereits gesperrte Instanzen mandatiert:
+
+- **Requirement UI-03** (`.planning/REQUIREMENTS.md`): „Alle Dashboard-Screens entsprechen **pixelgenau** den Design-Tokens des Prototyps (Geist-Fonts, Lime-Akzent `#d7ff01`, Spacing, Radii)."
+- **Locked Decision D-04** (`.planning/phases/02-…/02-CONTEXT.md`): „**Pixelgenaue Design-Tokens** aus dem Prototyp (Geist-Typografie, Lime-Akzent `#d7ff01`, Spacing, Radii) — UI-03."
+- Zusätzlich `.claude/CLAUDE.md` Constraint **„UI-Treue: High-Fidelity — Farben, Typografie, Abstände, Interaktionen pixelgenau nach Prototyp."**
+
+UI-03 + D-04 (+ CLAUDE.md) **konstituieren stehende Projekt-Owner-Freigabe** für die 1:1-Reproduktion der Prototyp-Tokens. Es ist keine weitere Rückfrage an den Nutzer erforderlich — die Freigabe liegt in den gesperrten Constraints vor.
+
+### Ausdrücklich gewaiverte Heuristiken (nur für dieses Projekt)
+
+Die folgenden generischen Greenfield-Design-Regeln werden für Phase 02 (und projektweit, solange der gesperrte Handoff gilt) **außer Kraft gesetzt**:
+
+1. **„Maximal 4 Font-Größen"** — gewaivert. Der Prototyp definiert eine feinere Typografieskala; Konsolidierung würde Pixeltreue brechen.
+2. **„Maximal 2 Font-Gewichte"** — gewaivert. Der Prototyp nutzt 400/500/600/700; alle vier sind erforderlich.
+3. **„Alle Spacing-Werte müssen Vielfache von 4 sein (4px-Grid)"** — gewaivert. Der Prototyp arbeitet auf einem 4px-**Basisraster mit Fein-Werten** (2/6/7/9/10/11/13/14/18/22/26/30 px u. a.) sowie festen Struktur-Dimensionen (212/360/1060 px). Rundung auf 4er-Vielfache würde Pixeltreue brechen.
+
+### Immutable Typografie-Tokens (Prototyp-abgeleitet — Konsolidierung VERBOTEN)
+
+Vollständige Größen-Menge (px), alle aus dem Prototyp extrahiert und LOCKED: **9.5, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 15, 16, 17, 19, 20, 21, 22, 52**.
+Vollständige Gewichts-Menge, alle LOCKED: **400, 500, 600, 700**.
+Fonts: **Geist** (UI) + **Geist Mono** (Code/URLs/E-Mail-Inputs/Zahlen).
+
+> Konsolidierung dieser Skala auf „4 Größen / 2 Gewichte" ist durch **UI-03** untersagt. Die vollständige rollenbasierte Zuordnung steht in der Sektion **Typography** weiter unten; jede dort gelistete Größe/Gewicht ist Teil dieses Waivers.
+
+### Immutable Spacing-/Dimensions-Tokens (Prototyp-abgeleitet, Nicht-4er-Vielfache)
+
+Jeder Wert ist direkt aus dem Handoff-Prototyp rückverfolgbar (`Kurzly Prototyp.dc.html` / `README.md`):
+
+| Wert | Herkunft im Prototyp | Immutable |
+|------|----------------------|-----------|
+| **212px** | Sidebar-Breite (fix), UI-01 | ✓ |
+| **1060px** | Content max-width | ✓ |
+| **360px** | Auth-/Login-/Fehlerseiten-Card-Breite | ✓ |
+| **2px** | Nav-Item-Gap; Theme-Switch-Knob-Inset (light) | ✓ |
+| **6px** | Logo-Mark-`border-radius`; Nav-Liste-Padding-H (Anteil); Auth-Body-Gap | ✓ |
+| **7px** | Nav-Item-Padding (`7px 10px`); Nav-Item-`border-radius`; URL-Chip-`border-radius` | ✓ |
+| **9px** | Logo-Zeile-Gap; User-Row-Gap; Auth-Input/Button-`border-radius` | ✓ |
+| **10px** | Nav-Liste-Padding-H; User-Row-Padding; Auth-Brand-Zeile-Gap; Icon-Kachel-`border-radius` (QR-Logo) | ✓ |
+| **11px** | Versionstext/User-Rolle-Font; Auth-Input-Padding-V (`11px 13px`); Auth-Button-Padding-V (`11px 0`) | ✓ |
+| **13px** | Logo-Initiale-Font; Auth-Input-Padding-H | ✓ |
+| **14px** | Screen-Header-Gap; Auth-Card-Gap; Error-Icon-Kachel-`border-radius` | ✓ |
+| **18px** | Logo-Zeile-Padding (`18px 16px 14px`); Screen-Gap; Auth-Wrapper-Gap | ✓ |
+| **22px** | Sidebar-Logo-Mark (22×22) | ✓ |
+| **26px** | Auth-Card-Padding (`26px 24px`); User-Avatar (26×26) | ✓ |
+| **30px** | Auth-Logo-Mark (30×30); Theme-Switch-Track-Breite (30×16); Sent-State-Icon (44 abweichend) | ✓ |
+| **34px** | Fehlerseiten-Card-Padding (`34px 26px`) | ✓ |
+| **44px** | Sent-State-Icon-Kreis (44×44) | ✓ |
+| **52px** | Error-/Status-Icon-Kachel (52×52); 404-Ziffer-Font | ✓ |
+| **Radii 6/7/8/9/10/12/14/16/999px** | Logo(6)/Nav(7)/Input+Button(8)/Auth-Input+Button(9)/Sektion+Icon(10)/Karte(12)/Icon-Kachel(14)/Modal+Auth-Card(16)/Pille+Switch(999) | ✓ |
+| **Content-Padding `28px 36px 48px`** | Screen-Container-Padding | ✓ |
+
+### Begründung
+
+Die 4px-Grid- und Skalen-Begrenzungs-Heuristiken existieren, um **ad-hoc-Chaos** in Projekten ohne verbindliche Design-Vorlage zu verhindern. Diese Gefahr besteht hier nicht: **jeder** Token stammt aus einer **einzigen, gesperrten Prototyp-Quelle**, ist rückverfolgbar und wird nicht ad hoc erfunden. Der Deliverable dieser Phase ist explizit die **pixelgenaue Reproduktion des Handoffs** (UI-03) — die Heuristiken würden diesen Deliverable aktiv sabotieren. Der Waiver ersetzt „willkürlich vermeiden" durch „kontrolliert und quellen-belegt reproduzieren".
+
+---
+
 ## Spacing Scale
 
 **Abweichung vom generischen 8pt-Default:** Das Design-Handoff schreibt UI-03/D-04 Pixelgenauigkeit zum Prototyp vor. Der Prototyp nutzt ein **4px-Basisraster mit zahlreichen Fein-Werten** (nicht strikt 8pt) — diese exakten Werte sind LOCKED und ersetzen die generische Skala für alle Phase-2-Elemente. Erfindet keine gerundeten 8pt-Werte, wo der Prototyp einen Fein-Wert vorgibt.
@@ -317,8 +380,8 @@ Card (statt Login-Idle/Sent): padding:34px 26px; align-items:center; text-align:
 - [ ] Dimension 1 Copywriting: PASS
 - [ ] Dimension 2 Visuals: PASS
 - [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
+- [ ] Dimension 4 Typography: PASS (unter Design-Fidelity-Waiver — Skala prototyp-abgeleitet, UI-03/D-04)
+- [ ] Dimension 5 Spacing: PASS (unter Design-Fidelity-Waiver — Werte prototyp-abgeleitet, UI-03/D-04)
 - [ ] Dimension 6 Registry Safety: PASS (not applicable — kein shadcn)
 
 **Approval:** pending
