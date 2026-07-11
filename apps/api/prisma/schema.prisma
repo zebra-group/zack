@@ -42,6 +42,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   memberships   DomainMembership[]
+  links         Link[]
 
   @@unique([email])
   @@map("user")
@@ -109,6 +110,7 @@ model Domain {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   memberships        DomainMembership[]
+  links              Link[]
 
   @@index([status])
 }
@@ -158,4 +160,33 @@ model DomainMembership {
   domain Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
 
   @@id([userId, domainId])
+}
+
+/// Link model (LINK-01/02/03, D-01/D-02/D-03) — the single tenant-scoped
+/// short-link resource this phase introduces. Every row is written through
+/// exactly one path: `apps/api/src/lib/links.ts`'s `createLink` (D-01
+/// single-write-path core) — no other code in the codebase may call
+/// `prisma.link.create`. `@@unique([domainId, slug])` is the authoritative
+/// per-domain uniqueness guarantee (the app-level `resolveSlug` pre-check in
+/// lib/links.ts is a friendly-error fast path, not the real guarantee — see
+/// its P2002 catch). Deleting a Domain cascade-deletes its Links (a domain's
+/// short links have no meaning without the domain); deleting a User nulls
+/// `createdBy` (SetNull) so their created links survive their departure —
+/// matches DomainMembership's cascade but intentionally differs on Link
+/// since a link's history/target should outlive its creator's account.
+model Link {
+  id        String   @id @default(cuid())
+  domainId  String
+  slug      String
+  targetUrl String
+  title     String?
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  domain  Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  creator User?  @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@unique([domainId, slug])
+  @@index([domainId])
 }

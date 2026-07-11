@@ -57,3 +57,87 @@ export type DomainDTO = {
 export type AuthSession = {
   user: SessionUser | null;
 };
+
+// Phase 4 (links management & bulk import, D-01..05, LINK-01..08)
+
+/**
+ * Full Link DTO — mirrors `apps/api/src/lib/links.ts`'s `toLinkDto()`
+ * mapping. Date fields are ISO 8601 strings (same JSON-boundary convention
+ * as `DomainDTO` above), never `Date` — DTOs only ever travel as JSON.
+ */
+export type LinkDTO = {
+  id: string;
+  domainId: string;
+  slug: string;
+  targetUrl: string;
+  title: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/**
+ * `POST /api/links` request body shape — the SAME shape `validateLinkInput`
+ * (apps/api/src/lib/links.ts, D-01) accepts sans `userId` (resolved
+ * server-side from the session, never client-supplied). A blank/omitted
+ * `slug` auto-generates a Base62 slug (D-02).
+ */
+export type CreateLinkInput = {
+  domainId: string;
+  targetUrl: string;
+  slug?: string;
+  title?: string;
+};
+
+/**
+ * `PATCH /api/links/:id` request body shape (04-03) — every field optional
+ * since an update may touch only one of targetUrl/slug/title; routed
+ * through the same `validateLinkInput` core with `excludeLinkId` set so
+ * re-saving a link's own slug is never a false collision.
+ */
+export type UpdateLinkInput = {
+  targetUrl?: string;
+  slug?: string;
+  title?: string;
+};
+
+/**
+ * Discriminates why a single CSV row was skipped during bulk import
+ * (04-04, D-05) — surfaced per-row in `ImportRowResult.reason` so the
+ * preview/commit UI can explain each skip precisely instead of a generic
+ * "invalid row" message.
+ */
+export type LinkSkipReason =
+  | "invalid_url"
+  | "slug_conflict"
+  | "domain_unauthorized"
+  | "duplicate_in_file";
+
+/**
+ * Per-row CSV import result — one entry per input row, valid or not. Field
+ * names (`zielUrl`/`slug`/`domain`) mirror the German CSV column headers
+ * the import UI documents (04-UI-SPEC.md), not the English DTO field names
+ * elsewhere, since these values echo the user's own raw input back for
+ * review (not a persisted Link).
+ */
+export type ImportRowResult = {
+  zielUrl: string | null;
+  slug: string | null;
+  domain: string | null;
+  valid: boolean;
+  reason: LinkSkipReason | null;
+};
+
+/** `POST /api/links/import/preview` response (04-04, D-05) — zero writes. */
+export type ImportPreviewResult = {
+  validCount: number;
+  skippedCount: number;
+  rows: ImportRowResult[];
+};
+
+/** `POST /api/links/import/commit` response (04-04, D-05) — after writing. */
+export type ImportCommitResult = {
+  importedCount: number;
+  skippedCount: number;
+  rows: ImportRowResult[];
+};
