@@ -56,12 +56,17 @@ FROM base AS runtime
 ENV NODE_ENV=production
 WORKDIR /prod/api
 
-COPY --from=build /prod/api /prod/api
+COPY --from=build --chown=node:node /prod/api /prod/api
 # Single-image SPA serving (D-01): the built Vue dist/ becomes the API's
 # static public/ directory, served by @fastify/static (see plugins/static.ts).
-COPY --from=build /usr/src/app/apps/web/dist /prod/api/public
-COPY apps/api/entrypoint.sh /prod/api/entrypoint.sh
+COPY --from=build --chown=node:node /usr/src/app/apps/web/dist /prod/api/public
+COPY --chown=node:node apps/api/entrypoint.sh /prod/api/entrypoint.sh
 RUN chmod +x /prod/api/entrypoint.sh
+
+# Run as the non-root `node` user (built into node:24-alpine — no need to
+# create one) so a future RCE-class bug in a dependency handling
+# untrusted HTTP input has a materially smaller blast radius (WR-03).
+USER node
 
 EXPOSE 3000
 
