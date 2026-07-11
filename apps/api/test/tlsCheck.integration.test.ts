@@ -110,6 +110,39 @@ describe("GET /api/tls-check (ask endpoint, D-01)", () => {
     expect(response.statusCode).toBe(404);
   });
 
+  it("WR-01: returns 404 (not 500) for a missing ?domain= param", async () => {
+    const app = await buildApp({ prisma });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/tls-check",
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.body).toBe("");
+  });
+
+  it("WR-01: returns 404 (not 500) for a duplicate-key ?domain= (Fastify parses it as an array)", async () => {
+    const app = await buildApp({ prisma });
+
+    await prisma.domain.create({
+      data: {
+        hostname: "arrayquery.example.com",
+        type: "subdomain",
+        status: "active",
+        verificationTarget: "shortener.kurzly.local",
+      },
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/tls-check?domain=arrayquery.example.com&domain=attacker.example.com",
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.body).toBe("");
+  });
+
   it("requires no session cookie (operator proxy calls this directly)", async () => {
     const app = await buildApp({ prisma });
 

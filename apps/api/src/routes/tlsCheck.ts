@@ -38,7 +38,18 @@ export function tlsCheckRoute(prisma: PrismaClient) {
       url: "/api/tls-check",
       config: { rateLimit: TLS_CHECK_RATE_LIMIT },
       handler: async (request: FastifyRequest, reply: FastifyReply) => {
-        const { domain } = request.query as { domain?: string };
+        // WR-01: `request.query` is an unchecked type assertion, not a
+        // runtime guarantee — Fastify's default query-string parser turns a
+        // repeated `?domain=` key into an array, which has no
+        // `.toLowerCase()` and would otherwise throw a TypeError deep
+        // inside `resolveActiveDomainByHost` (a 500 on this unauthenticated,
+        // internet-facing TLS-handshake-critical-path endpoint). Coercing
+        // anything that isn't a plain string to `undefined` routes a
+        // missing/duplicate-key/non-string `?domain=` through the SAME
+        // deny-by-default `undefined` branch `resolveActiveDomainByHost`
+        // already handles, giving a clean 404 instead.
+        const rawDomain = (request.query as Record<string, unknown> | undefined)?.domain;
+        const domain = typeof rawDomain === "string" ? rawDomain : undefined;
         const resolved = await resolveActiveDomainByHost(prisma, domain);
 
         if (!resolved) return reply.code(404).send();
