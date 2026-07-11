@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: domains-multi-domain-tls-routing
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-07-11T15:52:35.875Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-07-11T16:07:50.479Z"
 last_activity: 2026-07-11
 last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 10
   completed_phases: 2
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 20
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 03 (domains-multi-domain-tls-routing) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-07-11 — Phase 03 execution started
 
@@ -72,6 +72,7 @@ Progress: [██████████] 100%
 | Phase 02 P06 | 7min | 3 tasks | 8 files |
 | Phase 03 P01 | 20min | 3 tasks | 11 files |
 | Phase 03 P02 | 13min | 2 tasks | 5 files |
+| Phase 03 P03 | 10min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,8 @@ Recent decisions affecting current work:
 - [Phase ?]: verifyDomain treats DNS mismatches as expected non-error outcomes; only lookup failures (ENOTFOUND/ENODATA/DNS_TIMEOUT) populate error
 - [Phase ?]: GET /:id/instructions is admin-gated (not just any member) since it discloses the operator's exact DNS target for a domain
 - [Phase ?]: A failed verify leaves verifiedAt untouched — only a successful check ever stamps it, preserving pending-vs-has-failed-before information
+- [Phase 03]: 03-03: resolveActiveDomainByHost/GET /api/tls-check kept exactly to RESEARCH Pattern 4/3's spec — frozen signature for Phase 5 redirect engine reuse — Deny-by-default host guard + operator-delegated TLS ask endpoint satisfies DOMAIN-03 and Success Criterion 4 without deviation
+- [Phase 03]: 03-03: reverse-proxy.md's Caddy example uses ask-only form (no interval/burst), Domain.status is the authoritative gate — RESEARCH State of the Art flags interval/burst as deprecated in favor of Caddy's permission module
 
 ### Pending Todos
 
@@ -136,6 +139,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T15:52:35.839Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-07-11T16:07:50.438Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None

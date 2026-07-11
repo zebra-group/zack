@@ -37,7 +37,7 @@
 
 - [x] **DOMAIN-01**: Admin kann eine eigene Domain/Subdomain registrieren; sie wird mit Status „DNS ausstehend" angelegt
 - [x] **DOMAIN-02**: Admin kann die DNS-Konfiguration (CNAME) einer Domain prüfen; bei Erfolg wechselt sie auf „Aktiv"
-- [ ] **DOMAIN-03**: Kurzly verifiziert den Domain-Status und stellt einen `ask`/Status-Endpoint bereit (`GET /api/tls-check?domain=<host>` → 200 bei „Aktiv", sonst 404), den der Reverse-Proxy des Betreibers abfragt, um TLS-Zertifikate on-demand (Let's Encrypt) nur für verifizierte Domains auszustellen — Kurzly terminiert selbst kein TLS (betreiber-delegiert gemäß D-01)
+- [x] **DOMAIN-03**: Kurzly verifiziert den Domain-Status und stellt einen `ask`/Status-Endpoint bereit (`GET /api/tls-check?domain=<host>` → 200 bei „Aktiv", sonst 404), den der Reverse-Proxy des Betreibers abfragt, um TLS-Zertifikate on-demand (Let's Encrypt) nur für verifizierte Domains auszustellen — Kurzly terminiert selbst kein TLS (betreiber-delegiert gemäß D-01)
 - [x] **DOMAIN-04**: Admin sieht pro Domain die DNS-Anleitung (CNAME-Ziel)
 
 ### Link-Verwaltung
@@ -134,7 +134,7 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | UI-03 | Phase 2 | Complete |
 | DOMAIN-01 | Phase 3 | Complete |
 | DOMAIN-02 | Phase 3 | Complete |
-| DOMAIN-03 | Phase 3 | Pending |
+| DOMAIN-03 | Phase 3 | Complete |
 | DOMAIN-04 | Phase 3 | Complete |
 | LINK-01 | Phase 4 | Pending |
 | LINK-02 | Phase 4 | Pending |
