@@ -54,15 +54,39 @@ async function loadDomains(): Promise<void> {
   }
 }
 
+// WR-08 fix (04-REVIEW.md): `requestId` guards against out-of-order
+// responses — every call to loadLinks() stamps a monotonically increasing
+// id and only applies its result if it is still the MOST RECENT call by
+// the time its response resolves. Without this, a slow earlier response
+// (e.g. for "a") could resolve AFTER a faster later one (e.g. for "abc")
+// and silently overwrite the UI with stale data — a classic race for any
+// live-search input backed by a real network request per keystroke.
+let requestId = 0;
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+const SEARCH_DEBOUNCE_MS = 250;
+
 async function loadLinks(): Promise<void> {
+  const thisRequest = ++requestId;
   try {
     const params: { q?: string; domainId?: string } = {};
     if (searchQuery.value.trim()) params.q = searchQuery.value.trim();
     if (selectedDomainId.value) params.domainId = selectedDomainId.value;
-    links.value = await listLinks(params);
+    const result = await listLinks(params);
+    if (thisRequest === requestId) links.value = result;
   } catch {
-    showToast("Links konnten nicht geladen werden.");
+    if (thisRequest === requestId) showToast("Links konnten nicht geladen werden.");
   }
+}
+
+// Debounced search input handler — reduces request volume on fast typing;
+// the requestId guard above still protects against any residual
+// out-of-order resolution even within the debounce window (e.g. two
+// requests that both survive because the user paused, then resumed).
+function handleSearchInput(): void {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    loadLinks();
+  }, SEARCH_DEBOUNCE_MS);
 }
 
 function selectDomain(domainId: string | null): void {
@@ -202,7 +226,7 @@ loadLinks();
         type="text"
         class="search-input"
         placeholder="Suchen…"
-        @input="loadLinks"
+        @input="handleSearchInput"
       />
       <button type="button" class="import-button" @click="goToImport">Import</button>
       <button type="button" class="primary-button" @click="openCreateModal">+ Neuer Link</button>
