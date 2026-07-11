@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 04
-current_phase_name: Links Management & Bulk Import
+current_phase_name: links-management-bulk-import
 status: executing
 stopped_at: Completed 03-04-PLAN.md (Phase 03 complete)
-last_updated: "2026-07-11T19:43:44.800Z"
+last_updated: "2026-07-11T19:48:01.261Z"
 last_activity: 2026-07-11
-last_activity_desc: Phase 03 complete, transitioned to Phase 04
+last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 10
   completed_phases: 3
-  total_plans: 19
-  completed_plans: 19
+  total_plans: 24
+  completed_plans: 20
   percent: 30
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-10)
 
 **Core value:** Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hosted, ohne Drittanbieter-Tracking.
-**Current focus:** Phase 03 — domains-multi-domain-tls-routing
+**Current focus:** Phase 04 — links-management-bulk-import
 
 ## Current Position
 
-Phase: 04 — Links Management & Bulk Import
-Plan: Not started
+Phase: 04 (links-management-bulk-import) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-07-11 — Phase 03 complete, transitioned to Phase 04
+Last activity: 2026-07-11 — Phase 04 execution started
 
 Progress: [██████████] 100%
 
@@ -75,6 +75,7 @@ Progress: [██████████] 100%
 | Phase 03 P02 | 13min | 2 tasks | 5 files |
 | Phase 03 P03 | 10min | 3 tasks | 6 files |
 | Phase 03 P04 | 15min | 3 tasks | 4 files |
+| Phase 04 P01 | 6min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,8 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-03: reverse-proxy.md's Caddy example uses ask-only form (no interval/burst), Domain.status is the authoritative gate — RESEARCH State of the Art flags interval/burst as deprecated in favor of Caddy's permission module
 - [Phase 03]: 03-04: ApiError class (extends Error, carries .status) added to api.ts so DomainsView can map 409/429 to exact locked copy; all prior throw sites migrated for consistency
 - [Phase 03]: 03-04: verify failures (DNS-mismatch or 429) render as an inline .verify-error-row under the domain row, never a toast — only a successful verify toasts, per 03-UI-SPEC.md's DNS-Verify-Interaction contract
+- [Phase ?]: Operator-approved supply-chain sign-off for csv-parse and nanoid at RESEARCH-pinned versions (T-04-SC-Gate)
+- [Phase ?]: No pnpm-workspace allowBuilds entry needed for csv-parse/nanoid - neither introduced a build-script-requiring transitive dependency
 
 ### Pending Todos
 
@@ -143,6 +146,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-11T16:21:35.210Z
+Last session: 2026-07-11T19:47:19.656Z
 Stopped at: Completed 03-04-PLAN.md (Phase 03 complete)
 Resume file: None
