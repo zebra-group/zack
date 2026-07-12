@@ -6,14 +6,14 @@ current_phase: 05
 current_phase_name: core-redirect-engine
 status: executing
 stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-07-12T15:38:04.112Z"
+last_updated: "2026-07-12T15:48:53.352Z"
 last_activity: 2026-07-12
 last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 10
   completed_phases: 4
   total_plans: 30
-  completed_plans: 28
+  completed_plans: 29
   percent: 40
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 05 (core-redirect-engine) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-07-12 — Phase 05 execution started
 
@@ -85,6 +85,7 @@ Progress: [██████████] 100%
 | Phase 05 P02 | 18min | 2 tasks | 8 files |
 | Phase 05 P03 | 13min | 2 tasks | 2 files |
 | Phase 05 P04 | 14min | 2 tasks | 5 files |
+| Phase 05 P05 | 8min | 2 tasks tasks | 6 files files |
 
 ## Accumulated Context
 
@@ -156,6 +157,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 05]: 05-04: resolveLinkState/mergeQuery take Pick<Link,...> input types (type-only import) instead of the full Prisma Link model, keeping the module's zero-DB-access contract unambiguous
 - [Phase ?]: [Phase 05]: 05-04: unlockCookie.ts imports @fastify/cookie only for its declare module 'fastify' type-augmentation side effect - the plugin itself is registered by the route layer in 05-06
 - [Phase ?]: [Phase 05]: 05-04: VERIFY_RATE_LIMIT_PER_LINK keyGenerator typed against a local RateLimitKeyRequest structural type, not FastifyRequest, keeping it Fastify-free and directly unit-testable with a stub
+- [Phase ?]: [Phase 05]: 05-05: handleSubmit's password/expiresAt keep-vs-clear ternary kept local to LinkFormModal.vue (mirrors 05-02's PATCH three-state contract) rather than a shared helper - only the modal computes it, parent views just forward the emitted payload
+- [Phase ?]: [Phase 05]: 05-05: accordion header summary date formatted via plain YYYY-MM-DD string split (no Date object), avoiding the TZ off-by-one 05-03/05-04 already worked around
 
 ### Pending Todos
 
@@ -175,6 +178,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-12T15:37:05.732Z
+Last session: 2026-07-12T15:48:10.914Z
 Stopped at: Completed 05-01-PLAN.md
 Resume file: None
