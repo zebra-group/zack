@@ -56,8 +56,8 @@
 - [ ] **REDIR-01**: Aufruf eines Kurzlinks leitet per HTTP 302 auf die Ziel-URL weiter
 - [ ] **REDIR-02**: Redirect-Auflösung ist pro eigener Domain korrekt gescoped (Host-basiert)
 - [ ] **REDIR-03**: Ein abgelaufener Link liefert HTTP 410 Gone mit der Ablauf-Seite (keine Weiterleitung)
-- [ ] **REDIR-04**: Ein passwortgeschützter Link zeigt die Passwort-Seite; das Ziel wird erst nach serverseitig korrekt geprüftem Passwort ausgeliefert (gehasht gespeichert)
-- [ ] **REDIR-05**: Social-/Bot-Crawler erhalten injizierte Custom-OG-Tags ohne Weiterleitung; geschützte/abgelaufene Ziele werden nie vor Prüfung preisgegeben
+- [x] **REDIR-04**: Ein passwortgeschützter Link zeigt die Passwort-Seite; das Ziel wird erst nach serverseitig korrekt geprüftem Passwort ausgeliefert (gehasht gespeichert)
+- [x] **REDIR-05**: Social-/Bot-Crawler erhalten injizierte Custom-OG-Tags ohne Weiterleitung; geschützte/abgelaufene Ziele werden nie vor Prüfung preisgegeben
 
 ### QR-Codes
 
@@ -87,8 +87,8 @@
 - [x] **UI-01**: Nutzer navigiert einen persistenten App-Shell (212px Sidebar + scrollbarer Content) gemäß Hi-Fi-Prototyp
 - [x] **UI-02**: Nutzer kann zwischen Light- und Dark-Theme umschalten
 - [x] **UI-03**: Alle Dashboard-Screens entsprechen pixelgenau den Design-Tokens des Prototyps (Geist-Fonts, Lime-Akzent `#d7ff01`, Spacing, Radii)
-- [ ] **UI-04**: Besucher sieht eine öffentliche Passwort-Seite (außerhalb des Dashboards) für geschützte Links
-- [ ] **UI-05**: Besucher sieht eine öffentliche Ablauf-Seite für abgelaufene Links
+- [x] **UI-04**: Besucher sieht eine öffentliche Passwort-Seite (außerhalb des Dashboards) für geschützte Links
+- [x] **UI-05**: Besucher sieht eine öffentliche Ablauf-Seite für abgelaufene Links
 - [x] **UI-06**: Nutzer erhält Toast-Bestätigungen für Aktionen (Erstellen, Kopieren, Import, Remap etc.)
 
 ## v2 Requirements
@@ -148,10 +148,10 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | REDIR-01 | Phase 5 | Pending |
 | REDIR-02 | Phase 5 | Pending |
 | REDIR-03 | Phase 5 | Pending |
-| REDIR-04 | Phase 5 | Pending |
-| REDIR-05 | Phase 5 | Pending |
-| UI-04 | Phase 5 | Pending |
-| UI-05 | Phase 5 | Pending |
+| REDIR-04 | Phase 5 | Complete |
+| REDIR-05 | Phase 5 | Complete |
+| UI-04 | Phase 5 | Complete |
+| UI-05 | Phase 5 | Complete |
 | TRACK-01 | Phase 6 | Pending |
 | TRACK-02 | Phase 6 | Pending |
 | TRACK-03 | Phase 6 | Pending |
