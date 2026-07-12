@@ -184,6 +184,20 @@ model Link {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Password gate (Phase 5, D-02) — bcrypt hash only, never plaintext.
+  /// `null` means "not password-protected". Set/cleared/re-hashed
+  /// exclusively inside `apps/api/src/lib/links.ts`'s single write path
+  /// (createLink/updateLink) — never exposed on any DTO (toLinkDto derives
+  /// only `passwordProtected: boolean` from this).
+  passwordHash String?
+  /// Expiry (Phase 5, D-03) — day-granularity, persisted as the UTC
+  /// end-of-day instant of the chosen date. `null` means "never expires".
+  expiresAt    DateTime?
+  /// Query-parameter forwarding (Phase 5, D-12) — when true, incoming
+  /// query params are merged onto targetUrl at redirect time (target URL
+  /// wins on conflict, D-13). Defaults off so existing links are unaffected.
+  forwardQuery Boolean   @default(false)
+
   domain  Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
   creator User?  @relation(fields: [createdBy], references: [id], onDelete: SetNull)
 
