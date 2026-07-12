@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Magic-Link Auth, App Shell & Domain Authorization Core** - Users sign in via magic link into a pixel-accurate, theme-aware dashboard shell; the shared server-side domain-authorization helper is built here, ahead of anything it must gate (completed 2026-07-11)
 - [x] **Phase 3: Domains & Multi-Domain TLS Routing** - Admins register and DNS-verify their own domains, gated on-demand TLS issuance, host-header validated (completed 2026-07-11)
 - [x] **Phase 4: Links Management & Bulk Import** - Users create, search, edit, and bulk-CSV-import short links across their domains through one authorized creation path (completed 2026-07-11)
-- [ ] **Phase 5: Core Redirect Engine** - Every short-link visit resolves correctly, safely, and fast — expiration, password-gate, and bot/OG precedence enforced with zero premature leakage
+- [x] **Phase 5: Core Redirect Engine** - Every short-link visit resolves correctly, safely, and fast — expiration, password-gate, and bot/OG precedence enforced with zero premature leakage (completed 2026-07-12)
 - [ ] **Phase 6: Internal Tracking & Analytics** - Privacy-first, per-link and global click analytics with a true zero-third-party, zero-rows-when-off guarantee
 - [ ] **Phase 7: QR Codes (Static + Dynamic, QR Studio)** - Static and dynamic QR codes with logo overlay, styling, remap history, and decode-verified scannability
 - [ ] **Phase 8: UTM Builder + Custom OG Metadata** - Campaign-parameter builder and custom social-preview tags, entirely user-typed (no server-side fetch/SSRF surface)
@@ -183,7 +183,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Visiting a password-protected link shows the branded public password page; the destination is served only after the server verifies the (hashed) password, and never appears in any pre-unlock HTML/JSON/header — proven by an automated no-leak canary test using a distinctive target URL.
   4. A social/bot crawler requesting a protected or expired link receives injected generic OG tags without ever seeing that link's real target or being redirected; a crawler requesting a normal link receives its custom OG tags.
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans complete
 **UI hint**: yes
 
 **Wave 1**
@@ -202,7 +202,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 05-06-PLAN.md — Redirect precedence engine route + @fastify/cookie wiring + no-leak canary suite (REDIR-01..05, UI-04/05, D-06/D-07/D-14/D-17/D-18)
+- [x] 05-06-PLAN.md — Redirect precedence engine route + @fastify/cookie wiring + no-leak canary suite (REDIR-01..05, UI-04/05, D-06/D-07/D-14/D-17/D-18)
 
 ### Phase 6: Internal Tracking & Analytics
 
@@ -292,7 +292,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 2. Magic-Link Auth, App Shell & Domain Authorization Core | 6/6 | Complete    | 2026-07-11 |
 | 3. Domains & Multi-Domain TLS Routing | 4/4 | Complete    | 2026-07-11 |
 | 4. Links Management & Bulk Import | 5/5 | Complete    | 2026-07-11 |
-| 5. Core Redirect Engine | 5/6 | In Progress|  |
+| 5. Core Redirect Engine | 6/6 | Complete   | 2026-07-12 |
 | 6. Internal Tracking & Analytics | 0/TBD | Not started | - |
 | 7. QR Codes (Static + Dynamic, QR Studio) | 0/TBD | Not started | - |
 | 8. UTM Builder + Custom OG Metadata | 0/TBD | Not started | - |
