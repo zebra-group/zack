@@ -24,12 +24,59 @@
  * parallel write path that skips every rule below. Do not add one.
  */
 import type { ImportRowResult, LinkSkipReason } from "@kurzly/shared";
+import bcrypt from "bcryptjs";
 import { parse } from "csv-parse/sync";
 import { customAlphabet } from "nanoid";
 import { z } from "zod";
 import type { Link, PrismaClient } from "../generated/prisma/client.js";
 import { ForbiddenError, requireDomainAccess } from "./authorization.js";
 import { normalizeHostname } from "./hostname.js";
+
+/**
+ * bcrypt hash cost (Phase 5, D-02) — read directly from `process.env`
+ * (mirrors `routes/domains.ts`'s `computeVerificationTarget` convention of
+ * reading raw env rather than `loadEnv()`'s parsed object), so this module
+ * doesn't require boot-time ENV validation to have run first (e.g. under
+ * Vitest, which never calls `loadEnv()`). Falls back to the exact same
+ * default `env.ts`'s `PASSWORD_HASH_COST` schema key documents (11), so
+ * behavior is identical whether or not `loadEnv()` ran.
+ */
+const PASSWORD_HASH_COST_DEFAULT = 11;
+function resolvePasswordHashCost(): number {
+  const raw = Number(process.env.PASSWORD_HASH_COST);
+  return Number.isInteger(raw) && raw > 0 ? raw : PASSWORD_HASH_COST_DEFAULT;
+}
+
+/**
+ * Derives the `passwordHash` value to persist from the raw `password`
+ * input (D-02, T-05-PLAINTEXT — the plaintext is hashed here and nowhere
+ * else, never logged, never stored as-is):
+ *   - `undefined` (field omitted) or `""` (blank) -> `undefined` ("no
+ *     change" on update; on create this omits the key so the column's
+ *     nullable-with-no-default resolves to `null`, i.e. "not protected").
+ *   - `null` (explicit) -> `null` ("clear the password").
+ *   - a non-empty string -> a fresh bcrypt hash ("set/replace the password").
+ */
+async function derivePasswordHash(
+  password: string | null | undefined,
+): Promise<string | null | undefined> {
+  if (password === undefined) return undefined;
+  if (password === null) return null;
+  if (password.length === 0) return undefined;
+  return bcrypt.hash(password, resolvePasswordHashCost());
+}
+
+/**
+ * Derives the `expiresAt` Date to persist from the raw `YYYY-MM-DD` input
+ * (D-03): `undefined` keeps/omits, `null` clears, a date string is
+ * converted to the UTC end-of-day instant (23:59:59.999Z) — day
+ * granularity, server-side comparison, per RESEARCH's timezone discretion.
+ */
+function deriveExpiresAt(expiresAt: string | null | undefined): Date | null | undefined {
+  if (expiresAt === undefined) return undefined;
+  if (expiresAt === null) return null;
+  return new Date(`${expiresAt}T23:59:59.999Z`);
+}
 
 /**
  * Base62 alphabet (D-02) — mixed-case digits, no ambiguous-character
@@ -195,6 +242,12 @@ export type ValidatedLink = {
   targetUrl: string;
   slug: string;
   title?: string | null;
+  /** bcrypt hash (D-02) — `undefined` no-change, `null` clear, string = new hash. Never plaintext. */
+  passwordHash?: string | null;
+  /** UTC end-of-day instant (D-03) — `undefined` no-change, `null` clear, `Date` = new expiry. */
+  expiresAt?: Date | null;
+  /** D-12 — `undefined` no-change (update) / defaults false (create via Prisma column default). */
+  forwardQuery?: boolean;
 };
 export type ValidationResult =
   | { ok: true; data: ValidatedLink }
@@ -206,6 +259,12 @@ export type ValidateLinkInputParams = {
   targetUrl: string;
   slug?: string;
   title?: string | null;
+  /** Phase 5 (D-02): keep/clear/set — see `derivePasswordHash`'s doc comment. */
+  password?: string | null;
+  /** Phase 5 (D-03): keep/clear/set — see `deriveExpiresAt`'s doc comment. */
+  expiresAt?: string | null;
+  /** Phase 5 (D-12): omitted keeps current value on update / defaults false on create. */
+  forwardQuery?: boolean;
   /** Set by `updateLink` so a link's own current slug never false-collides with itself. */
   excludeLinkId?: string;
 };
@@ -245,9 +304,20 @@ export async function validateLinkInput(
   const slugResult = await resolveSlug(prisma, input.domainId, input.slug, input.excludeLinkId);
   if (!slugResult.ok) return { ok: false, error: slugResult.error };
 
+  const passwordHash = await derivePasswordHash(input.password);
+  const expiresAtDate = deriveExpiresAt(input.expiresAt);
+
   return {
     ok: true,
-    data: { domainId: input.domainId, targetUrl, slug: slugResult.slug, title: input.title },
+    data: {
+      domainId: input.domainId,
+      targetUrl,
+      slug: slugResult.slug,
+      title: input.title,
+      passwordHash,
+      expiresAt: expiresAtDate,
+      forwardQuery: input.forwardQuery,
+    },
   };
 }
 
@@ -314,6 +384,9 @@ export async function updateLink(
         targetUrl: validated.data.targetUrl,
         slug: validated.data.slug,
         title: validated.data.title,
+        passwordHash: validated.data.passwordHash,
+        expiresAt: validated.data.expiresAt,
+        forwardQuery: validated.data.forwardQuery,
       },
     });
     return { ok: true, link };
@@ -325,7 +398,12 @@ export async function updateLink(
   }
 }
 
-/** Maps a `LinkDTO`-shaped response from a Prisma `Link` row (ISO-string dates, JSON-boundary convention). */
+/**
+ * Maps a `LinkDTO`-shaped response from a Prisma `Link` row (ISO-string
+ * dates, JSON-boundary convention). `passwordHash` is intentionally NEVER
+ * read onto this object (T-05-DTO-LEAK) — only the derived
+ * `passwordProtected` boolean crosses the JSON boundary.
+ */
 export function toLinkDto(link: Link) {
   return {
     id: link.id,
@@ -336,6 +414,9 @@ export function toLinkDto(link: Link) {
     createdBy: link.createdBy,
     createdAt: link.createdAt.toISOString(),
     updatedAt: link.updatedAt.toISOString(),
+    passwordProtected: link.passwordHash !== null,
+    expiresAt: link.expiresAt ? link.expiresAt.toISOString() : null,
+    forwardQuery: link.forwardQuery,
   };
 }
 

@@ -10,11 +10,14 @@
  * The route layer NEVER inserts or updates a Link directly — every write
  * delegates to `lib/links.ts`'s `createLink` (the D-01 sole insert site).
  * The request body is parsed through an explicit Zod allowlist schema
- * (`domainId`/`targetUrl`/`slug`/`title` only) before ever reaching
- * `createLink` — this closes the mass-assignment vector (T-04-MASS): a
- * client cannot set `id`/`createdBy`/`createdAt` by including them in the
- * JSON body, since `createLink`'s own `validateLinkInput` only ever reads
- * the allowlisted fields off `parsed.data`, never `request.body` itself.
+ * (`domainId`/`targetUrl`/`slug`/`title` plus, since Phase 5, the raw
+ * `password`/`expiresAt`/`forwardQuery` fields — never a hash) before ever
+ * reaching `createLink` — this closes the mass-assignment vector
+ * (T-04-MASS/T-05-MASS-ASSIGN): a client cannot set
+ * `id`/`createdBy`/`createdAt`/a pre-hashed `passwordHash` by including
+ * them in the JSON body, since `createLink`'s own `validateLinkInput` only
+ * ever reads the allowlisted fields off `parsed.data`, never
+ * `request.body` itself.
  */
 import type { ImportCommitResult, ImportPreviewResult } from "@kurzly/shared";
 import { fromNodeHeaders } from "better-auth/node";
@@ -47,6 +50,16 @@ const createLinkSchema = z.object({
   targetUrl: z.string().min(1),
   slug: z.string().optional(),
   title: z.string().max(200).optional(),
+  // Phase 5 (D-02/D-03/D-12, T-05-MASS): password/expiresAt/forwardQuery
+  // are allowlisted here too — passwordHash is NEVER a client-settable
+  // field name, only the raw plaintext password, hashed inside
+  // createLink's validateLinkInput core (lib/links.ts).
+  password: z.string().optional(),
+  expiresAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  forwardQuery: z.boolean().optional(),
 });
 
 /**
@@ -59,6 +72,18 @@ const updateLinkSchema = z.object({
   targetUrl: z.string().min(1).optional(),
   slug: z.string().optional(),
   title: z.string().max(200).nullable().optional(),
+  // Phase 5 (D-02/D-03/D-12): keep/clear/set semantics — omitted keeps the
+  // current value, explicit `null` clears (password/expiresAt only),
+  // a value sets/replaces. A blank-string password is mapped to "keep"
+  // (undefined) in the PATCH handler below, following the same
+  // omitted-vs-explicit-null discipline as `title`'s WR-02 fix.
+  password: z.string().nullable().optional(),
+  expiresAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
+  forwardQuery: z.boolean().optional(),
 });
 
 /**
@@ -286,6 +311,13 @@ export function linksRoute(prisma: PrismaClient, auth: Auth) {
       }
       const requestedSlug = parsed.data.slug?.trim();
 
+      // Phase 5 (D-02): a blank/empty-string password means "no change"
+      // (mirrors the slug WR-01 discipline above) — only an explicit
+      // `null` clears an existing password. Collapse "" to `undefined`
+      // here so `updateLink`'s own undefined-vs-null distinction
+      // (lib/links.ts's derivePasswordHash) receives the correct signal.
+      const requestedPassword = parsed.data.password === "" ? undefined : parsed.data.password;
+
       const result = await updateLink(prisma, id, {
         userId,
         domainId: link.domainId,
@@ -299,6 +331,12 @@ export function linksRoute(prisma: PrismaClient, auth: Auth) {
         // back to the link's current value when `title` was OMITTED
         // entirely (`parsed.data.title === undefined`).
         title: parsed.data.title !== undefined ? parsed.data.title : (link.title ?? undefined),
+        // Phase 5 (D-02/D-03/D-12): pass the allowlisted fields straight
+        // through untouched — undefined (omitted) means "keep", explicit
+        // null means "clear" (password/expiresAt), a value means "set".
+        password: requestedPassword,
+        expiresAt: parsed.data.expiresAt,
+        forwardQuery: parsed.data.forwardQuery,
       });
 
       if (!result.ok) {
