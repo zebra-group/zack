@@ -176,3 +176,7 @@ None - no external service configuration required. The migration is committed an
 
 *Phase: 05-core-redirect-engine*
 *Completed: 2026-07-12*
+
+## Self-Check: PASSED
+
+All 8 created/modified files confirmed on disk (schema.prisma, migration.sql, lib/links.ts, routes/links.ts, shared/index.ts, links.integration.test.ts, LinkDetailView.test.ts, LinksView.test.ts) plus this SUMMARY.md. Task commits `0b3c40a` (Task 1 migration), `0ceffd3` (RED), `5792d51` (GREEN), and `0b4dd98` (docs summary) all confirmed in `git log`.
