@@ -13,6 +13,15 @@
  * The D-04 slug-change warning is PERSISTENT in edit mode — shown
  * whenever `mode === "edit"`, not only on an actual change, so it can
  * never be scrolled past unnoticed.
+ *
+ * Phase 5 (D-01/D-02/D-03/D-12, 05-UI-SPEC.md § Link-Formular-Erweiterung):
+ * adds the Security accordion (password + date-only expiry) and the
+ * forwardQuery toggle. The password input is NEVER pre-filled — even in
+ * edit mode with an existing password — the DTO only ever carries the
+ * derived `passwordProtected` boolean (T-05-PWPREFILL); a placeholder
+ * communicates the "set" state instead. A blank/untouched password field
+ * on submit means KEEP (`undefined`); only the explicit "Passwortschutz
+ * entfernen" action emits `null` to CLEAR (T-05-KEEPCLEAR).
  */
 import { computed, ref } from "vue";
 import type { DomainDTO } from "@kurzly/shared";
@@ -27,26 +36,86 @@ const props = defineProps<{
   initialTargetUrl?: string;
   initialSlug?: string;
   initialDomainId?: string;
+  /** Phase 5: whether the link currently has a password set (never the password itself). */
+  initialPasswordProtected?: boolean;
+  /** Phase 5: `YYYY-MM-DD`, or `null`/`undefined` if the link never expires. */
+  initialExpiresAt?: string | null;
+  /** Phase 5: whether incoming query params are currently forwarded to the target. */
+  initialForwardQuery?: boolean;
   /** Last submit error from the parent, mapped to inline field errors. */
   error?: unknown;
 }>();
 
 const emit = defineEmits<{
   close: [];
-  submit: [payload: { domainId?: string; targetUrl: string; slug?: string }];
+  submit: [
+    payload: {
+      domainId?: string;
+      targetUrl: string;
+      slug?: string;
+      password?: string | null;
+      expiresAt?: string | null;
+      forwardQuery: boolean;
+    },
+  ];
 }>();
 
 const targetUrl = ref(props.initialTargetUrl ?? "");
 const slug = ref(props.initialSlug ?? "");
 const domainId = ref(props.initialDomainId ?? props.domains[0]?.id ?? "");
 
+// Phase 5 Security accordion + forwardQuery toggle state — collapsed by
+// default (05-UI-SPEC.md: "Standard: eingeklappt"). `password` always
+// starts blank, even in edit mode with an existing password
+// (T-05-PWPREFILL) — the placeholder communicates the "set" state.
+const secOpen = ref(false);
+const password = ref("");
+const removePassword = ref(false);
+const expiry = ref(props.initialExpiresAt ?? "");
+const forwardQuery = ref(props.initialForwardQuery ?? false);
+
 const fieldErrors = computed(() => mapLinkFormError(props.error));
 
+/** True while the "set" placeholder + "Passwortschutz entfernen" link should show. */
+const hasExistingPassword = computed(
+  () => props.mode === "edit" && !!props.initialPasswordProtected && !removePassword.value,
+);
+
+const passwordPlaceholder = computed(() =>
+  hasExistingPassword.value ? "•••• gesetzt — leer lassen, um beizubehalten" : "optional",
+);
+
+/** Whether the accordion header's summary suffix should mention a password. */
+const passwordWillBeSet = computed(() => {
+  if (removePassword.value) return false;
+  if (password.value.trim()) return true;
+  return props.mode === "edit" && !!props.initialPasswordProtected;
+});
+
+/** `YYYY-MM-DD` -> `DD.MM.YYYY` — pure string split, no `Date` parsing (avoids TZ off-by-one). */
+function formatSummaryDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+const accordionSummary = computed(() => {
+  const parts: string[] = [];
+  if (passwordWillBeSet.value) parts.push("Passwort gesetzt");
+  if (expiry.value) parts.push(`läuft am ${formatSummaryDate(expiry.value)} ab`);
+  return parts.length ? `· ${parts.join(" · ")}` : "";
+});
+
 function handleSubmit(): void {
+  const passwordPayload = removePassword.value ? null : password.value ? password.value : undefined;
+  const expiresAtPayload = expiry.value ? expiry.value : props.initialExpiresAt ? null : undefined;
+
   emit("submit", {
     domainId: props.mode === "create" ? domainId.value : undefined,
     targetUrl: targetUrl.value,
     slug: slug.value.trim() ? slug.value.trim() : undefined,
+    password: passwordPayload,
+    expiresAt: expiresAtPayload,
+    forwardQuery: forwardQuery.value,
   });
 }
 </script>
@@ -99,6 +168,61 @@ function handleSubmit(): void {
             Diese Änderung ändert die Kurz-URL. Bestehende geteilte Links (und später QR-Codes)
             verweisen weiterhin auf `{{ initialSlug }}` und funktionieren danach nicht mehr.
           </div>
+        </div>
+      </div>
+
+      <!-- Phase 5 Security accordion (05-UI-SPEC.md § Link-Formular-Erweiterung). -->
+      <div class="security-section">
+        <div class="security-header" @click="secOpen = !secOpen">
+          <span>
+            Passwort &amp; Ablauf<span v-if="accordionSummary" class="security-summary">
+              {{ accordionSummary }}</span
+            >
+          </span>
+          <span class="security-chevron">{{ secOpen ? "⌃" : "⌄" }}</span>
+        </div>
+        <div v-if="secOpen" class="security-body">
+          <div class="field">
+            <label class="field-label">Passwortschutz</label>
+            <input
+              v-model="password"
+              type="password"
+              class="field-input"
+              :placeholder="passwordPlaceholder"
+            />
+            <a
+              v-if="hasExistingPassword"
+              href="#"
+              class="remove-pw-link"
+              @click.prevent="removePassword = true"
+              >Passwortschutz entfernen</a
+            >
+          </div>
+          <div class="field">
+            <label class="field-label">Ablaufdatum</label>
+            <input v-model="expiry" type="date" class="field-input" />
+            <p class="helper-text">Der Link läuft am Ende des gewählten Tages ab.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase 5 forwardQuery toggle (05-UI-SPEC.md, D-12/D-13). -->
+      <div class="forward-query-row">
+        <div class="toggle-label-group">
+          <span class="toggle-label">Query-Parameter an Ziel-URL weitergeben</span>
+          <span class="toggle-helper"
+            >Eingehende Parameter werden ergänzt; in der Ziel-URL gespeicherte Parameter bleiben
+            unverändert.</span
+          >
+        </div>
+        <div
+          class="toggle"
+          :class="{ active: forwardQuery }"
+          role="switch"
+          :aria-checked="forwardQuery"
+          @click="forwardQuery = !forwardQuery"
+        >
+          <div class="toggle-knob"></div>
         </div>
       </div>
 
@@ -258,6 +382,117 @@ function handleSubmit(): void {
 .slug-warning-body {
   font-size: 12px;
   color: var(--mut);
+}
+
+/* Phase 5 Security accordion (05-UI-SPEC.md, LOCKED tokens). */
+.security-section {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.security-header {
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.security-header:hover {
+  background: var(--hover);
+}
+
+.security-summary {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--mut);
+}
+
+.security-chevron {
+  color: var(--mut);
+}
+
+.security-body {
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.remove-pw-link {
+  font-size: 12px;
+  color: var(--mut);
+  text-decoration: none;
+  width: fit-content;
+}
+
+.remove-pw-link:hover {
+  color: var(--text);
+}
+
+.helper-text {
+  font-size: 11px;
+  color: var(--mut);
+  margin: 0;
+}
+
+/* Phase 5 forwardQuery toggle (05-UI-SPEC.md, pattern-derived from prototype's tracking toggle). */
+.forward-query-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 2px;
+}
+
+.toggle-label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggle-label {
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.toggle-helper {
+  font-size: 11px;
+  color: var(--mut);
+}
+
+.toggle {
+  width: 38px;
+  height: 21px;
+  border-radius: 999px;
+  background: var(--border);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex: none;
+}
+
+.toggle.active {
+  background: var(--accent);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2.5px;
+  left: 2.5px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.15s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.toggle.active .toggle-knob {
+  left: 19px;
 }
 
 .modal-footer {
