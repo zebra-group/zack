@@ -74,6 +74,16 @@ export type LinkDTO = {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Phase 5 (D-02, T-05-DTO-LEAK): derived boolean only — the bcrypt hash
+   * itself (`Link.passwordHash`) NEVER crosses the JSON boundary. See
+   * `apps/api/src/lib/links.ts`'s `toLinkDto()`.
+   */
+  passwordProtected: boolean;
+  /** Phase 5 (D-03): UTC end-of-day ISO string, or `null` if the link never expires. */
+  expiresAt: string | null;
+  /** Phase 5 (D-12): whether incoming query params are merged onto targetUrl at redirect time. */
+  forwardQuery: boolean;
 };
 
 /**
@@ -87,6 +97,12 @@ export type CreateLinkInput = {
   targetUrl: string;
   slug?: string;
   title?: string;
+  /** Phase 5 (D-02): plaintext password, hashed server-side; omitted = not protected. */
+  password?: string;
+  /** Phase 5 (D-03): `YYYY-MM-DD`; server persists the UTC end-of-day instant. */
+  expiresAt?: string;
+  /** Phase 5 (D-12): omitted defaults to `false` server-side. */
+  forwardQuery?: boolean;
 };
 
 /**
@@ -99,6 +115,16 @@ export type UpdateLinkInput = {
   targetUrl?: string;
   slug?: string;
   title?: string;
+  /**
+   * Phase 5 (D-02): keep/clear/set semantics — omitted or blank keeps the
+   * current password unchanged, explicit `null` clears it, a non-empty
+   * string re-hashes and replaces it.
+   */
+  password?: string | null;
+  /** Phase 5 (D-03): omitted keeps, `null` clears, a `YYYY-MM-DD` string sets. */
+  expiresAt?: string | null;
+  /** Phase 5 (D-12): omitted keeps the current value. */
+  forwardQuery?: boolean;
 };
 
 /**

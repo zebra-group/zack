@@ -47,6 +47,9 @@ function makeLink(overrides: Partial<LinkDTO> = {}): LinkDTO {
     createdBy: "u1",
     createdAt: "2026-07-11T00:00:00.000Z",
     updatedAt: "2026-07-11T00:00:00.000Z",
+    passwordProtected: false,
+    expiresAt: null,
+    forwardQuery: false,
     ...overrides,
   };
 }
