@@ -8,6 +8,7 @@
  * })` (D-09), reusing `domains.integration.test.ts`'s magic-link ->
  * verify -> cookie flow to obtain a real authenticated session.
  */
+import bcrypt from "bcryptjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
 import { seedInitialAdmin } from "../src/lib/admin-seed.js";
@@ -1323,6 +1324,395 @@ describe("Link core + routes (LINK-01/02/03, D-01/D-02/D-03)", () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.json().title).toBe("Keep Me");
+
+      await app.close();
+    });
+  });
+
+  describe("Password/expiry/forwardQuery (D-02/D-03/D-12, T-05-DTO-LEAK/T-05-PLAINTEXT)", () => {
+    it("create with a password: stores a bcrypt hash (never plaintext); DTO exposes passwordProtected:true and no passwordHash key", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "pw-create.example.com");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/pw",
+          slug: "pw-create-slug",
+          password: "hunter2",
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.passwordProtected).toBe(true);
+      expect(body).not.toHaveProperty("passwordHash");
+      expect(JSON.stringify(body)).not.toContain("passwordHash");
+      expect(JSON.stringify(body)).not.toContain("hunter2");
+
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: body.id } });
+      expect(row.passwordHash).not.toBeNull();
+      expect(row.passwordHash).not.toBe("hunter2");
+      expect(row.passwordHash?.startsWith("$2")).toBe(true);
+      expect(await bcrypt.compare("hunter2", row.passwordHash as string)).toBe(true);
+
+      await app.close();
+    });
+
+    it("create without a password: passwordHash stays null; DTO exposes passwordProtected:false", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "pw-none.example.com");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { domainId, targetUrl: "https://example.com/no-pw", slug: "pw-none-slug" },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.passwordProtected).toBe(false);
+
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: body.id } });
+      expect(row.passwordHash).toBeNull();
+
+      await app.close();
+    });
+
+    it("create with expiresAt: persists the UTC end-of-day instant; DTO returns the matching ISO string", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "expiry-create.example.com");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/expiry",
+          slug: "expiry-create-slug",
+          expiresAt: "2026-08-01",
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.expiresAt).toBe("2026-08-01T23:59:59.999Z");
+
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: body.id } });
+      expect(row.expiresAt?.toISOString()).toBe("2026-08-01T23:59:59.999Z");
+
+      await app.close();
+    });
+
+    it("create without expiresAt: DTO expiresAt is null", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "expiry-none.example.com");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: { domainId, targetUrl: "https://example.com/no-expiry", slug: "expiry-none-slug" },
+      });
+
+      expect(res.statusCode).toBe(201);
+      expect(res.json().expiresAt).toBeNull();
+
+      await app.close();
+    });
+
+    it("create with forwardQuery:true persists true; omitted defaults to false", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "forward-query.example.com");
+
+      const withForward = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/forward",
+          slug: "forward-query-on",
+          forwardQuery: true,
+        },
+      });
+      expect(withForward.statusCode).toBe(201);
+      expect(withForward.json().forwardQuery).toBe(true);
+
+      const withoutForward = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/no-forward",
+          slug: "forward-query-off",
+        },
+      });
+      expect(withoutForward.statusCode).toBe(201);
+      expect(withoutForward.json().forwardQuery).toBe(false);
+
+      await app.close();
+    });
+
+    it("update: an explicit password:null clears the hash (passwordProtected:false)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "pw-clear.example.com");
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/pw-clear",
+          slug: "pw-clear-slug",
+          password: "initial-pass",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      const linkId = created.json().id;
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { password: null },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().passwordProtected).toBe(false);
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+      expect(row.passwordHash).toBeNull();
+
+      await app.close();
+    });
+
+    it("update: blank/omitted password keeps the existing hash unchanged", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "pw-keep.example.com");
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/pw-keep",
+          slug: "pw-keep-slug",
+          password: "keep-this-pass",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      const linkId = created.json().id;
+      const originalRow = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+
+      const blankRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { password: "" },
+      });
+      expect(blankRes.statusCode).toBe(200);
+      expect(blankRes.json().passwordProtected).toBe(true);
+      const afterBlank = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+      expect(afterBlank.passwordHash).toBe(originalRow.passwordHash);
+
+      const omittedRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { targetUrl: "https://example.com/pw-keep-2" },
+      });
+      expect(omittedRes.statusCode).toBe(200);
+      expect(omittedRes.json().passwordProtected).toBe(true);
+      const afterOmitted = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+      expect(afterOmitted.passwordHash).toBe(originalRow.passwordHash);
+
+      await app.close();
+    });
+
+    it("update: a new non-empty password re-hashes (hash changes, round-trips correctly)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "pw-rehash.example.com");
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/pw-rehash",
+          slug: "pw-rehash-slug",
+          password: "old-password",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      const linkId = created.json().id;
+      const originalRow = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { password: "new-password" },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().passwordProtected).toBe(true);
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+      expect(row.passwordHash).not.toBe(originalRow.passwordHash);
+      expect(await bcrypt.compare("new-password", row.passwordHash as string)).toBe(true);
+      expect(await bcrypt.compare("old-password", row.passwordHash as string)).toBe(false);
+
+      await app.close();
+    });
+
+    it("update: expiresAt:null clears; omitted keeps; a new date sets", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "expiry-update.example.com");
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/expiry-update",
+          slug: "expiry-update-slug",
+          expiresAt: "2026-08-01",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      const linkId = created.json().id;
+
+      const omittedRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { targetUrl: "https://example.com/expiry-update-2" },
+      });
+      expect(omittedRes.statusCode).toBe(200);
+      expect(omittedRes.json().expiresAt).toBe("2026-08-01T23:59:59.999Z");
+
+      const setRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { expiresAt: "2026-09-15" },
+      });
+      expect(setRes.statusCode).toBe(200);
+      expect(setRes.json().expiresAt).toBe("2026-09-15T23:59:59.999Z");
+
+      const clearRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { expiresAt: null },
+      });
+      expect(clearRes.statusCode).toBe(200);
+      expect(clearRes.json().expiresAt).toBeNull();
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+      expect(row.expiresAt).toBeNull();
+
+      await app.close();
+    });
+
+    it("update: forwardQuery omitted keeps current value; explicit true/false sets", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "forward-update.example.com");
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/forward-update",
+          slug: "forward-update-slug",
+          forwardQuery: true,
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      const linkId = created.json().id;
+
+      const omittedRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { targetUrl: "https://example.com/forward-update-2" },
+      });
+      expect(omittedRes.statusCode).toBe(200);
+      expect(omittedRes.json().forwardQuery).toBe(true);
+
+      const setFalseRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { forwardQuery: false },
+      });
+      expect(setFalseRes.statusCode).toBe(200);
+      expect(setFalseRes.json().forwardQuery).toBe(false);
+
+      await app.close();
+    });
+
+    it("passwordHash never appears in any GET list/detail response body", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "pw-no-leak.example.com");
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/pw-no-leak",
+          slug: "pw-no-leak-slug",
+          password: "secret-value",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      const linkId = created.json().id;
+
+      const listRes = await app.inject({
+        method: "GET",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+      });
+      expect(listRes.statusCode).toBe(200);
+      expect(JSON.stringify(listRes.json())).not.toContain("passwordHash");
+      expect(JSON.stringify(listRes.json())).not.toContain("secret-value");
+
+      const detailRes = await app.inject({
+        method: "GET",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+      });
+      expect(detailRes.statusCode).toBe(200);
+      expect(JSON.stringify(detailRes.json())).not.toContain("passwordHash");
+      expect(JSON.stringify(detailRes.json())).not.toContain("secret-value");
 
       await app.close();
     });
