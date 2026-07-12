@@ -89,6 +89,47 @@ export const LINK_IMPORT_RATE_LIMIT = {
   timeWindow: "15 minutes",
 } as const;
 
+/**
+ * Applied to `GET /:slug` (Phase 5, D-16) — generous, since this is the
+ * redirect handler's own hot path (REDIR-01's "fast redirect" success
+ * criterion): a legitimate high-traffic short link can receive many
+ * requests per minute from distinct visitors, and this limit only needs to
+ * guard against gross abuse, not throttle normal traffic.
+ */
+export const REDIRECT_RATE_LIMIT = {
+  max: 300,
+  timeWindow: "1 minute",
+} as const;
+
+/**
+ * The minimal request shape `VERIFY_RATE_LIMIT_PER_LINK`'s `keyGenerator`
+ * needs — deliberately NOT `FastifyRequest` (this file stays Fastify-free
+ * and directly unit-testable with a stub, per 05-04-PLAN.md's critical
+ * notes). `request.ip`/`request.hostname` and the route's `:slug` param are
+ * both already available at Fastify's rate-limit hook time, before the
+ * route handler runs, so no extra DB lookup is needed here.
+ */
+export type RateLimitKeyRequest = {
+  ip: string;
+  hostname: string;
+  params: { slug: string };
+};
+
+/**
+ * Applied to `POST /:slug/verify` (Phase 5, D-15, RESEARCH Pitfall 4) — a
+ * tight per-(IP, host, slug) bucket, NOT per-(IP, slug): two different
+ * custom domains can legitimately share an identically-named slug pointing
+ * at two different `Link` rows (`@@unique([domainId, slug])`, not a global
+ * slug uniqueness), so keying on `slug` alone would collapse an attacker
+ * brute-forcing domain A's `/promo` with domain B's unrelated `/promo`.
+ */
+export const VERIFY_RATE_LIMIT_PER_LINK = {
+  max: 5,
+  timeWindow: "1 minute",
+  keyGenerator: (request: RateLimitKeyRequest): string =>
+    `${request.ip}:${request.hostname}:${request.params.slug}`,
+} as const;
+
 export async function registerRateLimit(app: FastifyInstance): Promise<void> {
   await app.register(rateLimit, {
     global: true,
