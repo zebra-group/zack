@@ -84,6 +84,17 @@ export const envSchema = z.object({
   // default (mirrors CNAME_TARGET); used to compute Domain.verificationTarget
   // for `type: apex`.
   A_RECORD_IP: z.ipv4().optional().default(DOMAIN_VERIFICATION_DEFAULTS.A_RECORD_IP),
+  // Branding (Phase 5, D-10) — consumed only by the server-rendered public
+  // HTML layer (password/expiry/404 pages + bot-OG tags), NOT retrofitted
+  // into the already-shipped dashboard SPA (Phase 2-4 scope). Optional with
+  // a fail-safe default so a fresh instance boots unchanged without config.
+  BRAND_NAME: z.string().min(1).optional().default("Kurzly"),
+  // Overrides --accent only in the public pages' inline <style> block.
+  BRAND_ACCENT: z.string().min(1).optional().default("#d7ff01"),
+  // bcryptjs hash cost (Phase 5, D-02). RESEARCH Pitfall 2: start
+  // conservative at 10-11, not 12, and keep it ENV-tunable so the redirect
+  // hot path doesn't block under concurrent password-verify load.
+  PASSWORD_HASH_COST: z.coerce.number().int().positive().optional().default(11),
 });
 
 export type Env = z.infer<typeof envSchema>;
