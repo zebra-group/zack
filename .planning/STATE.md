@@ -6,14 +6,14 @@ current_phase: 05
 current_phase_name: core-redirect-engine
 status: executing
 stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-07-12T14:34:55.308Z"
+last_updated: "2026-07-12T14:59:33.973Z"
 last_activity: 2026-07-12
 last_activity_desc: Phase 05 execution started
 progress:
   total_phases: 10
   completed_phases: 4
   total_plans: 30
-  completed_plans: 25
+  completed_plans: 26
   percent: 40
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 05 (core-redirect-engine) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-07-12 — Phase 05 execution started
 
@@ -82,6 +82,7 @@ Progress: [██████████] 100%
 | Phase 04 P04 | 22min | 2 tasks | 3 files |
 | Phase 04 P05 | 18min | 3 tasks | 10 files |
 | Phase 05 P01 | 6min | 3 tasks | 4 files |
+| Phase 05 P02 | 18min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,10 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 04]: 04-05: Toast-then-delayed-navigate (~900ms) for LinkDetailView's delete and LinksImportView's commit preserves the strict per-view-ref/no-global-store toast convention while still showing the toast before the view unmounts on navigation.
 - [Phase ?]: Operator-approved supply-chain sign-off for bcryptjs/isbot/@fastify/cookie (T-05-SC); no allowBuilds entry needed
 - [Phase ?]: BRAND_NAME/BRAND_ACCENT/PASSWORD_HASH_COST added as optional fail-safe-defaulted env keys mirroring CNAME_TARGET/A_RECORD_IP pattern
+- [Phase ?]: [Phase 05]: 05-02: prisma migrate dev ran non-interactively for all three additive/nullable/defaulted Link columns (passwordHash/expiresAt/forwardQuery) - RESEARCH Pitfall 3's prediction confirmed, no migrate-diff/deploy workaround needed
+- [Phase ?]: [Phase 05]: 05-02: PASSWORD_HASH_COST read directly from process.env inside lib/links.ts (not loadEnv()), matching domains.ts's computeVerificationTarget raw-env-read convention, so the module works under Vitest with the same default (11)
+- [Phase ?]: [Phase 05]: 05-02: blank-string password on PATCH mapped to undefined ('keep') in the route layer, not lib/links.ts's core, keeping the D-01 core's three-state (undefined/null/value) contract uniform for both create and update callers
+- [Phase ?]: [Phase 05]: 05-02: expiresAt day-granularity resolved as UTC end-of-day (23:59:59.999Z) - simplest/most predictable for a self-hosted tool with no per-user timezone model
 
 ### Pending Todos
 
@@ -162,6 +167,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-12T14:34:55.270Z
+Last session: 2026-07-12T14:53:11.284Z
 Stopped at: Completed 05-01-PLAN.md
 Resume file: None
