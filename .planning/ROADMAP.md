@@ -183,7 +183,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Visiting a password-protected link shows the branded public password page; the destination is served only after the server verifies the (hashed) password, and never appears in any pre-unlock HTML/JSON/header — proven by an automated no-leak canary test using a distinctive target URL.
   4. A social/bot crawler requesting a protected or expired link receives injected generic OG tags without ever seeing that link's real target or being redirected; a crawler requesting a normal link receives its custom OG tags.
 
-**Plans**: 3/6 plans executed
+**Plans**: 4/6 plans executed
 **UI hint**: yes
 
 **Wave 1**
@@ -197,7 +197,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 05-04-PLAN.md — Pure engine helpers: resolveLinkState/mergeQuery + isBotRequest + unlock cookie + rate-limit configs (D-13/D-14/D-15/D-16)
+- [x] 05-04-PLAN.md — Pure engine helpers: resolveLinkState/mergeQuery + isBotRequest + unlock cookie + rate-limit configs (D-13/D-14/D-15/D-16)
 - [ ] 05-05-PLAN.md — Link form Security accordion (password/expiry) + forwardQuery toggle wired end-to-end (D-01/D-03/D-12)
 
 **Wave 4** *(blocked on Wave 3)*
@@ -292,7 +292,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 2. Magic-Link Auth, App Shell & Domain Authorization Core | 6/6 | Complete    | 2026-07-11 |
 | 3. Domains & Multi-Domain TLS Routing | 4/4 | Complete    | 2026-07-11 |
 | 4. Links Management & Bulk Import | 5/5 | Complete    | 2026-07-11 |
-| 5. Core Redirect Engine | 3/6 | In Progress|  |
+| 5. Core Redirect Engine | 4/6 | In Progress|  |
 | 6. Internal Tracking & Analytics | 0/TBD | Not started | - |
 | 7. QR Codes (Static + Dynamic, QR Studio) | 0/TBD | Not started | - |
 | 8. UTM Builder + Custom OG Metadata | 0/TBD | Not started | - |
