@@ -12,25 +12,30 @@
  *   2. `@fastify/helmet` (NEW, D-07 — security headers, all routes).
  *   3. `@fastify/rate-limit` (NEW, D-07 — permissive global default; the
  *      tight per-route magic-link override lives in routes/auth.ts).
- *   4. API routes under the `/api` prefix (canary).
- *   5. The better-auth catch-all `GET/POST /api/auth/*` (NEW — registered
+ *   4. `@fastify/cookie` (Phase 5, D-07/D-08 — signed cookies for the
+ *      redirect engine's link-bound unlock cookie, `lib/unlockCookie.ts`;
+ *      NOT a second session system, better-auth still owns its own cookies
+ *      independently via its own handler).
+ *   5. API routes under the `/api` prefix (canary).
+ *   6. The better-auth catch-all `GET/POST /api/auth/*` (NEW — registered
  *      directly on `app`, not nested in the `/api`-prefixed scope above,
  *      since its own route urls already include the `/api/auth` segment —
  *      see routes/auth.ts's header comment).
- *   6. `POST/GET /api/domains` (Phase 3, DOMAIN-01 — registered directly on
+ *   7. `POST/GET /api/domains` (Phase 3, DOMAIN-01 — registered directly on
  *      `app` for the same reason as the auth catch-all: its own route urls
  *      already include the `/api/domains` segment).
- *   7. `GET /api/tls-check` (Phase 3, DOMAIN-03 reformulated/D-01 — the
+ *   8. `GET /api/tls-check` (Phase 3, DOMAIN-03 reformulated/D-01 — the
  *      operator-delegated TLS ask endpoint; no session, registered directly
  *      on `app` for the same reason as domains/auth above).
- *   8. `POST/GET /api/links` (Phase 4, LINK-01/02/03 — registered directly
+ *   9. `POST/GET /api/links` (Phase 4, LINK-01/02/03 — registered directly
  *      on `app` for the same reason as domains/tls-check above; every
  *      write delegates to lib/links.ts's createLink, the D-01 sole insert
  *      site).
- *   9. `GET /health`.
- *   10. The redirect-handler stub `GET /:slug` (Phase 5 replaces this).
- *   11. `@fastify/static` (`wildcard: false` — see plugins/static.ts).
- *   12. `setNotFoundHandler`: JSON 404 for unmatched `/api/*` paths, the SPA
+ *   10. `GET /health`.
+ *   11. `redirectRoute(prisma)` (Phase 5, REDIR-01..05 — replaces the Phase
+ *      1 stub; `GET /:slug` + `POST /:slug/verify`, the precedence engine).
+ *   12. `@fastify/static` (`wildcard: false` — see plugins/static.ts).
+ *   13. `setNotFoundHandler`: JSON 404 for unmatched `/api/*` paths, the SPA
  *      shell (`index.html`) for every other unmatched path.
  *
  * API routes (including the auth catch-all) are registered before the
@@ -40,6 +45,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Fastify, { type FastifyInstance } from "fastify";
+import fastifyCookie from "@fastify/cookie";
 import { prisma as defaultPrisma } from "./db.js";
 import type { PrismaClient } from "./generated/prisma/client.js";
 import { auth as defaultAuth, createAuth } from "./lib/auth.js";
@@ -117,6 +123,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await registerCors(app, nodeEnv);
   await registerHelmet(app);
   await registerRateLimit(app);
+  // Phase 5 (D-07/D-08): signed cookies for the redirect engine's
+  // link-bound unlock cookie (lib/unlockCookie.ts) — reuses the
+  // already-validated BETTER_AUTH_SECRET (>= 32 chars, env.ts) as the HMAC
+  // signing secret. This is NOT a second session system: better-auth
+  // continues to manage its own session cookies entirely independently via
+  // its own handler (routes/auth.ts) — @fastify/cookie only lets THIS
+  // route layer sign/verify a separate, non-auth, per-link cookie.
+  await app.register(fastifyCookie, { secret: process.env.BETTER_AUTH_SECRET });
 
   await app.register(
     async (apiScope) => {
@@ -134,7 +148,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   // shadowed by the `/:slug` stub or the SPA fallback.
   await app.register(linksRoute(prisma, auth));
   await app.register(healthRoute);
-  await app.register(redirectRoute);
+  // Phase 5 (REDIR-01..05): the real precedence engine replaces the Phase 1
+  // stub — stays in the SAME slot (AFTER linksRoute, BEFORE
+  // registerStatic/setNotFoundHandler, Pitfall 5) so /api/links is never
+  // shadowed and the SPA fallback never shadows /:slug.
+  await app.register(redirectRoute(prisma));
 
   await registerStatic(app, publicDir);
 

@@ -33,6 +33,17 @@ import { prisma } from "./setupFileEach.js";
 const CANARY_TARGET = "https://canary-leak-marker.example.net/super-secret-target-xyz123";
 
 const BOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+/**
+ * `light-my-request` (Fastify's `.inject()`) defaults the `user-agent`
+ * header to the literal string `"lightMyRequest"` when a test omits one —
+ * and `isbot("lightMyRequest")` returns `true` (it matches `isbot`'s
+ * generic "looks like a script/tool, not a browser" heuristic). Every
+ * "human visitor" test below must set an explicit real-browser UA, or it
+ * would unintentionally exercise the bot/OG branch instead of the intended
+ * human-facing precedence path.
+ */
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
 
 let userSeq = 0;
 
@@ -106,7 +117,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const response = await app.inject({
         method: "GET",
         url: "/go",
-        headers: { host: "valid-link.example.com" },
+        headers: { host: "valid-link.example.com", "user-agent": BROWSER_UA },
       });
 
       expect(response.statusCode).toBe(302);
@@ -136,12 +147,12 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const responseA = await app.inject({
         method: "GET",
         url: "/promo",
-        headers: { host: "promo-a.example.com" },
+        headers: { host: "promo-a.example.com", "user-agent": BROWSER_UA },
       });
       const responseB = await app.inject({
         method: "GET",
         url: "/promo",
-        headers: { host: "promo-b.example.com" },
+        headers: { host: "promo-b.example.com", "user-agent": BROWSER_UA },
       });
 
       expect(responseA.headers.location).toBe("https://target-a.example.com/");
@@ -161,7 +172,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const response = await app.inject({
         method: "GET",
         url: "/promo",
-        headers: { host: "unregistered-host.example.com" },
+        headers: { host: "unregistered-host.example.com", "user-agent": BROWSER_UA },
       });
 
       expect(response.statusCode).toBe(404);
@@ -184,7 +195,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const response = await app.inject({
         method: "GET",
         url: "/old",
-        headers: { host: "expired-link.example.com" },
+        headers: { host: "expired-link.example.com", "user-agent": BROWSER_UA },
       });
 
       expect(response.statusCode).toBe(410);
@@ -211,7 +222,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const response = await app.inject({
         method: "GET",
         url: "/secret",
-        headers: { host: "protected-link.example.com" },
+        headers: { host: "protected-link.example.com", "user-agent": BROWSER_UA },
       });
 
       expect(response.statusCode).toBe(200);
@@ -234,7 +245,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const response = await app.inject({
         method: "POST",
         url: "/secret/verify",
-        headers: { host: "protected-wrong.example.com" },
+        headers: { host: "protected-wrong.example.com", "user-agent": BROWSER_UA },
         payload: { password: "wrong-guess" },
       });
 
@@ -259,7 +270,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const verifyResponse = await app.inject({
         method: "POST",
         url: "/secret/verify",
-        headers: { host: "protected-correct.example.com" },
+        headers: { host: "protected-correct.example.com", "user-agent": BROWSER_UA },
         payload: { password: "correct-horse-battery" },
       });
 
@@ -272,7 +283,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const secondGet = await app.inject({
         method: "GET",
         url: "/secret",
-        headers: { host: "protected-correct.example.com", cookie: cookieHeader },
+        headers: { host: "protected-correct.example.com", cookie: cookieHeader, "user-agent": BROWSER_UA },
       });
       expect(secondGet.statusCode).toBe(302);
       expect(secondGet.headers.location).toBe("https://unlocked-target.example.com/");
@@ -290,7 +301,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const staleCookieGet = await app.inject({
         method: "GET",
         url: "/secret",
-        headers: { host: "protected-correct.example.com", cookie: cookieHeader },
+        headers: { host: "protected-correct.example.com", cookie: cookieHeader, "user-agent": BROWSER_UA },
       });
       expect(staleCookieGet.statusCode).toBe(200);
       expect(staleCookieGet.body).toContain("Dieser Link ist geschützt");
@@ -313,7 +324,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const response = await app.inject({
         method: "GET",
         url: "/both",
-        headers: { host: "expired-protected.example.com" },
+        headers: { host: "expired-protected.example.com", "user-agent": BROWSER_UA },
       });
 
       expect(response.statusCode).toBe(410);
@@ -399,12 +410,12 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const neverExistedResponse = await app.inject({
         method: "GET",
         url: "/never-existed",
-        headers: { host: "d11.example.com" },
+        headers: { host: "d11.example.com", "user-agent": BROWSER_UA },
       });
       const deletedResponse = await app.inject({
         method: "GET",
         url: "/temporary",
-        headers: { host: "d11.example.com" },
+        headers: { host: "d11.example.com", "user-agent": BROWSER_UA },
       });
 
       expect(neverExistedResponse.statusCode).toBe(404);
@@ -423,7 +434,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const response = await app.inject({
         method: "GET",
         url: `/${encodeURIComponent(payload)}`,
-        headers: { host: "xss-guard.example.com" },
+        headers: { host: "xss-guard.example.com", "user-agent": BROWSER_UA },
       });
 
       expect(response.statusCode).toBe(404);
@@ -447,7 +458,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const response = await app.inject({
         method: "GET",
         url: "/campaign?ref=x&utm_source=b",
-        headers: { host: "forward-query.example.com" },
+        headers: { host: "forward-query.example.com", "user-agent": BROWSER_UA },
       });
 
       expect(response.statusCode).toBe(302);
@@ -469,7 +480,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const response = await app.inject({
         method: "GET",
         url: "/campaign?ref=x",
-        headers: { host: "no-forward-query.example.com" },
+        headers: { host: "no-forward-query.example.com", "user-agent": BROWSER_UA },
       });
 
       expect(response.headers.location).toBe("https://campaign.example.com/lp?utm_source=a");
@@ -493,7 +504,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
           app.inject({
             method: "POST",
             url: "/promo/verify",
-            headers: { host: "rate-limit-a.example.com" },
+            headers: { host: "rate-limit-a.example.com", "user-agent": BROWSER_UA },
             payload: { password: "wrong-guess" },
           }),
         ),
@@ -527,7 +538,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
           app.inject({
             method: "POST",
             url: "/promo/verify",
-            headers: { host: "rate-limit-cross-a.example.com" },
+            headers: { host: "rate-limit-cross-a.example.com", "user-agent": BROWSER_UA },
             payload: { password: "wrong-guess" },
           }),
         ),
@@ -537,7 +548,7 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const domainBResponse = await app.inject({
         method: "POST",
         url: "/promo/verify",
-        headers: { host: "rate-limit-cross-b.example.com" },
+        headers: { host: "rate-limit-cross-b.example.com", "user-agent": BROWSER_UA },
         payload: { password: "wrong-guess" },
       });
 
@@ -574,22 +585,22 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       const redirectResponse = await app.inject({
         method: "GET",
         url: "/redirect",
-        headers: { host: "cache-control.example.com" },
+        headers: { host: "cache-control.example.com", "user-agent": BROWSER_UA },
       });
       const expiredResponse = await app.inject({
         method: "GET",
         url: "/expired",
-        headers: { host: "cache-control.example.com" },
+        headers: { host: "cache-control.example.com", "user-agent": BROWSER_UA },
       });
       const passwordResponse = await app.inject({
         method: "GET",
         url: "/protected",
-        headers: { host: "cache-control.example.com" },
+        headers: { host: "cache-control.example.com", "user-agent": BROWSER_UA },
       });
       const notFoundResponse = await app.inject({
         method: "GET",
         url: "/nonexistent",
-        headers: { host: "cache-control.example.com" },
+        headers: { host: "cache-control.example.com", "user-agent": BROWSER_UA },
       });
 
       for (const response of [
