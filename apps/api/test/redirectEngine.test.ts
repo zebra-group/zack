@@ -14,11 +14,29 @@
  * 2. `mergeQuery` (D-12/D-13) — query-forward merge: the stored TARGET wins
  *    on key conflict; no open-redirect surface (T-05-OPENREDIR).
  *
- * Task 2 (botDetection/unlockCookie/rate-limit configs) tests are appended
- * below this section once Task 1 is GREEN.
+ * Covers (Task 2):
+ * 3. `isBotRequest` (D-04) — thin `isbot` wrapper.
+ * 4. `unlockPayload`/`cookieName` (D-07/D-08) — the self-invalidating
+ *    unlock-cookie payload/name primitives (T-05-COOKIE-FORGE). The signed
+ *    issue/verify cookie round-trip itself (`issueUnlockCookie`/
+ *    `hasValidUnlockCookie`) needs a real Fastify reply/request with
+ *    `@fastify/cookie` registered — proven end-to-end in 05-06's route
+ *    integration test, not here.
+ * 5. `VERIFY_RATE_LIMIT_PER_LINK`'s `keyGenerator` (D-15, RESEARCH
+ *    Pitfall 4) — per-(IP, host, slug) key shape, proven with a stub
+ *    request-like object (no real FastifyRequest needed — the function is
+ *    deliberately Fastify-free, see rateLimit.ts).
  */
 import { describe, expect, it } from "vitest";
+import { isBotRequest } from "../src/lib/botDetection.js";
 import { mergeQuery, resolveLinkState } from "../src/lib/redirectEngine.js";
+import { cookieName, unlockPayload } from "../src/lib/unlockCookie.js";
+import { REDIRECT_RATE_LIMIT, VERIFY_RATE_LIMIT_PER_LINK } from "../src/plugins/rateLimit.js";
+
+const GOOGLEBOT_UA =
+  "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+const CHROME_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 describe("resolveLinkState (D-14, precedence: expired > protected > ok)", () => {
   it("returns 'expired' when expiresAt is in the past, EVEN IF passwordHash is also set (expiry wins)", () => {
@@ -148,5 +166,80 @@ describe("mergeQuery (D-12/D-13, target wins on conflict, no open-redirect surfa
     expect(parsed.protocol).toBe("https:");
     expect(parsed.host).toBe("x.example.com");
     expect(parsed.pathname).toBe("/some/path");
+  });
+});
+
+describe("isBotRequest (D-04, thin isbot wrapper)", () => {
+  it("returns true for a known crawler UA (Googlebot)", () => {
+    expect(isBotRequest(GOOGLEBOT_UA)).toBe(true);
+  });
+
+  it("returns false for a real desktop browser UA (Chrome)", () => {
+    expect(isBotRequest(CHROME_UA)).toBe(false);
+  });
+
+  it("returns false for a missing (undefined) User-Agent", () => {
+    expect(isBotRequest(undefined)).toBe(false);
+  });
+});
+
+describe("unlockPayload / cookieName (D-07/D-08, self-invalidating unlock cookie)", () => {
+  it("cookieName produces a stable 'kurzly_unlock_<linkId>' string", () => {
+    expect(cookieName("link_abc123")).toBe("kurzly_unlock_link_abc123");
+  });
+
+  it("unlockPayload is deterministic — the same hash always produces the same payload", () => {
+    const hashA = "$2b$11$stubhashvalueAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    expect(unlockPayload(hashA)).toBe(unlockPayload(hashA));
+  });
+
+  it("unlockPayload changes when the underlying passwordHash changes (self-invalidation on password rotation/removal)", () => {
+    const hashA = "$2b$11$stubhashvalueAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    const hashB = "$2b$11$stubhashvalueBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+    expect(unlockPayload(hashA)).not.toBe(unlockPayload(hashB));
+  });
+});
+
+describe("VERIFY_RATE_LIMIT_PER_LINK.keyGenerator (D-15, RESEARCH Pitfall 4)", () => {
+  it("keys on ip:hostname:slug so two domains sharing a slug get separate rate-limit buckets", () => {
+    const keyA = VERIFY_RATE_LIMIT_PER_LINK.keyGenerator({
+      ip: "203.0.113.5",
+      hostname: "domain-a.example.com",
+      params: { slug: "promo" },
+    });
+    const keyB = VERIFY_RATE_LIMIT_PER_LINK.keyGenerator({
+      ip: "203.0.113.5",
+      hostname: "domain-b.example.com",
+      params: { slug: "promo" },
+    });
+    expect(keyA).toBe("203.0.113.5:domain-a.example.com:promo");
+    expect(keyB).toBe("203.0.113.5:domain-b.example.com:promo");
+    expect(keyA).not.toBe(keyB);
+  });
+
+  it("produces distinct keys for two different IPs against the same host+slug", () => {
+    const keyA = VERIFY_RATE_LIMIT_PER_LINK.keyGenerator({
+      ip: "203.0.113.5",
+      hostname: "domain-a.example.com",
+      params: { slug: "promo" },
+    });
+    const keyB = VERIFY_RATE_LIMIT_PER_LINK.keyGenerator({
+      ip: "198.51.100.9",
+      hostname: "domain-a.example.com",
+      params: { slug: "promo" },
+    });
+    expect(keyA).not.toBe(keyB);
+  });
+});
+
+describe("Rate-limit consts exist with the expected shape (D-15/D-16)", () => {
+  it("REDIRECT_RATE_LIMIT is a generous limit (higher max than the tight per-link verify limit)", () => {
+    expect(REDIRECT_RATE_LIMIT.max).toBeGreaterThan(VERIFY_RATE_LIMIT_PER_LINK.max);
+    expect(typeof REDIRECT_RATE_LIMIT.timeWindow).toBe("string");
+  });
+
+  it("VERIFY_RATE_LIMIT_PER_LINK is a tight limit", () => {
+    expect(VERIFY_RATE_LIMIT_PER_LINK.max).toBeLessThanOrEqual(10);
+    expect(typeof VERIFY_RATE_LIMIT_PER_LINK.timeWindow).toBe("string");
   });
 });
