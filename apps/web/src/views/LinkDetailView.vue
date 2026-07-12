@@ -107,7 +107,16 @@ function closeEditModal(): void {
   formError.value = null;
 }
 
-async function handleEditSubmit(payload: { targetUrl: string; slug?: string }): Promise<void> {
+async function handleEditSubmit(payload: {
+  targetUrl: string;
+  slug?: string;
+  /** Phase 5 (D-02): `undefined` keeps, `null` clears, a string re-hashes and replaces. */
+  password?: string | null;
+  /** Phase 5 (D-03): `undefined` keeps, `null` clears, `YYYY-MM-DD` sets. */
+  expiresAt?: string | null;
+  /** Phase 5 (D-12): `undefined` keeps the current value. */
+  forwardQuery?: boolean;
+}): Promise<void> {
   if (!link.value) return;
   if (!payload.targetUrl.trim()) {
     showToast("Bitte Ziel-URL angeben.");
@@ -118,6 +127,9 @@ async function handleEditSubmit(payload: { targetUrl: string; slug?: string }): 
     const updated = await updateLink(link.value.id, {
       targetUrl: payload.targetUrl.trim(),
       slug: payload.slug,
+      password: payload.password,
+      expiresAt: payload.expiresAt,
+      forwardQuery: payload.forwardQuery,
     });
     link.value = updated;
     closeEditModal();
@@ -207,6 +219,9 @@ loadDomains();
     :initial-target-url="link.targetUrl"
     :initial-slug="link.slug"
     :initial-domain-id="link.domainId"
+    :initial-password-protected="link.passwordProtected"
+    :initial-expires-at="link.expiresAt ? link.expiresAt.slice(0, 10) : null"
+    :initial-forward-query="link.forwardQuery"
     :error="formError"
     @close="closeEditModal"
     @submit="handleEditSubmit"

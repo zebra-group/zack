@@ -148,6 +148,9 @@ describe("LinkDetailView", () => {
     expect(updateLink).toHaveBeenCalledWith("l1", {
       targetUrl: "https://example.com/1",
       slug: "new-slug",
+      password: undefined,
+      expiresAt: undefined,
+      forwardQuery: false,
     });
     expect(wrapper.text()).toContain("Änderungen gespeichert");
   });
