@@ -159,3 +159,7 @@ None - no external service configuration required.
 ---
 *Phase: 05-core-redirect-engine*
 *Completed: 2026-07-12*
+
+## Self-Check: PASSED
+
+All created files found on disk (redirectEngine.ts, botDetection.ts, unlockCookie.ts, redirectEngine.test.ts, this SUMMARY.md, deferred-items.md); all four task commits (d0b2431, 6d61398, 59a0133, 07a96bd) found in git log.
