@@ -54,7 +54,7 @@
 ### Redirect-Engine (Kernwert)
 
 - [x] **REDIR-01**: Aufruf eines Kurzlinks leitet per HTTP 302 auf die Ziel-URL weiter
-- [ ] **REDIR-02**: Redirect-Auflösung ist pro eigener Domain korrekt gescoped (Host-basiert)
+- [x] **REDIR-02**: Redirect-Auflösung ist pro eigener Domain korrekt gescoped (Host-basiert)
 - [x] **REDIR-03**: Ein abgelaufener Link liefert HTTP 410 Gone mit der Ablauf-Seite (keine Weiterleitung)
 - [x] **REDIR-04**: Ein passwortgeschützter Link zeigt die Passwort-Seite; das Ziel wird erst nach serverseitig korrekt geprüftem Passwort ausgeliefert (gehasht gespeichert)
 - [x] **REDIR-05**: Social-/Bot-Crawler erhalten injizierte Custom-OG-Tags ohne Weiterleitung; geschützte/abgelaufene Ziele werden nie vor Prüfung preisgegeben
@@ -146,7 +146,7 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | LINK-08 | Phase 4 | Complete |
 | UI-06 | Phase 4 | Complete |
 | REDIR-01 | Phase 5 | Complete |
-| REDIR-02 | Phase 5 | Pending |
+| REDIR-02 | Phase 5 | Complete |
 | REDIR-03 | Phase 5 | Complete |
 | REDIR-04 | Phase 5 | Complete |
 | REDIR-05 | Phase 5 | Complete |
