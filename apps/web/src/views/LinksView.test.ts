@@ -205,6 +205,9 @@ describe("LinksView", () => {
       domainId: "d1",
       targetUrl: "https://example.com/n",
       slug: undefined,
+      password: undefined,
+      expiresAt: undefined,
+      forwardQuery: false,
     });
     expect(wrapper.find(".toast").text()).toBe("s.meinefirma.de/neu1 erstellt");
   });
@@ -311,7 +314,37 @@ describe("LinksView", () => {
     expect(updateLink).toHaveBeenCalledWith("l1", {
       targetUrl: "https://example.com/1",
       slug: "new-slug",
+      password: undefined,
+      expiresAt: undefined,
+      forwardQuery: false,
     });
     expect(wrapper.text()).toContain("Änderungen gespeichert");
+  });
+
+  it("editing a protected/expiring link prefills expiry + forwardQuery, but never a password value", async () => {
+    listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+    listLinks.mockResolvedValue([
+      makeLink({
+        id: "l1",
+        domainId: "d1",
+        slug: "abc123",
+        targetUrl: "https://example.com/1",
+        passwordProtected: true,
+        expiresAt: "2026-08-01T23:59:59.999Z",
+        forwardQuery: true,
+      }),
+    ]);
+
+    const { wrapper } = await mountLinksView();
+
+    await wrapper.find(".row-action[title='Bearbeiten']").trigger("click");
+    await flushPromises();
+    await wrapper.find(".security-header").trigger("click");
+
+    const pwInput = wrapper.find("input[type='password']");
+    expect((pwInput.element as HTMLInputElement).value).toBe("");
+    const dateInput = wrapper.find("input[type='date']");
+    expect((dateInput.element as HTMLInputElement).value).toBe("2026-08-01");
+    expect(wrapper.find(".toggle").classes()).toContain("active");
   });
 });

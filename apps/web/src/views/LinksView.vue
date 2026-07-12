@@ -125,6 +125,12 @@ async function handleCreateSubmit(payload: {
   domainId?: string;
   targetUrl: string;
   slug?: string;
+  /** Phase 5 (D-02): plaintext, hashed server-side; `null` never occurs in create mode. */
+  password?: string | null;
+  /** Phase 5 (D-03): `YYYY-MM-DD`; `null` never occurs in create mode. */
+  expiresAt?: string | null;
+  /** Phase 5 (D-12). */
+  forwardQuery?: boolean;
 }): Promise<void> {
   if (!payload.targetUrl.trim()) {
     showToast("Bitte Ziel-URL angeben.");
@@ -140,6 +146,12 @@ async function handleCreateSubmit(payload: {
       domainId: payload.domainId,
       targetUrl: payload.targetUrl.trim(),
       slug: payload.slug,
+      // CreateLinkInput has no `null` variant for password/expiresAt (D-01) —
+      // the modal never emits null in create mode anyway, but `?? undefined`
+      // keeps this call site type-safe regardless.
+      password: payload.password ?? undefined,
+      expiresAt: payload.expiresAt ?? undefined,
+      forwardQuery: payload.forwardQuery,
     });
     links.value.unshift(created);
     closeCreateModal();
@@ -159,7 +171,16 @@ function closeEditModal(): void {
   formError.value = null;
 }
 
-async function handleEditSubmit(payload: { targetUrl: string; slug?: string }): Promise<void> {
+async function handleEditSubmit(payload: {
+  targetUrl: string;
+  slug?: string;
+  /** Phase 5 (D-02): `undefined` keeps, `null` clears, a string re-hashes and replaces. */
+  password?: string | null;
+  /** Phase 5 (D-03): `undefined` keeps, `null` clears, `YYYY-MM-DD` sets. */
+  expiresAt?: string | null;
+  /** Phase 5 (D-12): `undefined` keeps the current value. */
+  forwardQuery?: boolean;
+}): Promise<void> {
   const target = editTarget.value;
   if (!target) return;
   if (!payload.targetUrl.trim()) {
@@ -171,6 +192,9 @@ async function handleEditSubmit(payload: { targetUrl: string; slug?: string }): 
     const updated = await updateLink(target.id, {
       targetUrl: payload.targetUrl.trim(),
       slug: payload.slug,
+      password: payload.password,
+      expiresAt: payload.expiresAt,
+      forwardQuery: payload.forwardQuery,
     });
     const idx = links.value.findIndex((l) => l.id === updated.id);
     if (idx !== -1) links.value[idx] = updated;
@@ -335,6 +359,9 @@ loadLinks();
     :initial-target-url="editTarget.targetUrl"
     :initial-slug="editTarget.slug"
     :initial-domain-id="editTarget.domainId"
+    :initial-password-protected="editTarget.passwordProtected"
+    :initial-expires-at="editTarget.expiresAt ? editTarget.expiresAt.slice(0, 10) : null"
+    :initial-forward-query="editTarget.forwardQuery"
     :error="formError"
     @close="closeEditModal"
     @submit="handleEditSubmit"
