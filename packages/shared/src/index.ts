@@ -84,6 +84,14 @@ export type LinkDTO = {
   expiresAt: string | null;
   /** Phase 5 (D-12): whether incoming query params are merged onto targetUrl at redirect time. */
   forwardQuery: boolean;
+  /** Phase 6 (TRACK-01/D-15): whether the redirect engine records clicks for this link. Defaults true. */
+  trackingEnabled: boolean;
+  /**
+   * Phase 6 (D-13): pruning-resistant all-time click counter — read-only,
+   * incremented only by the redirect click hook. NEVER settable via
+   * `CreateLinkInput`/`UpdateLinkInput` (T-06-MASS).
+   */
+  lifetimeClicks: number;
 };
 
 /**
@@ -103,6 +111,8 @@ export type CreateLinkInput = {
   expiresAt?: string;
   /** Phase 5 (D-12): omitted defaults to `false` server-side. */
   forwardQuery?: boolean;
+  /** Phase 6 (TRACK-01/D-15): omitted defaults to `true` server-side. */
+  trackingEnabled?: boolean;
 };
 
 /**
@@ -125,6 +135,8 @@ export type UpdateLinkInput = {
   expiresAt?: string | null;
   /** Phase 5 (D-12): omitted keeps the current value. */
   forwardQuery?: boolean;
+  /** Phase 6 (TRACK-01/D-15): omitted keeps the current value. */
+  trackingEnabled?: boolean;
 };
 
 /**
