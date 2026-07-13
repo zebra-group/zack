@@ -46,6 +46,22 @@ RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholde
 # dependency graph, not directory order - 01-RESEARCH.md Pitfall 2).
 RUN pnpm run -r build
 
+# GeoIP DB bake (Phase 6, D-01/D-02): DB-IP Country Lite .mmdb, downloaded
+# and baked into the image at BUILD time only - never a runtime fetch, so
+# the image works fully air-gapped/offline out of the box. `curl` is not
+# present in node:24-alpine by default (06-RESEARCH.md Pitfall 6).
+# GEOIP_DB_PATH (env.ts, D-03) is an operator override for a bind-mounted
+# .mmdb - the runtime default below is exactly this build's COPY target,
+# no env var needs to be set for the bundled DB to work.
+# Attribution (CC-BY 4.0, D-01): a visible "IP Geolocation by DB-IP" link
+# back to https://db-ip.com is required wherever results are displayed -
+# handled in the dashboard footer/docs, not here.
+RUN apk add --no-cache curl \
+ && mkdir -p /usr/src/app/geo \
+ && curl -fsSL "https://download.db-ip.com/free/dbip-country-lite-$(date +'%Y-%m').mmdb.gz" \
+      -o /usr/src/app/geo/dbip-country-lite.mmdb.gz \
+ && gunzip /usr/src/app/geo/dbip-country-lite.mmdb.gz
+
 # Prune to a standalone, production-only @kurzly/api directory. `--legacy`
 # performs a real content copy (not the injected/symlinked workspace-package
 # mode pnpm 10+ defaults to) - required so the pruned output is a
@@ -60,6 +76,10 @@ COPY --from=build --chown=node:node /prod/api /prod/api
 # Single-image SPA serving (D-01): the built Vue dist/ becomes the API's
 # static public/ directory, served by @fastify/static (see plugins/static.ts).
 COPY --from=build --chown=node:node /usr/src/app/apps/web/dist /prod/api/public
+# GeoIP DB (Phase 6, D-02): lands exactly at lib/geoip.ts's resolveDbPath()
+# default (/prod/api/geo/dbip-country-lite.mmdb) - country resolution works
+# offline out of the box; the DB refreshes only on image rebuild.
+COPY --from=build --chown=node:node /usr/src/app/geo /prod/api/geo
 COPY --chown=node:node apps/api/entrypoint.sh /prod/api/entrypoint.sh
 RUN chmod +x /prod/api/entrypoint.sh
 
