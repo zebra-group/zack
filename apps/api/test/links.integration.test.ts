@@ -1717,4 +1717,135 @@ describe("Link core + routes (LINK-01/02/03, D-01/D-02/D-03)", () => {
       await app.close();
     });
   });
+
+  describe("Tracking (TRACK-01, T-06-MASS/T-06-WRITEPATH)", () => {
+    it("create with no trackingEnabled: persisted true, DTO true, lifetimeClicks 0", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "tracking-default.example.com");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/tracking-default",
+          slug: "tracking-default-slug",
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.trackingEnabled).toBe(true);
+      expect(body.lifetimeClicks).toBe(0);
+
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: body.id } });
+      expect(row.trackingEnabled).toBe(true);
+      expect(row.lifetimeClicks).toBe(0);
+
+      await app.close();
+    });
+
+    it("create with trackingEnabled:false: persisted false, DTO false", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "tracking-off.example.com");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/tracking-off",
+          slug: "tracking-off-slug",
+          trackingEnabled: false,
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.trackingEnabled).toBe(false);
+
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: body.id } });
+      expect(row.trackingEnabled).toBe(false);
+
+      await app.close();
+    });
+
+    it("update: trackingEnabled:false persists; omitted keeps current value", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "tracking-update.example.com");
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/tracking-update",
+          slug: "tracking-update-slug",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      expect(created.json().trackingEnabled).toBe(true);
+      const linkId = created.json().id;
+
+      const setFalseRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { trackingEnabled: false },
+      });
+      expect(setFalseRes.statusCode).toBe(200);
+      expect(setFalseRes.json().trackingEnabled).toBe(false);
+      const rowAfterSet = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+      expect(rowAfterSet.trackingEnabled).toBe(false);
+
+      const omittedRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { targetUrl: "https://example.com/tracking-update-2" },
+      });
+      expect(omittedRes.statusCode).toBe(200);
+      expect(omittedRes.json().trackingEnabled).toBe(false);
+
+      await app.close();
+    });
+
+    it("mass-assignment guard: a body attempting lifetimeClicks:999 is ignored (stays 0)", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "tracking-mass-assign.example.com");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/tracking-mass-assign",
+          slug: "tracking-mass-assign-slug",
+          trackingEnabled: false,
+          lifetimeClicks: 999,
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.trackingEnabled).toBe(false);
+      expect(body.lifetimeClicks).toBe(0);
+
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: body.id } });
+      expect(row.lifetimeClicks).toBe(0);
+
+      await app.close();
+    });
+  });
 });
