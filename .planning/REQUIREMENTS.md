@@ -79,8 +79,8 @@
 - [x] **TRACK-01**: Nutzer kann internes Klick-Tracking pro Link umschalten (Default an)
 - [ ] **TRACK-02**: Bei Tracking „aus" werden für diesen Link keinerlei Klickdaten gespeichert (null Zeilen geschrieben)
 - [x] **TRACK-03**: Ein getrackter Link erfasst Klickanzahl, Referrer und Länder ohne Drittanbieter
-- [ ] **TRACK-04**: Nutzer sieht pro Link Analytics (Gesamt, 30-Tage-Zeitreihe, Top-Referrer, Länder)
-- [ ] **TRACK-05**: Nutzer sieht eine globale Analytics-Übersicht (Klicks, Unique Visitors, aktive Links, QR-Scans, Top-Links, Referrer)
+- [x] **TRACK-04**: Nutzer sieht pro Link Analytics (Gesamt, 30-Tage-Zeitreihe, Top-Referrer, Länder)
+- [x] **TRACK-05**: Nutzer sieht eine globale Analytics-Übersicht (Klicks, Unique Visitors, aktive Links, QR-Scans, Top-Links, Referrer)
 
 ### Dashboard-UI & öffentliche Seiten
 
@@ -155,8 +155,8 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | TRACK-01 | Phase 6 | Complete |
 | TRACK-02 | Phase 6 | Pending |
 | TRACK-03 | Phase 6 | Complete |
-| TRACK-04 | Phase 6 | Pending |
-| TRACK-05 | Phase 6 | Pending |
+| TRACK-04 | Phase 6 | Complete |
+| TRACK-05 | Phase 6 | Complete |
 | QR-01 | Phase 7 | Pending |
 | QR-02 | Phase 7 | Pending |
 | QR-03 | Phase 7 | Pending |

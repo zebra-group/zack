@@ -6,14 +6,14 @@ current_phase: 06
 current_phase_name: internal-tracking-analytics
 status: executing
 stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-07-13T09:00:53.546Z"
+last_updated: "2026-07-13T09:27:25.974Z"
 last_activity: 2026-07-13
 last_activity_desc: Phase 06 execution started
 progress:
   total_phases: 10
   completed_phases: 5
   total_plans: 38
-  completed_plans: 33
+  completed_plans: 34
   percent: 50
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 06 (internal-tracking-analytics) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-07-13 — Phase 06 execution started
 
@@ -90,6 +90,7 @@ Progress: [█████░░░░░] 50%
 | Phase 06 P01 | 9min | 2 tasks | 4 files |
 | Phase 06 P02 | 25min | 2 tasks | 9 files |
 | Phase 06 P03 | 18min | 3 tasks | 8 files |
+| Phase 06 P05 | 24min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -169,6 +170,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 06]: 06-02: trackingEnabled threaded through lib/links.ts's D-01 sole write path exactly like forwardQuery - a plain optional boolean, no tri-state derivation needed; lifetimeClicks is server-owned and never allowlisted on any Zod schema (T-06-MASS)
 - [Phase ?]: [Phase 06]: 06-03: apps/api/test/geoip.test.ts nutzt MaxMinds offizielle MMDB-Spec-Testdatenbank (Apache-2.0, committed als test/fixtures/GeoIP2-Country-Test.mmdb) statt zur Testzeit die Produktions-DB-IP-Datei herunterzuladen - deterministisch, keine Netzwerkabhaengigkeit im Testlauf, klar getrennt von der Docker-Build-Artefakt-DB
 - [Phase ?]: [Phase 06]: 06-03: vi.resetModules() + dynamischer Re-Import pro Testfall in geoip.test.ts, um den lazy-Singleton-.mmdb-Reader fuer jeden Testfall (bekannte IP / fehlende DB / unset GEOIP_DB_PATH) unabhaengig neu zu initialisieren
+- [Phase ?]: [Phase 06]: 06-05: null referrerHost/country kept null through lib/analytics.ts's SQL layer (not COALESCEd to 'Direkt'/'Unbekannt' in SQL) - RESEARCH Pattern 5's example conflicted with its own Anti-Patterns rule; the Anti-Pattern (translate only at the view boundary) was followed
+- [Phase ?]: [Phase 06]: 06-05: getGlobalAnalytics's empty-domainIds short-circuit returns a locally-computed 30-entry zero series rather than an empty array, so the fixed-30-bar chart contract holds even with zero domain memberships
+- [Phase ?]: [Phase 06]: 06-05: source='qr' comparison uses an explicit ::ScanSource cast on the bound parameter - a bound text parameter against a native Postgres enum column needs an explicit cast
 
 ### Pending Todos
 
@@ -188,6 +192,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-13T09:00:18.467Z
+Last session: 2026-07-13T09:26:01.923Z
 Stopped at: Completed 06-02-PLAN.md
 Resume file: .planning/phases/06-internal-tracking-analytics/06-03-PLAN.md
