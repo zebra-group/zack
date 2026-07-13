@@ -9,6 +9,7 @@ import type {
   AuthSession,
   CreateLinkInput,
   DomainDTO,
+  GlobalAnalyticsDTO,
   ImportCommitResult,
   ImportPreviewResult,
   LinkAnalyticsDTO,
@@ -266,6 +267,17 @@ export async function getLink(id: string): Promise<LinkDTO> {
 export async function getLinkAnalytics(id: string): Promise<LinkAnalyticsDTO> {
   const response = await fetch(`/api/links/${id}/analytics`, { method: "GET" });
   return parseJsonOrThrow<LinkAnalyticsDTO>(response);
+}
+
+/**
+ * `GET /api/analytics` — account-wide global analytics overview (TRACK-05);
+ * scoped to the caller's own domains server-side (`scopedDomainIds`, 06-05).
+ * Renders only this server-authorized, already-scoped DTO (T-06-GLOBALUI) —
+ * the client never re-derives analytics itself.
+ */
+export async function getGlobalAnalytics(): Promise<GlobalAnalyticsDTO> {
+  const response = await fetch("/api/analytics", { method: "GET" });
+  return parseJsonOrThrow<GlobalAnalyticsDTO>(response);
 }
 
 /** `PATCH /api/links/:id` — edits target/slug/title through the validated update core (LINK-06, D-04). */
