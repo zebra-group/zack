@@ -6,14 +6,14 @@ current_phase: 06
 current_phase_name: internal-tracking-analytics
 status: executing
 stopped_at: Completed 06-06-PLAN.md
-last_updated: "2026-07-13T09:42:06.921Z"
+last_updated: "2026-07-13T10:09:15.950Z"
 last_activity: 2026-07-13
 last_activity_desc: Phase 06 execution started
 progress:
   total_phases: 10
   completed_phases: 5
   total_plans: 38
-  completed_plans: 35
+  completed_plans: 36
   percent: 50
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 06 (internal-tracking-analytics) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Ready to execute
 Last activity: 2026-07-13 — Phase 06 execution started
 
@@ -92,6 +92,7 @@ Progress: [█████░░░░░] 50%
 | Phase 06 P03 | 18min | 3 tasks | 8 files |
 | Phase 06 P05 | 24min | 2 tasks | 5 files |
 | Phase 06 P06 | 10min | 2 tasks | 4 files |
+| Phase 06-internal-tracking-analytics P04 | 30min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -175,6 +176,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 06]: 06-05: getGlobalAnalytics's empty-domainIds short-circuit returns a locally-computed 30-entry zero series rather than an empty array, so the fixed-30-bar chart contract holds even with zero domain memberships
 - [Phase ?]: [Phase 06]: 06-05: source='qr' comparison uses an explicit ::ScanSource cast on the bound parameter - a bound text parameter against a native Postgres enum column needs an explicit cast
 - [Phase ?]: [Phase 06]: 06-06: initialTrackingEnabled prop uses withDefaults(..., { initialTrackingEnabled: true }) instead of props.x ?? true - Vue casts an absent single-Boolean-type prop to false before setup() code runs, so a plain ?? default silently breaks for a true-by-default Boolean prop
+- [Phase ?]: recordClickHook's lifetimeClicks increment is a documented second prisma.link.update call site (lifetimeClicks only, never link content fields) alongside lib/links.ts's updateLink
+- [Phase ?]: Corrected the plan's literal single-call-site verify grep (over-counted generated Prisma client + prose) to the repo's established comment-filtered, generated-dir-excluded convention
 
 ### Pending Todos
 
@@ -194,6 +197,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-13T09:42:06.873Z
+Last session: 2026-07-13T10:08:16.373Z
 Stopped at: Completed 06-06-PLAN.md
 Resume file: .planning/phases/06-internal-tracking-analytics/06-07-PLAN.md
