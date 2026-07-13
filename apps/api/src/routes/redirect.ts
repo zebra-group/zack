@@ -22,14 +22,21 @@
  * `renderNotFoundPage`/`renderBotOgPage` structurally have no `target`
  * field to leak (see `lib/publicHtml.ts`'s header comment).
  *
- * READS ONLY (D-01): this file performs ZERO Prisma Link writes — every
- * `prisma.link.*` call below is a `findUnique` (a read). Password/expiry/
- * forwardQuery persistence happens exclusively through `lib/links.ts`'s
- * `createLink`/`updateLink` (the D-01 sole write path), never here.
+ * WRITES (Phase 6, D-13/D-17): Phase 5's "reads only" invariant now has
+ * exactly one exception — `recordClickHook`'s body, the ONLY
+ * `prisma.clickEvent.create` call site in the codebase and a second (but
+ * intentional, TRACK-01/D-13-driven) `prisma.link.update` call site beside
+ * `lib/links.ts`'s `updateLink`, confined to incrementing `lifetimeClicks`
+ * only, batched atomically with the ClickEvent insert in a single
+ * `$transaction`. Every OTHER `prisma.link.*` call in this file remains a
+ * `findUnique` (a read). Password/expiry/forwardQuery/trackingEnabled
+ * *content* persistence still happens exclusively through `lib/links.ts`'s
+ * `createLink`/`updateLink` (the D-01 sole write path for link fields) —
+ * `recordClickHook` never touches any Link column besides the counter.
  */
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import bcrypt from "bcryptjs";
-import type { PrismaClient } from "../generated/prisma/client.js";
+import type { Link, PrismaClient } from "../generated/prisma/client.js";
 import { resolveActiveDomainByHost } from "../lib/domainResolution.js";
 import { resolveLinkState, mergeQuery } from "../lib/redirectEngine.js";
 import { isBotRequest } from "../lib/botDetection.js";
@@ -41,6 +48,9 @@ import {
   renderBotOgPage,
 } from "../lib/publicHtml.js";
 import { REDIRECT_RATE_LIMIT, VERIFY_RATE_LIMIT_PER_LINK } from "../plugins/rateLimit.js";
+import { getCountryForIp } from "../lib/geoip.js";
+import { normalizeReferrer } from "../lib/referrer.js";
+import { computeVisitorHash, resolveDailySalt } from "../lib/visitorHash.js";
 
 /** Branding context (D-10) shared by every public-HTML render call below — read directly from `process.env` (not `loadEnv()`), mirroring `lib/links.ts`'s `resolvePasswordHashCost` convention so this module works under Vitest without a boot-time ENV parse. */
 function brandCtx(): { brand: string; accent: string } {
@@ -51,12 +61,54 @@ function brandCtx(): { brand: string; accent: string } {
 }
 
 /**
- * D-17 seam — Phase 6 replaces this body with a real click-event write
- * (linkId, timestamp, host, etc.). Signature stays stable; today it is a
- * pure no-op so this plan writes NO tracking data.
+ * D-17 seam, filled (Phase 6, TRACK-02/03, D-13). The ONLY
+ * `prisma.clickEvent.create` call site in the codebase.
+ *
+ * Structural zero-rows guarantee (TRACK-02): the very first line early-
+ * returns on `!link.trackingEnabled`, BEFORE any Prisma call — a
+ * tracking-off link produces literally zero rows, proven by a direct DB
+ * row-count in the test suite, not a display-time filter.
+ *
+ * Reuses the already-fetched `link` object from the caller (no re-query,
+ * RESEARCH Pitfall 4). The whole body below the guard is wrapped in
+ * try/catch: a GeoIP/salt/DB hiccup is logged and swallowed, NEVER thrown
+ * into the redirect response path (T-06-HOTPATH) — the 302 must fire
+ * regardless of tracking success.
+ *
+ * When tracking is on, the `ClickEvent` insert and `Link.lifetimeClicks`
+ * increment run as one `prisma.$transaction` batch (D-13, Pitfall 5) so
+ * the counter can never drift from the event rows.
  */
-async function recordClickHook(_ctx: { linkId: string }): Promise<void> {
-  // intentionally empty — Phase 6's tracking write lands here.
+async function recordClickHook(ctx: {
+  prisma: PrismaClient;
+  link: Link;
+  ip: string;
+  userAgent: string | undefined;
+  referer: string | undefined;
+  log: FastifyBaseLogger;
+}): Promise<void> {
+  const { prisma, link, ip, userAgent, referer, log } = ctx;
+  if (!link.trackingEnabled) return; // TRACK-02: structural guard, no Prisma call below this line when off.
+
+  try {
+    const country = await getCountryForIp(ip);
+    const referrerHost = normalizeReferrer(referer);
+    const salt = await resolveDailySalt(prisma);
+    const visitorHash = computeVisitorHash(salt, ip, userAgent ?? "", link.id);
+
+    await prisma.$transaction([
+      prisma.clickEvent.create({
+        data: { linkId: link.id, country, referrerHost, visitorHash, source: "link" },
+      }),
+      prisma.link.update({
+        where: { id: link.id },
+        data: { lifetimeClicks: { increment: 1 } },
+      }),
+    ]);
+  } catch (err) {
+    // Never let a tracking failure break or slow the redirect hot path.
+    log?.warn({ err, linkId: link.id }, "recordClickHook: tracking write failed, swallowed");
+  }
 }
 
 /**
@@ -128,8 +180,17 @@ export function redirectRoute(prisma: PrismaClient) {
         }
 
         // state === "ok" -> normal link, or protected link with a valid
-        // unlock cookie. D-17 seam: Phase 6 hooks its click-write in here.
-        await recordClickHook({ linkId: link.id });
+        // unlock cookie. D-17 seam: Phase 6's tracking write (D-05:
+        // request.ip is already trust-proxy-aware via app.ts's trustProxy
+        // option — no new proxy config needed here).
+        await recordClickHook({
+          prisma,
+          link,
+          ip: request.ip,
+          userAgent: request.headers["user-agent"],
+          referer: request.headers.referer,
+          log: request.log,
+        });
 
         const target = link.forwardQuery
           ? mergeQuery(link.targetUrl, new URL(request.url, "http://placeholder.invalid").search)
