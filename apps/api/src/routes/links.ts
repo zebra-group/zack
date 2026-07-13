@@ -60,6 +60,10 @@ const createLinkSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   forwardQuery: z.boolean().optional(),
+  // Phase 6 (TRACK-01/D-15, T-06-MASS): a plain optional boolean, mirrors
+  // forwardQuery exactly. lifetimeClicks is intentionally NEVER allowlisted
+  // here — it is server-owned (D-13) and must stay client-unsettable.
+  trackingEnabled: z.boolean().optional(),
 });
 
 /**
@@ -84,6 +88,9 @@ const updateLinkSchema = z.object({
     .nullable()
     .optional(),
   forwardQuery: z.boolean().optional(),
+  // Phase 6 (TRACK-01/D-15): omitted keeps the current value — same
+  // no-tri-state shape as forwardQuery, no "clear" semantic needed.
+  trackingEnabled: z.boolean().optional(),
 });
 
 /**
@@ -337,6 +344,7 @@ export function linksRoute(prisma: PrismaClient, auth: Auth) {
         password: requestedPassword,
         expiresAt: parsed.data.expiresAt,
         forwardQuery: parsed.data.forwardQuery,
+        trackingEnabled: parsed.data.trackingEnabled,
       });
 
       if (!result.ok) {

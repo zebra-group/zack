@@ -53,6 +53,8 @@ function makeLink(overrides: Partial<LinkDTO> = {}): LinkDTO {
     passwordProtected: false,
     expiresAt: null,
     forwardQuery: false,
+    trackingEnabled: true,
+    lifetimeClicks: 0,
     ...overrides,
   };
 }

@@ -248,6 +248,12 @@ export type ValidatedLink = {
   expiresAt?: Date | null;
   /** D-12 — `undefined` no-change (update) / defaults false (create via Prisma column default). */
   forwardQuery?: boolean;
+  /**
+   * TRACK-01/D-15 — `undefined` no-change (update) / defaults true (create
+   * via Prisma column default). A plain boolean, no tri-state derivation
+   * needed (unlike password/expiresAt) — there is no "clear" semantic.
+   */
+  trackingEnabled?: boolean;
 };
 export type ValidationResult =
   | { ok: true; data: ValidatedLink }
@@ -265,6 +271,8 @@ export type ValidateLinkInputParams = {
   expiresAt?: string | null;
   /** Phase 5 (D-12): omitted keeps current value on update / defaults false on create. */
   forwardQuery?: boolean;
+  /** Phase 6 (TRACK-01/D-15): omitted keeps current value on update / defaults true on create. */
+  trackingEnabled?: boolean;
   /** Set by `updateLink` so a link's own current slug never false-collides with itself. */
   excludeLinkId?: string;
 };
@@ -317,6 +325,7 @@ export async function validateLinkInput(
       passwordHash,
       expiresAt: expiresAtDate,
       forwardQuery: input.forwardQuery,
+      trackingEnabled: input.trackingEnabled,
     },
   };
 }
@@ -387,6 +396,7 @@ export async function updateLink(
         passwordHash: validated.data.passwordHash,
         expiresAt: validated.data.expiresAt,
         forwardQuery: validated.data.forwardQuery,
+        trackingEnabled: validated.data.trackingEnabled,
       },
     });
     return { ok: true, link };
@@ -417,6 +427,8 @@ export function toLinkDto(link: Link) {
     passwordProtected: link.passwordHash !== null,
     expiresAt: link.expiresAt ? link.expiresAt.toISOString() : null,
     forwardQuery: link.forwardQuery,
+    trackingEnabled: link.trackingEnabled,
+    lifetimeClicks: link.lifetimeClicks,
   };
 }
 
