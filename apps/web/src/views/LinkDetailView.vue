@@ -5,19 +5,33 @@
  * (ApiError, IDOR-guarded 404-for-both per 04-03) routes back to /links
  * with a toast rather than rendering a broken detail page.
  *
- * The Statistik-Platzhalter card is STATIC — no backend call. Real click
- * numbers are Phase 6 (Analytics), per 04-UI-SPEC.md's explicit scope cut.
+ * Phase 6 (06-UI-SPEC.md § Surface A, TRACK-01/TRACK-04): the formerly
+ * static "Statistiken — bald verfügbar" placeholder is replaced by a
+ * live per-link analytics surface — an always-visible "Internes Tracking"
+ * card with an optimistic toggle, plus a data section rendering exactly
+ * one of four mutually-exclusive states (tracking-off / loading /
+ * zero-data / data), fed by `getLinkAnalytics`.
  *
  * Toast pattern: per-view ref + setTimeout (04-PATTERNS.md), no global
  * store. Because delete navigates away (unmounting this view), the toast
  * is shown FIRST and navigation is deliberately delayed slightly so the
  * user sees it before the route change — no cross-page toast state is
- * introduced.
+ * introduced. The tracking toggle deliberately shows NO success toast
+ * (06-UI-SPEC.md Copywriting Contract) — the immediate card state change
+ * is the confirmation; only a failed toggle toasts (on revert).
  */
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import type { DomainDTO, LinkDTO } from "@kurzly/shared";
-import { ApiError, deleteLink, getLink, listDomains, mapLinkFormError, updateLink } from "../api";
+import type { DomainDTO, LinkAnalyticsDTO, LinkDTO } from "@kurzly/shared";
+import {
+  ApiError,
+  deleteLink,
+  getLink,
+  getLinkAnalytics,
+  listDomains,
+  mapLinkFormError,
+  updateLink,
+} from "../api";
 import { formatDate } from "../lib/format";
 import LinkFormModal from "../components/LinkFormModal.vue";
 
@@ -30,6 +44,11 @@ const notFound = ref(false);
 const showEditModal = ref(false);
 const showDeleteDialog = ref(false);
 const formError = ref<unknown>(null);
+
+// Phase 6 (Surface A, TRACK-04): per-link analytics state. `analytics` stays
+// `null` until a load resolves; `analyticsLoading` gates the skeleton state.
+const analytics = ref<LinkAnalyticsDTO | null>(null);
+const analyticsLoading = ref(false);
 
 const toastMessage = ref<string | null>(null);
 let toastTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -49,6 +68,60 @@ const hostname = computed(() => {
   return domains.value.find((d) => d.id === domainId)?.hostname ?? "";
 });
 
+// 06-UI-SPEC.md Copywriting Contract: locked ON/OFF hint copy for the
+// "Internes Tracking" card.
+const trackingHint = computed(() =>
+  link.value?.trackingEnabled
+    ? "Klicks, Referrer und Länder werden erfasst (nur intern, keine Drittanbieter)."
+    : "Keine Datenerfassung für diesen Link.",
+);
+
+// Phase 6 (Surface A, TRACK-04): totalClicks gates the data/zero-data
+// branch — sourced from the analytics DTO's `totalClicks`
+// (lifetimeClicks-derived server-side, D-13), never a live count (per this
+// plan's explicit prohibition).
+const totalClicks = computed(() => analytics.value?.totalClicks ?? 0);
+
+/**
+ * 30-bar chart data (06-UI-SPEC.md: `.bar { height:{{pct}}%; min-height:3px }`).
+ * `pct` is scaled against the series' own max count; the CSS `min-height:3px`
+ * (not this computed) provides the visual floor for zero/near-zero days, so
+ * `pct` is left at its true proportional value (0% for a zero-count day).
+ */
+const chartBars = computed(() => {
+  const series = analytics.value?.dailySeries ?? [];
+  const max = series.reduce((m, d) => Math.max(m, d.count), 0);
+  return series.map((d) => ({
+    day: d.day,
+    count: d.count,
+    pct: max > 0 ? (d.count / max) * 100 : 0,
+  }));
+});
+
+/** Shared row-shape builder for the Referrer/Länder `.list-row`s (row-bar-fill scaled to each list's own max, D-07/D-04 null → label at the view boundary). */
+function toListRows<T extends { count: number }>(
+  entries: T[],
+  nameOf: (entry: T) => string,
+): { name: string; count: number; pct: number }[] {
+  const max = entries.reduce((m, e) => Math.max(m, e.count), 0);
+  return entries.map((e) => ({
+    name: nameOf(e),
+    count: e.count,
+    pct: max > 0 ? (e.count / max) * 100 : 0,
+  }));
+}
+
+// D-07: a null referrer host means a direct visit — labeled "Direkt" here,
+// not in the DTO (raw data stays locale-neutral, RESEARCH Anti-Patterns).
+const referrerRows = computed(() =>
+  toListRows(analytics.value?.topReferrers ?? [], (r) => r.host ?? "Direkt"),
+);
+// D-04: a null country means an unresolvable IP — labeled "Unbekannt" here;
+// the click itself was still counted server-side, never skipped.
+const countryRows = computed(() =>
+  toListRows(analytics.value?.topCountries ?? [], (c) => c.country ?? "Unbekannt"),
+);
+
 async function loadDomains(): Promise<void> {
   try {
     domains.value = await listDomains();
@@ -58,16 +131,66 @@ async function loadDomains(): Promise<void> {
   }
 }
 
+/**
+ * Fetches per-link analytics (06-UI-SPEC.md Surface A, TRACK-04) — only
+ * called while tracking is enabled. Follows the same try/catch +
+ * `ApiError`-status-check + toast-fallback shape as `load()`; a failure
+ * here does not affect `link`/`notFound`, only `analytics` stays `null`
+ * and the toast informs the user.
+ */
+async function loadAnalytics(): Promise<void> {
+  if (!link.value || !link.value.trackingEnabled) return;
+  analyticsLoading.value = true;
+  try {
+    analytics.value = await getLinkAnalytics(link.value.id);
+  } catch {
+    showToast("Analytics konnten nicht geladen werden.");
+  } finally {
+    analyticsLoading.value = false;
+  }
+}
+
 async function load(): Promise<void> {
   const id = route.params.id as string;
   try {
     link.value = await getLink(id);
+    await loadAnalytics();
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
       notFound.value = true;
       return;
     }
     showToast("Link konnte nicht geladen werden.");
+  }
+}
+
+/**
+ * Tracking-card toggle (06-UI-SPEC.md Surface A, TRACK-01, D-15
+ * single-write-path, T-06-TOGGLEUI): flips `trackingEnabled` on `link`
+ * immediately (optimistic, cosmetic-only), then PATCHes through the
+ * existing `updateLink` client — the authoritative source of truth. On
+ * success there is NO toast (the state change itself is the
+ * confirmation); on failure the flip reverts and a toast informs the
+ * user. Turning tracking back on re-fetches analytics; turning it off
+ * clears the previously-loaded analytics so a later re-enable never
+ * flashes stale data.
+ */
+async function toggleTracking(): Promise<void> {
+  if (!link.value) return;
+  const current = link.value;
+  const next = !current.trackingEnabled;
+  current.trackingEnabled = next;
+  try {
+    const updated = await updateLink(current.id, { trackingEnabled: next });
+    link.value = updated;
+    if (next) {
+      await loadAnalytics();
+    } else {
+      analytics.value = null;
+    }
+  } catch {
+    current.trackingEnabled = !next;
+    showToast("Tracking konnte nicht geändert werden.");
   }
 }
 
@@ -203,11 +326,138 @@ loadDomains();
       <span class="chip">erstellt {{ formatDate(link.createdAt) }}</span>
     </div>
 
-    <div class="stats-placeholder">
-      <h3 class="stats-heading">Statistiken — bald verfügbar</h3>
-      <p class="stats-body">
-        Klick-Statistiken sind noch nicht verfügbar. Sie kommen mit der Analytics-Phase.
-      </p>
+    <!-- Surface A (06-UI-SPEC.md): always-visible tracking card + optimistic toggle. -->
+    <div class="tracking-card">
+      <div class="tracking-text">
+        <div class="tracking-title">Internes Tracking</div>
+        <div class="tracking-hint">{{ trackingHint }}</div>
+      </div>
+      <div
+        class="toggle"
+        :class="{ active: link.trackingEnabled }"
+        role="switch"
+        :aria-checked="link.trackingEnabled"
+        @click="toggleTracking"
+      >
+        <div class="toggle-knob"></div>
+      </div>
+    </div>
+
+    <!-- Data section — exactly one of four mutually-exclusive states. -->
+    <div v-if="!link.trackingEnabled" class="dashed-empty">
+      Tracking ist für diesen Link deaktiviert — es werden keine Klickdaten gespeichert.
+    </div>
+    <div v-else-if="analyticsLoading" class="data-section">
+      <div class="stat-grid">
+        <div v-for="n in 3" :key="n" class="stat-card">
+          <div class="skeleton-block skeleton-stat-label"></div>
+          <div class="skeleton-block skeleton-stat-value"></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Klicks · letzte 30 Tage</div>
+        <div class="skeleton-block skeleton-chart"></div>
+      </div>
+      <div class="two-col">
+        <div class="list-card">
+          <div class="list-title">Referrer</div>
+          <div v-for="n in 5" :key="n" class="list-row skeleton-list-row">
+            <div class="skeleton-block skeleton-row-name"></div>
+            <div class="skeleton-block skeleton-row-bar"></div>
+            <div class="skeleton-block skeleton-row-pct"></div>
+          </div>
+        </div>
+        <div class="list-card">
+          <div class="list-title">Länder</div>
+          <div v-for="n in 5" :key="n" class="list-row skeleton-list-row">
+            <div class="skeleton-block skeleton-row-name"></div>
+            <div class="skeleton-block skeleton-row-bar"></div>
+            <div class="skeleton-block skeleton-row-pct"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div v-else-if="totalClicks === 0" class="data-section">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Klicks gesamt</div>
+          <div class="stat-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Letzte 7 Tage</div>
+          <div class="stat-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Top Referrer</div>
+          <div class="stat-value">–</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Klicks · letzte 30 Tage</div>
+        <div class="zero-data-hint">
+          Noch keine Klicks erfasst — Daten erscheinen, sobald der Link aufgerufen wird.
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="list-card">
+          <div class="list-title">Referrer</div>
+          <div class="list-empty-row">Keine Daten</div>
+        </div>
+        <div class="list-card">
+          <div class="list-title">Länder</div>
+          <div class="list-empty-row">Keine Daten</div>
+        </div>
+      </div>
+    </div>
+    <div v-else class="data-section">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Klicks gesamt</div>
+          <div class="stat-value">{{ totalClicks }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Letzte 7 Tage</div>
+          <div class="stat-value">{{ analytics?.last7Days ?? 0 }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Top Referrer</div>
+          <div class="stat-value">{{ analytics?.topReferrer ?? "–" }}</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Klicks · letzte 30 Tage</div>
+        <div class="chart-bars">
+          <div
+            v-for="bar in chartBars"
+            :key="bar.day"
+            class="bar"
+            :style="{ height: bar.pct + '%' }"
+            :title="`${formatDate(bar.day)}: ${bar.count} Klicks`"
+          ></div>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="list-card">
+          <div class="list-title">Referrer</div>
+          <div v-for="row in referrerRows" :key="row.name" class="list-row">
+            <div class="row-name">{{ row.name }}</div>
+            <div class="row-bar-track">
+              <div class="row-bar-fill" :style="{ width: row.pct + '%' }"></div>
+            </div>
+            <div class="row-pct">{{ Math.round(row.pct) }}%</div>
+          </div>
+        </div>
+        <div class="list-card">
+          <div class="list-title">Länder</div>
+          <div v-for="row in countryRows" :key="row.name" class="list-row">
+            <div class="row-name">{{ row.name }}</div>
+            <div class="row-bar-track">
+              <div class="row-bar-fill" :style="{ width: row.pct + '%' }"></div>
+            </div>
+            <div class="row-pct">{{ Math.round(row.pct) }}%</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -339,25 +589,265 @@ loadDomains();
   color: var(--mut);
 }
 
-.stats-placeholder {
+/* Surface A (06-UI-SPEC.md § Layout Contract — Surface A): tracking card +
+   optimistic toggle, always visible regardless of trackingEnabled. */
+.tracking-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.tracking-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tracking-title {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.tracking-hint {
+  font-size: 12px;
+  color: var(--mut);
+}
+
+/* Toggle shape/tokens reused verbatim from LinkFormModal.vue's
+   forwardQuery/tracking toggles (06-UI-SPEC.md § C1) — each component owns
+   its own scoped copy, no new toggle CSS invented here. */
+.toggle {
+  width: 38px;
+  height: 21px;
+  border-radius: 999px;
+  background: var(--border);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex: none;
+}
+
+.toggle.active {
+  background: var(--accent);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2.5px;
+  left: 2.5px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.15s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.toggle.active .toggle-knob {
+  left: 19px;
+}
+
+/* Tracking-off empty state — the ONLY thing shown when trackingEnabled is
+   false (never co-rendered with the stat cards below). */
+.dashed-empty {
   border: 1px dashed var(--border);
   border-radius: 12px;
   padding: 40px;
   text-align: center;
+  color: var(--mut);
+  font-size: 13px;
   background: var(--panel);
 }
 
-.stats-heading {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0;
+/* Data section — shared shell for the loading/zero-data/data states. */
+.data-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.stats-body {
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 11.5px;
+  color: var(--mut);
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: "Geist Mono", monospace;
+}
+
+.chart-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chart-title {
   font-size: 12.5px;
   color: var(--mut);
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 130px;
+}
+
+.bar {
+  flex: 1;
+  background: var(--chip);
+  border-radius: 3px 3px 0 0;
+  min-height: 3px;
+}
+
+.bar:hover {
+  background: var(--accent);
+}
+
+.zero-data-hint {
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--mut);
+  padding: 0 24px;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.list-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.list-title {
+  font-size: 12.5px;
+  color: var(--mut);
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.row-name {
+  width: 90px;
+  flex: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-bar-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--chip);
+  overflow: hidden;
+}
+
+.row-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+}
+
+.row-pct {
+  width: 38px;
+  text-align: right;
+  font-family: "Geist Mono", monospace;
+  color: var(--mut);
+  font-size: 11.5px;
+}
+
+.list-empty-row {
+  padding: 12px 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--mut);
+}
+
+/* Loading skeleton (06-UI-SPEC.md § Loading State) — identical card shells
+   to the Data State, grey placeholder blocks instead of content, no
+   spinner. */
+.skeleton-block {
+  background: var(--chip);
+  border-radius: 4px;
+}
+
+.skeleton-stat-label {
+  width: 60%;
+  height: 11px;
+}
+
+.skeleton-stat-value {
+  width: 50%;
+  height: 18px;
   margin-top: 4px;
+}
+
+.skeleton-chart {
+  width: 100%;
+  height: 130px;
+}
+
+.skeleton-list-row {
+  gap: 10px;
+}
+
+.skeleton-row-name {
+  width: 90px;
+  height: 12px;
+}
+
+.skeleton-row-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.skeleton-row-pct {
+  width: 38px;
+  height: 12px;
 }
 
 .not-found-card {

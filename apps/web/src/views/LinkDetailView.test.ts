@@ -5,23 +5,39 @@
  * `router.push` navigation resolve without a real session.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { DomainDTO, LinkDTO } from "@kurzly/shared";
+import type { DomainDTO, LinkAnalyticsDTO, LinkDTO } from "@kurzly/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 import LinkDetailView from "./LinkDetailView.vue";
 import { ApiError } from "../api";
 
-const { deleteLink, getLink, listDomains, updateLink } = vi.hoisted(() => ({
+const { deleteLink, getLink, getLinkAnalytics, listDomains, updateLink } = vi.hoisted(() => ({
   deleteLink: vi.fn(),
   getLink: vi.fn(),
+  getLinkAnalytics: vi.fn(),
   listDomains: vi.fn(),
   updateLink: vi.fn(),
 }));
 
 vi.mock("../api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api")>();
-  return { ...actual, deleteLink, getLink, listDomains, updateLink };
+  return { ...actual, deleteLink, getLink, getLinkAnalytics, listDomains, updateLink };
 });
+
+function makeAnalytics(overrides: Partial<LinkAnalyticsDTO> = {}): LinkAnalyticsDTO {
+  return {
+    totalClicks: 0,
+    last7Days: 0,
+    topReferrer: null,
+    dailySeries: Array.from({ length: 30 }, (_, i) => ({
+      day: `2026-06-${String(i + 1).padStart(2, "0")}`,
+      count: 0,
+    })),
+    topReferrers: [],
+    topCountries: [],
+    ...overrides,
+  };
+}
 
 function makeDomain(overrides: Partial<DomainDTO> = {}): DomainDTO {
   return {
@@ -69,6 +85,8 @@ function makeRouter() {
 beforeEach(() => {
   deleteLink.mockReset();
   getLink.mockReset();
+  getLinkAnalytics.mockReset();
+  getLinkAnalytics.mockResolvedValue(makeAnalytics());
   listDomains.mockReset();
   updateLink.mockReset();
   vi.stubGlobal("navigator", {
@@ -102,14 +120,148 @@ describe("LinkDetailView", () => {
     expect(wrapper.text()).toContain("s.meinefirma.de");
   });
 
-  it("shows the STATIC placeholder stats card with no analytics API call", async () => {
+  it("tracking card shows the ON hint copy and an active toggle when tracking is enabled", async () => {
     listDomains.mockResolvedValue([makeDomain()]);
-    getLink.mockResolvedValue(makeLink());
+    getLink.mockResolvedValue(makeLink({ trackingEnabled: true }));
 
     const { wrapper } = await mountDetailView();
 
-    expect(wrapper.find(".stats-heading").text()).toBe("Statistiken — bald verfügbar");
-    expect(wrapper.text()).toContain("Klick-Statistiken sind noch nicht verfügbar");
+    expect(wrapper.find(".tracking-title").text()).toBe("Internes Tracking");
+    expect(wrapper.find(".tracking-hint").text()).toBe(
+      "Klicks, Referrer und Länder werden erfasst (nur intern, keine Drittanbieter).",
+    );
+    expect(wrapper.find(".toggle").classes()).toContain("active");
+  });
+
+  it("tracking card shows the OFF hint copy and an inactive toggle when tracking is disabled", async () => {
+    listDomains.mockResolvedValue([makeDomain()]);
+    getLink.mockResolvedValue(makeLink({ trackingEnabled: false }));
+
+    const { wrapper } = await mountDetailView();
+
+    expect(wrapper.find(".tracking-hint").text()).toBe("Keine Datenerfassung für diesen Link.");
+    expect(wrapper.find(".toggle").classes()).not.toContain("active");
+  });
+
+  it("tracking-off: only the dashed empty state renders, no stat cards, no analytics call", async () => {
+    listDomains.mockResolvedValue([makeDomain()]);
+    getLink.mockResolvedValue(makeLink({ trackingEnabled: false }));
+
+    const { wrapper } = await mountDetailView();
+
+    expect(wrapper.find(".dashed-empty").text()).toBe(
+      "Tracking ist für diesen Link deaktiviert — es werden keine Klickdaten gespeichert.",
+    );
+    expect(wrapper.find(".stat-grid").exists()).toBe(false);
+    expect(getLinkAnalytics).not.toHaveBeenCalled();
+  });
+
+  it("toggle: clicking optimistically flips state, PATCHes via updateLink, and shows NO success toast", async () => {
+    listDomains.mockResolvedValue([makeDomain()]);
+    getLink.mockResolvedValue(makeLink({ trackingEnabled: true }));
+    updateLink.mockResolvedValue(makeLink({ trackingEnabled: false }));
+
+    const { wrapper } = await mountDetailView();
+
+    await wrapper.find(".toggle").trigger("click");
+    await flushPromises();
+
+    expect(updateLink).toHaveBeenCalledWith("l1", { trackingEnabled: false });
+    expect(wrapper.find(".toggle").classes()).not.toContain("active");
+    expect(wrapper.find(".dashed-empty").exists()).toBe(true);
+    expect(wrapper.find(".toast").exists()).toBe(false);
+  });
+
+  it("toggle: a failed PATCH reverts the optimistic flip and toasts the failure copy", async () => {
+    listDomains.mockResolvedValue([makeDomain()]);
+    getLink.mockResolvedValue(makeLink({ trackingEnabled: true }));
+    updateLink.mockRejectedValue(new Error("network error"));
+
+    const { wrapper } = await mountDetailView();
+
+    await wrapper.find(".toggle").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find(".toggle").classes()).toContain("active");
+    expect(wrapper.find(".toast").text()).toBe("Tracking konnte nicht geändert werden.");
+  });
+
+  it("data state: 3 stat cards, exactly 30 chart bars, referrer/country rows with Direkt/Unbekannt for nulls", async () => {
+    listDomains.mockResolvedValue([makeDomain()]);
+    getLink.mockResolvedValue(makeLink({ trackingEnabled: true }));
+    getLinkAnalytics.mockResolvedValue(
+      makeAnalytics({
+        totalClicks: 42,
+        last7Days: 5,
+        topReferrer: "google.com",
+        topReferrers: [
+          { host: "google.com", count: 10 },
+          { host: null, count: 4 },
+        ],
+        topCountries: [
+          { country: "DE", count: 8 },
+          { country: null, count: 2 },
+        ],
+      }),
+    );
+
+    const { wrapper } = await mountDetailView();
+
+    expect(wrapper.findAll(".bar")).toHaveLength(30);
+    expect(wrapper.findAll(".stat-value").map((n) => n.text())).toEqual(["42", "5", "google.com"]);
+    expect(wrapper.findAll(".row-name").map((n) => n.text())).toEqual([
+      "google.com",
+      "Direkt",
+      "DE",
+      "Unbekannt",
+    ]);
+    expect(wrapper.find(".dashed-empty").exists()).toBe(false);
+    expect(wrapper.find(".zero-data-hint").exists()).toBe(false);
+    expect(wrapper.find(".skeleton-block").exists()).toBe(false);
+  });
+
+  it("zero-data state: card shells with 0/–, chart hint, and 'Keine Daten' list rows", async () => {
+    listDomains.mockResolvedValue([makeDomain()]);
+    getLink.mockResolvedValue(makeLink({ trackingEnabled: true }));
+    getLinkAnalytics.mockResolvedValue(makeAnalytics({ totalClicks: 0 }));
+
+    const { wrapper } = await mountDetailView();
+
+    expect(wrapper.findAll(".stat-value").map((n) => n.text())).toEqual(["0", "0", "–"]);
+    expect(wrapper.find(".zero-data-hint").text()).toBe(
+      "Noch keine Klicks erfasst — Daten erscheinen, sobald der Link aufgerufen wird.",
+    );
+    expect(wrapper.findAll(".list-empty-row")).toHaveLength(2);
+    expect(wrapper.findAll(".list-empty-row").every((n) => n.text() === "Keine Daten")).toBe(true);
+    expect(wrapper.find(".bar").exists()).toBe(false);
+  });
+
+  it("loading state: shows skeleton blocks (no spinner) while analytics fetches, never alongside data/zero-data", async () => {
+    listDomains.mockResolvedValue([makeDomain()]);
+    getLink.mockResolvedValue(makeLink({ trackingEnabled: true }));
+    let resolveAnalytics!: (value: LinkAnalyticsDTO) => void;
+    getLinkAnalytics.mockReturnValue(
+      new Promise<LinkAnalyticsDTO>((resolve) => {
+        resolveAnalytics = resolve;
+      }),
+    );
+
+    const router = makeRouter();
+    await router.push("/links/l1");
+    await router.isReady();
+    const wrapper = mount(LinkDetailView, { global: { plugins: [router] } });
+    await flushPromises();
+
+    expect(wrapper.findAll(".skeleton-block").length).toBeGreaterThan(0);
+    expect(wrapper.find(".zero-data-hint").exists()).toBe(false);
+    expect(wrapper.find(".bar").exists()).toBe(false);
+    expect(wrapper.find(".list-empty-row").exists()).toBe(false);
+
+    resolveAnalytics(makeAnalytics({ totalClicks: 0 }));
+    await flushPromises();
+
+    expect(wrapper.find(".skeleton-block").exists()).toBe(false);
+    expect(wrapper.find(".zero-data-hint").exists()).toBe(true);
   });
 
   it("copy composes the FULL https URL and toasts 'Link kopiert'", async () => {
