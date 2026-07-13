@@ -139,6 +139,45 @@ export type UpdateLinkInput = {
   trackingEnabled?: boolean;
 };
 
+// Phase 6 (internal tracking analytics, TRACK-04/05, D-10)
+
+/**
+ * `GET /api/links/:id/analytics` response (TRACK-04). Mirrors
+ * `apps/api/src/lib/analytics.ts`'s `getLinkAnalytics()` — `totalClicks`
+ * comes from the pruning-resistant `Link.lifetimeClicks` (D-13), never a
+ * live `COUNT` over `ClickEvent` rows. `dailySeries` is ALWAYS exactly 30
+ * entries (oldest first), zero-filled for days with no clicks (RESEARCH
+ * Pattern 5) — the UI never has to gap-fill dates itself. `host`/`country`
+ * are `null` (never a literal "Direkt"/"Unbekannt" string) when unknown —
+ * translated to the German label only at the view boundary (RESEARCH
+ * Anti-Patterns: raw data stays locale-neutral).
+ */
+export type LinkAnalyticsDTO = {
+  totalClicks: number;
+  last7Days: number;
+  topReferrer: string | null;
+  dailySeries: { day: string; count: number }[];
+  topReferrers: { host: string | null; count: number }[];
+  topCountries: { country: string | null; count: number }[];
+};
+
+/**
+ * `GET /api/analytics` response (TRACK-05) — scoped to the caller's own
+ * domains (`scopedDomainIds`), never the whole instance. Mirrors
+ * `apps/api/src/lib/analytics.ts`'s `getGlobalAnalytics()`. `qrScans`
+ * reads `COUNT(source='qr')` — always `0` this phase (D-14 seam; Phase 7
+ * starts writing `'qr'` rows, no DTO change needed then).
+ */
+export type GlobalAnalyticsDTO = {
+  clicks30Days: number;
+  uniqueVisitors: number;
+  activeLinks: number;
+  qrScans: number;
+  dailySeries: { day: string; count: number }[];
+  topLinks: { id: string; slug: string; domainId: string; clicks: number }[];
+  topReferrers: { host: string | null; count: number }[];
+};
+
 /**
  * Discriminates why a single CSV row was skipped during bulk import
  * (04-04, D-05) — surfaced per-row in `ImportRowResult.reason` so the
