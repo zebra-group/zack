@@ -95,6 +95,16 @@ export const envSchema = z.object({
   // conservative at 10-11, not 12, and keep it ENV-tunable so the redirect
   // hot path doesn't block under concurrent password-verify load.
   PASSWORD_HASH_COST: z.coerce.number().int().positive().optional().default(11),
+  // GeoIP (Phase 6, D-03) — operator override path for a bind-mounted
+  // .mmdb database. Optional with NO default: absence means "use the
+  // build-baked /prod/api/geo/dbip-country-lite.mmdb", not a fail-safe
+  // fallback value like CNAME_TARGET/A_RECORD_IP above.
+  GEOIP_DB_PATH: z.string().min(1).optional(),
+  // Click retention window (Phase 6, D-12) — number of days raw
+  // ClickEvent rows are kept before pruning. Optional with NO default:
+  // absence must mean "retention pruning is off", not a silently-applied
+  // window — a fresh instance must boot with zero tracking config.
+  CLICK_RETENTION_DAYS: z.coerce.number().int().positive().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

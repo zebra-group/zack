@@ -25,6 +25,7 @@
     "dotenv": "^17.4.2",
     "fastify": "^5.10.0",
     "isbot": "^5.2.0",
+    "maxmind": "^5.0.6",
     "nanoid": "^5.1.16",
     "nodemailer": "^9.0.3",
     "pino": "^10.3.1",
