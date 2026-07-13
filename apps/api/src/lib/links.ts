@@ -14,9 +14,15 @@
  * codebase (D-01's structural no-bypass guarantee — grep-provable, see
  * 04-02-PLAN.md's verify command). `previewLink` calls `validateLinkInput`
  * and returns it untouched (zero writes) — 04-04's CSV preview endpoint
- * reuses this. `updateLink` is the ONLY `prisma.link.update` call site,
- * re-validating via the same core with `excludeLinkId` set so re-saving a
- * link's own slug is never a false collision (04-03 reuses this).
+ * reuses this. `updateLink` is the ONLY `prisma.link.update` call site for
+ * link *content* fields (slug/target/password/expiry/forwardQuery/
+ * trackingEnabled), re-validating via the same core with `excludeLinkId`
+ * set so re-saving a link's own slug is never a false collision (04-03
+ * reuses this). Phase 6 (D-13/D-17) adds one narrow, intentional second
+ * `prisma.link.update` call site — `routes/redirect.ts`'s
+ * `recordClickHook`, which touches ONLY `lifetimeClicks` (an
+ * atomically-incremented counter, batched in the same `$transaction` as
+ * the click-event insert) and never any field this file validates.
  *
  * Anti-pattern this file exists to prevent (RESEARCH Pitfall 1): a future
  * "optimization" that replaces the CSV import's row-by-row `createLink`
