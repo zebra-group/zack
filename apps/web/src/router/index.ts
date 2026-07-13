@@ -9,6 +9,7 @@
  */
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthSessionStore } from "../stores/authSession";
+import AnalyticsView from "../views/AnalyticsView.vue";
 import AuthErrorView from "../views/AuthErrorView.vue";
 import ComingSoonView from "../views/ComingSoonView.vue";
 import DashboardView from "../views/DashboardView.vue";
@@ -66,7 +67,7 @@ const router = createRouter({
     {
       path: "/analytics",
       name: "analytics",
-      component: ComingSoonView,
+      component: AnalyticsView,
       meta: { requiresAuth: true, label: "Analytics" },
     },
     {
