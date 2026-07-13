@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 06
 current_phase_name: internal-tracking-analytics
 status: executing
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-07-13T09:27:25.974Z"
+stopped_at: Completed 06-06-PLAN.md
+last_updated: "2026-07-13T09:42:06.921Z"
 last_activity: 2026-07-13
 last_activity_desc: Phase 06 execution started
 progress:
   total_phases: 10
   completed_phases: 5
   total_plans: 38
-  completed_plans: 34
+  completed_plans: 35
   percent: 50
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 06 (internal-tracking-analytics) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-07-13 — Phase 06 execution started
 
@@ -91,6 +91,7 @@ Progress: [█████░░░░░] 50%
 | Phase 06 P02 | 25min | 2 tasks | 9 files |
 | Phase 06 P03 | 18min | 3 tasks | 8 files |
 | Phase 06 P05 | 24min | 2 tasks | 5 files |
+| Phase 06 P06 | 10min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -173,6 +174,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 06]: 06-05: null referrerHost/country kept null through lib/analytics.ts's SQL layer (not COALESCEd to 'Direkt'/'Unbekannt' in SQL) - RESEARCH Pattern 5's example conflicted with its own Anti-Patterns rule; the Anti-Pattern (translate only at the view boundary) was followed
 - [Phase ?]: [Phase 06]: 06-05: getGlobalAnalytics's empty-domainIds short-circuit returns a locally-computed 30-entry zero series rather than an empty array, so the fixed-30-bar chart contract holds even with zero domain memberships
 - [Phase ?]: [Phase 06]: 06-05: source='qr' comparison uses an explicit ::ScanSource cast on the bound parameter - a bound text parameter against a native Postgres enum column needs an explicit cast
+- [Phase ?]: [Phase 06]: 06-06: initialTrackingEnabled prop uses withDefaults(..., { initialTrackingEnabled: true }) instead of props.x ?? true - Vue casts an absent single-Boolean-type prop to false before setup() code runs, so a plain ?? default silently breaks for a true-by-default Boolean prop
 
 ### Pending Todos
 
@@ -192,6 +194,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-13T09:26:01.923Z
-Stopped at: Completed 06-02-PLAN.md
-Resume file: .planning/phases/06-internal-tracking-analytics/06-03-PLAN.md
+Last session: 2026-07-13T09:42:06.873Z
+Stopped at: Completed 06-06-PLAN.md
+Resume file: .planning/phases/06-internal-tracking-analytics/06-07-PLAN.md
