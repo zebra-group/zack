@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 06
 current_phase_name: internal-tracking-analytics
-status: executing
+status: verifying
 stopped_at: Completed 06-07-PLAN.md
-last_updated: "2026-07-13T10:21:36.784Z"
+last_updated: "2026-07-13T10:30:50.215Z"
 last_activity: 2026-07-13
 last_activity_desc: Phase 06 execution started
 progress:
   total_phases: 10
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 38
-  completed_plans: 37
-  percent: 50
+  completed_plans: 38
+  percent: 60
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 
 Phase: 06 (internal-tracking-analytics) — EXECUTING
 Plan: 8 of 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-13 — Phase 06 execution started
 
 Progress: [█████░░░░░] 50%
@@ -94,6 +94,7 @@ Progress: [█████░░░░░] 50%
 | Phase 06 P06 | 10min | 2 tasks | 4 files |
 | Phase 06-internal-tracking-analytics P04 | 30min | 2 tasks | 6 files |
 | Phase 06 P07 | 12min | 2 tasks | 3 files |
+| Phase 06 P08 | 9min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -181,6 +182,7 @@ Recent decisions affecting current work:
 - [Phase ?]: Corrected the plan's literal single-call-site verify grep (over-counted generated Prisma client + prose) to the repo's established comment-filtered, generated-dir-excluded convention
 - [Phase ?]: [Phase 06]: 06-07: toggleTracking mutates the reactive LinkDTO ref's trackingEnabled in place for the optimistic flip (not a separate boolean ref) - reverts the same in-place mutation on PATCH failure, replaces link.value with the server response on success
 - [Phase ?]: [Phase 06]: 06-07: row-pct in the Referrer/Laender list rows renders as a rounded percentage string ('42%') - the UI-SPEC/prototype only labels the field '.row-pct' without locking an exact format
+- [Phase ?]: [Phase 06]: 06-08: toListRows() Helper in AnalyticsView.vue generalisiert auf countOf/idOf-Callbacks statt fixem count-Feld - GlobalAnalyticsDTO.topLinks traegt clicks, nicht count
 
 ### Pending Todos
 
@@ -200,6 +202,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-13T10:21:36.730Z
+Last session: 2026-07-13T10:29:59.615Z
 Stopped at: Completed 06-07-PLAN.md
 Resume file: .planning/phases/06-internal-tracking-analytics/06-08-PLAN.md
