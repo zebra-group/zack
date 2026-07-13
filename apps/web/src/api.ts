@@ -11,6 +11,7 @@ import type {
   DomainDTO,
   ImportCommitResult,
   ImportPreviewResult,
+  LinkAnalyticsDTO,
   LinkDTO,
   SessionUser,
   UpdateLinkInput,
@@ -254,6 +255,17 @@ export async function listLinks(params?: { q?: string; domainId?: string }): Pro
 export async function getLink(id: string): Promise<LinkDTO> {
   const response = await fetch(`/api/links/${id}`, { method: "GET" });
   return parseJsonOrThrow<LinkDTO>(response);
+}
+
+/**
+ * `GET /api/links/:id/analytics` — per-link click analytics (TRACK-04);
+ * mirrors `getLink`'s same IDOR-guarded 404-for-both shape (06-05,
+ * `resolveOwnedLink`). Renders only this server-authorized, already-scoped
+ * DTO (T-06-UIAUTHZ2) — the client never re-derives analytics itself.
+ */
+export async function getLinkAnalytics(id: string): Promise<LinkAnalyticsDTO> {
+  const response = await fetch(`/api/links/${id}/analytics`, { method: "GET" });
+  return parseJsonOrThrow<LinkAnalyticsDTO>(response);
 }
 
 /** `PATCH /api/links/:id` — edits target/slug/title through the validated update core (LINK-06, D-04). */
