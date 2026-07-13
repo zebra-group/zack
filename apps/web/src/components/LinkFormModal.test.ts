@@ -118,6 +118,7 @@ describe("LinkFormModal", () => {
       password: undefined,
       expiresAt: undefined,
       forwardQuery: false,
+      trackingEnabled: true,
     });
   });
 
@@ -142,6 +143,7 @@ describe("LinkFormModal", () => {
       password: undefined,
       expiresAt: undefined,
       forwardQuery: false,
+      trackingEnabled: true,
     });
   });
 
@@ -176,6 +178,7 @@ describe("LinkFormModal", () => {
       password: "s3cret",
       expiresAt: "2026-08-01",
       forwardQuery: true,
+      trackingEnabled: true,
     });
   });
 
@@ -266,5 +269,59 @@ describe("LinkFormModal", () => {
     await wrapper.find("input[type='password']").setValue("secret");
 
     expect(wrapper.find(".security-header").text()).toContain("Passwort gesetzt");
+  });
+
+  // Phase 6 footer tracking toggle (06-UI-SPEC.md § C1, TRACK-01/D-15).
+  it("create mode: the footer tracking toggle defaults ON and shows the 'Internes Tracking' label with no helper text", () => {
+    const wrapper = mount(LinkFormModal, {
+      props: { mode: "create", domains: [makeDomain()] },
+    });
+
+    const group = wrapper.find(".tracking-toggle-group");
+    const toggle = group.find(".toggle");
+    expect(toggle.classes()).toContain("active");
+    expect(toggle.attributes("aria-checked")).toBe("true");
+    expect(group.text()).toBe("Internes Tracking");
+  });
+
+  it("edit mode: the footer tracking toggle is pre-filled from initialTrackingEnabled=false", () => {
+    const wrapper = mount(LinkFormModal, {
+      props: {
+        mode: "edit",
+        domains: [],
+        domainHostname: "s.meinefirma.de",
+        initialTargetUrl: "https://example.com",
+        initialSlug: "abc123",
+        initialTrackingEnabled: false,
+      },
+    });
+
+    const toggle = wrapper.find(".tracking-toggle-group .toggle");
+    expect(toggle.classes()).not.toContain("active");
+    expect(toggle.attributes("aria-checked")).toBe("false");
+  });
+
+  it("clicking the footer tracking toggle flips it, and submit emits the current value", async () => {
+    const wrapper = mount(LinkFormModal, {
+      props: { mode: "create", domains: [makeDomain({ id: "d2" })] },
+    });
+
+    await wrapper.find(".field-input.mono").setValue("https://example.com/x");
+    await wrapper.find(".tracking-toggle-group .toggle").trigger("click");
+
+    expect(wrapper.find(".tracking-toggle-group .toggle").classes()).not.toContain("active");
+
+    await wrapper.find(".btn-primary").trigger("click");
+
+    expect(wrapper.emitted("submit")![0]![0]).toMatchObject({ trackingEnabled: false });
+  });
+
+  it("the footer uses space-between with the toggle group left and the buttons grouped right", () => {
+    const wrapper = mount(LinkFormModal, {
+      props: { mode: "create", domains: [makeDomain()] },
+    });
+
+    expect(wrapper.find(".footer-buttons").findAll("button")).toHaveLength(2);
+    expect(wrapper.find(".tracking-toggle-group").exists()).toBe(true);
   });
 });

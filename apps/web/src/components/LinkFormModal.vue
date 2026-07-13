@@ -27,7 +27,7 @@ import { computed, ref } from "vue";
 import type { DomainDTO } from "@kurzly/shared";
 import { mapLinkFormError } from "../api";
 
-const props = defineProps<{
+type LinkFormModalProps = {
   mode: "create" | "edit";
   /** Active + accessible domains for the create-mode Select (D-03-filtered by the caller). */
   domains: DomainDTO[];
@@ -42,9 +42,23 @@ const props = defineProps<{
   initialExpiresAt?: string | null;
   /** Phase 5: whether incoming query params are currently forwarded to the target. */
   initialForwardQuery?: boolean;
+  /**
+   * Phase 6 (TRACK-01/D-15): whether internal click tracking is currently
+   * enabled for this link. Create mode always defaults ON (the caller
+   * simply omits this prop, and `withDefaults` below fills it with
+   * `true` — a plain `props.initialTrackingEnabled ?? true` would NOT
+   * work here since Vue's single-Boolean-type prop casting resolves an
+   * absent prop to `false`, not `undefined`); edit mode pre-fills it from
+   * `link.trackingEnabled`.
+   */
+  initialTrackingEnabled?: boolean;
   /** Last submit error from the parent, mapped to inline field errors. */
   error?: unknown;
-}>();
+};
+
+const props = withDefaults(defineProps<LinkFormModalProps>(), {
+  initialTrackingEnabled: true,
+});
 
 const emit = defineEmits<{
   close: [];
@@ -56,6 +70,7 @@ const emit = defineEmits<{
       password?: string | null;
       expiresAt?: string | null;
       forwardQuery: boolean;
+      trackingEnabled: boolean;
     },
   ];
 }>();
@@ -73,6 +88,12 @@ const password = ref("");
 const removePassword = ref(false);
 const expiry = ref(props.initialExpiresAt ?? "");
 const forwardQuery = ref(props.initialForwardQuery ?? false);
+
+// Phase 6 footer tracking toggle (TRACK-01/D-15, Surface C1) — create mode
+// defaults ON via the withDefaults(...) declaration above (the caller
+// omits this prop in create mode), edit mode pre-fills from
+// link.trackingEnabled.
+const trackingEnabled = ref(props.initialTrackingEnabled);
 
 const fieldErrors = computed(() => mapLinkFormError(props.error));
 
@@ -116,6 +137,7 @@ function handleSubmit(): void {
     password: passwordPayload,
     expiresAt: expiresAtPayload,
     forwardQuery: forwardQuery.value,
+    trackingEnabled: trackingEnabled.value,
   });
 }
 </script>
@@ -226,11 +248,30 @@ function handleSubmit(): void {
         </div>
       </div>
 
+      <!-- Phase 6 footer tracking toggle (06-UI-SPEC.md § C1, TRACK-01/D-15,
+           default AN). Identical toggle shape/pattern to the forwardQuery
+           toggle above (Phase 6 builds the original prototype tracking
+           toggle Phase 5 was itself pattern-derived from) — NO helper text
+           here, unlike forwardQuery. -->
       <div class="modal-footer">
-        <button type="button" class="btn-secondary" @click="emit('close')">Abbrechen</button>
-        <button type="button" class="btn-primary" @click="handleSubmit">
-          {{ mode === "create" ? "Link erstellen" : "Speichern" }}
-        </button>
+        <div class="tracking-toggle-group">
+          <div
+            class="toggle"
+            :class="{ active: trackingEnabled }"
+            role="switch"
+            :aria-checked="trackingEnabled"
+            @click="trackingEnabled = !trackingEnabled"
+          >
+            <div class="toggle-knob"></div>
+          </div>
+          <span class="toggle-label">Internes Tracking</span>
+        </div>
+        <div class="footer-buttons">
+          <button type="button" class="btn-secondary" @click="emit('close')">Abbrechen</button>
+          <button type="button" class="btn-primary" @click="handleSubmit">
+            {{ mode === "create" ? "Link erstellen" : "Speichern" }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -495,11 +536,33 @@ function handleSubmit(): void {
   left: 19px;
 }
 
+/* Phase 6 footer tracking toggle (06-UI-SPEC.md § C1) — footer switches
+   from flex-end (buttons only) to space-between (toggle group left,
+   buttons right). The .toggle/.toggle-knob classes above are reused
+   verbatim (identical 38x21/16x16 shape, same active-accent/inactive-
+   border tokens) — no new toggle CSS invented here. */
 .modal-footer {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
   padding-top: 2px;
+}
+
+.tracking-toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.tracking-toggle-group .toggle-label {
+  /* Override the forwardQuery .toggle-label's --text color — the tracking
+     toggle label is --mut (06-UI-SPEC.md § C1), no helper text alongside it. */
+  color: var(--mut);
+}
+
+.footer-buttons {
+  display: flex;
+  gap: 8px;
 }
 
 .btn-secondary {
