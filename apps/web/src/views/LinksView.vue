@@ -131,6 +131,8 @@ async function handleCreateSubmit(payload: {
   expiresAt?: string | null;
   /** Phase 5 (D-12). */
   forwardQuery?: boolean;
+  /** Phase 6 (TRACK-01/D-15): omitted server-side defaults to `true`. */
+  trackingEnabled?: boolean;
 }): Promise<void> {
   if (!payload.targetUrl.trim()) {
     showToast("Bitte Ziel-URL angeben.");
@@ -152,6 +154,7 @@ async function handleCreateSubmit(payload: {
       password: payload.password ?? undefined,
       expiresAt: payload.expiresAt ?? undefined,
       forwardQuery: payload.forwardQuery,
+      trackingEnabled: payload.trackingEnabled,
     });
     links.value.unshift(created);
     closeCreateModal();
@@ -180,6 +183,8 @@ async function handleEditSubmit(payload: {
   expiresAt?: string | null;
   /** Phase 5 (D-12): `undefined` keeps the current value. */
   forwardQuery?: boolean;
+  /** Phase 6 (TRACK-01/D-15): `undefined` keeps the current value. */
+  trackingEnabled?: boolean;
 }): Promise<void> {
   const target = editTarget.value;
   if (!target) return;
@@ -195,6 +200,7 @@ async function handleEditSubmit(payload: {
       password: payload.password,
       expiresAt: payload.expiresAt,
       forwardQuery: payload.forwardQuery,
+      trackingEnabled: payload.trackingEnabled,
     });
     const idx = links.value.findIndex((l) => l.id === updated.id);
     if (idx !== -1) links.value[idx] = updated;
@@ -298,6 +304,7 @@ loadLinks();
         <span>Kurzlink</span>
         <span>Domain</span>
         <span>Ziel</span>
+        <span class="col-clicks">Klicks</span>
         <span>Erstellt</span>
         <span></span>
       </div>
@@ -312,9 +319,15 @@ loadLinks();
         class="table-row"
         @click="openDetail(link)"
       >
-        <span class="cell-slug">/{{ link.slug }}</span>
+        <span class="cell-slug">
+          <span class="cell-slug-text">/{{ link.slug }}</span>
+          <span v-if="!link.trackingEnabled" class="tracking-badge">Tracking aus</span>
+        </span>
         <span class="cell-domain">{{ hostnameFor(link.domainId) }}</span>
         <span class="cell-target">{{ link.targetUrl }}</span>
+        <span class="cell-clicks" :class="{ 'tracking-off': !link.trackingEnabled }">
+          {{ link.trackingEnabled ? link.lifetimeClicks.toLocaleString("de-DE") : "—" }}
+        </span>
         <span class="cell-created">{{ formatDate(link.createdAt) }}</span>
         <span class="cell-actions">
           <button type="button" class="row-action" title="Kopieren" @click.stop="handleCopy(link)">
@@ -362,6 +375,7 @@ loadLinks();
     :initial-password-protected="editTarget.passwordProtected"
     :initial-expires-at="editTarget.expiresAt ? editTarget.expiresAt.slice(0, 10) : null"
     :initial-forward-query="editTarget.forwardQuery"
+    :initial-tracking-enabled="editTarget.trackingEnabled"
     :error="formError"
     @close="closeEditModal"
     @submit="handleEditSubmit"
@@ -490,7 +504,7 @@ loadLinks();
 
 .table-header {
   display: grid;
-  grid-template-columns: 120px 150px 1fr 108px 140px;
+  grid-template-columns: 140px 140px 1fr 90px 100px 132px;
   gap: 12px;
   padding: 9px 16px;
   font-size: 11px;
@@ -498,6 +512,11 @@ loadLinks();
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--border);
+}
+
+/* Phase 6 (06-UI-SPEC.md § C2): "Klicks" header, right-aligned. */
+.col-clicks {
+  text-align: right;
 }
 
 .no-match {
@@ -509,7 +528,7 @@ loadLinks();
 
 .table-row {
   display: grid;
-  grid-template-columns: 120px 150px 1fr 108px 140px;
+  grid-template-columns: 140px 140px 1fr 90px 100px 132px;
   gap: 12px;
   padding: 11px 16px;
   align-items: center;
@@ -526,11 +545,45 @@ loadLinks();
 }
 
 .cell-slug {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  row-gap: 3px;
+  min-width: 0;
+}
+
+.cell-slug-text {
   font-family: "Geist Mono", monospace;
   font-size: 12.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Phase 6 (06-UI-SPEC.md § C2, D-15) — neutral attribute badge, wraps onto
+   a second line within the Kurzlink cell rather than truncating. */
+.tracking-badge {
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--mut);
+  white-space: nowrap;
+}
+
+/* Phase 6 (06-UI-SPEC.md § C2, D-13) — reads Link.lifetimeClicks only,
+   never a live aggregation over ClickEvent. */
+.cell-clicks {
+  text-align: right;
+  font-family: "Geist Mono", monospace;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.cell-clicks.tracking-off {
+  color: var(--mut);
 }
 
 .cell-domain {
