@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 06
 current_phase_name: internal-tracking-analytics
 status: executing
-stopped_at: Phase 6 planned — 8 plans across 4 waves, ready to execute
-last_updated: "2026-07-13T07:58:24.273Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-07-13T08:37:31.867Z"
 last_activity: 2026-07-13
 last_activity_desc: Phase 06 execution started
 progress:
   total_phases: 10
   completed_phases: 5
   total_plans: 38
-  completed_plans: 31
+  completed_plans: 32
   percent: 50
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 06 (internal-tracking-analytics) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-07-13 — Phase 06 execution started
 
@@ -88,6 +88,7 @@ Progress: [█████░░░░░] 50%
 | Phase 05 P04 | 14min | 2 tasks | 5 files |
 | Phase 05 P05 | 8min | 2 tasks tasks | 6 files files |
 | Phase 06 P01 | 9min | 2 tasks | 4 files |
+| Phase 06 P02 | 25min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -163,6 +164,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 05]: 05-05: accordion header summary date formatted via plain YYYY-MM-DD string split (no Date object), avoiding the TZ off-by-one 05-03/05-04 already worked around
 - [Phase 06]: 06-01: Operator-approved supply-chain sign-off for maxmind@^5.0.6 (T-06-SC); allowBuilds entry added only if an ignored-build-script warning surfaces
 - [Phase 06]: 06-01: GEOIP_DB_PATH/CLICK_RETENTION_DAYS added with no .default() (unlike CNAME_TARGET/BRAND_NAME/PASSWORD_HASH_COST) - absence must mean the tracking feature is off
+- [Phase ?]: [Phase 06]: 06-02: prisma migrate dev ran non-interactively for the entire additive schema change (2 new Link columns, 1 new enum, 2 new tables) - no confirmation-shaped warning, matching 05-02's precedent; authored against a throwaway postgres:18-alpine container since no persistent local dev Postgres was running
+- [Phase ?]: [Phase 06]: 06-02: trackingEnabled threaded through lib/links.ts's D-01 sole write path exactly like forwardQuery - a plain optional boolean, no tri-state derivation needed; lifetimeClicks is server-owned and never allowlisted on any Zod schema (T-06-MASS)
 
 ### Pending Todos
 
@@ -182,6 +185,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-13T07:55:22.969Z
-Stopped at: Phase 06 planning complete — 8 plans across 4 waves verified (VERIFICATION PASSED), auto-advancing to execute via --chain
-Resume file: .planning/phases/06-internal-tracking-analytics/06-01-PLAN.md
+Last session: 2026-07-13T08:37:31.820Z
+Stopped at: Completed 06-02-PLAN.md
+Resume file: .planning/phases/06-internal-tracking-analytics/06-03-PLAN.md
