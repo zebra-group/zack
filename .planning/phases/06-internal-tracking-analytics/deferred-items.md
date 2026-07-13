@@ -22,3 +22,11 @@ later triage.
 ## Test-environment note (Wave 1, informational)
 
 - DB-backed testcontainer integration tests (`domains.integration.test.ts` etc.) pass in isolation but can exceed the 5000ms per-test timeout under **full-suite parallel load** on this slow WSL2 Docker host (import ~25s, setup ~40s aggregate). These are contention flakes, not regressions. Post-wave full-suite gates should account for this (isolated-pass = flaky-under-load, not failure).
+
+## Test-infra flakiness — parallel-load isolation races (phase-verification finding, TECH-DEBT)
+
+- **Symptom:** Running the FULL `@kurzly/api` vitest suite (28 files / 286 tests) on this shared-Postgres + multi-worker harness produces **non-deterministic** failures — the *specific* failing tests change run-to-run. Observed across two runs: run A → `seedOwnedDomain` `Unique constraint failed (hostname)` + others; run B → `forwardQuery persists true` + `import zero-rows-leak`. With `--test-timeout=25000` the timeouts vanish but the isolation races remain.
+- **Proof it is NOT a Phase-6 regression:** every affected file passes cleanly **in isolation** — `links.integration.test.ts` 61/61, `links-import.integration.test.ts` 12/12, `domains.integration.test.ts` 21/21, `analytics.test.ts` 16/16, `server.integration.test.ts` 6/6. Monorepo `tsc --noEmit` exit 0; full web suite 88/88. The failures only appear under cross-worker DB contention.
+- **Likely root cause:** integration tests seed fixed `Domain.hostname` literals; under one shared Postgres with multiple vitest workers, two workers' seed inserts race on the `hostname` unique constraint (and BEGIN/ROLLBACK windows overlap), so an insert intermittently collides with another worker's not-yet-rolled-back row. Predates Phase 6; Phase 6 only widened the window by adding ~4 test files / 3 tables.
+- **Suggested fix (out of scope for Phase 6 features):** either (a) unique per-test hostnames (e.g. suffix with a test-id/uuid), (b) one Postgres container per vitest worker, or (c) run the api suite single-fork in CI (`--poolOptions.forks.singleFork` / `--pool=forks --maxWorkers=1`). Recommend addressing before or during Phase 9 (which adds more domain-scoped integration tests).
+- **Status:** Documented tech-debt. Does NOT block Phase 6 — phase code + tests are green in isolation.
