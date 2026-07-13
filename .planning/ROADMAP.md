@@ -217,7 +217,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A tracked link records click count, referrer, and country (derived locally, no third-party API calls) for each visit.
   4. User views per-link analytics (total clicks, 30-day time series, top referrers, countries) and a global analytics overview (clicks, unique visitors, active links, QR scans, top links, referrers).
 
-**Plans**: 6/8 plans executed
+**Plans**: 7/8 plans executed
 **UI hint**: yes
 
 **Wave 1**
@@ -234,7 +234,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Wave 3** *(blocked on Wave 2)*
 
 - [x] 06-04-PLAN.md — recordClickHook body: zero-rows guarantee + atomic click write + retention (TRACK-02/03)
-- [ ] 06-07-PLAN.md — Per-link analytics UI: tracking card + 4-state analytics section (TRACK-01/04)
+- [x] 06-07-PLAN.md — Per-link analytics UI: tracking card + 4-state analytics section (TRACK-01/04)
 
 **Wave 4** *(blocked on Wave 3)*
 
@@ -313,7 +313,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 3. Domains & Multi-Domain TLS Routing | 4/4 | Complete    | 2026-07-11 |
 | 4. Links Management & Bulk Import | 5/5 | Complete    | 2026-07-11 |
 | 5. Core Redirect Engine | 6/6 | Complete    | 2026-07-12 |
-| 6. Internal Tracking & Analytics | 6/8 | In Progress|  |
+| 6. Internal Tracking & Analytics | 7/8 | In Progress|  |
 | 7. QR Codes (Static + Dynamic, QR Studio) | 0/TBD | Not started | - |
 | 8. UTM Builder + Custom OG Metadata | 0/TBD | Not started | - |
 | 9. Team Management & Domain-Scoped Authorization Enforcement | 0/TBD | Not started | - |
