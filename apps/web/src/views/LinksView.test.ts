@@ -210,6 +210,7 @@ describe("LinksView", () => {
       password: undefined,
       expiresAt: undefined,
       forwardQuery: false,
+      trackingEnabled: true,
     });
     expect(wrapper.find(".toast").text()).toBe("s.meinefirma.de/neu1 erstellt");
   });
@@ -319,6 +320,7 @@ describe("LinksView", () => {
       password: undefined,
       expiresAt: undefined,
       forwardQuery: false,
+      trackingEnabled: true,
     });
     expect(wrapper.text()).toContain("Änderungen gespeichert");
   });
@@ -348,5 +350,71 @@ describe("LinksView", () => {
     const dateInput = wrapper.find("input[type='date']");
     expect((dateInput.element as HTMLInputElement).value).toBe("2026-08-01");
     expect(wrapper.find(".toggle").classes()).toContain("active");
+  });
+
+  // Phase 6 (06-UI-SPEC.md § C2, TRACK-01/D-13/D-15).
+  it("a tracked link renders its lifetimeClicks right-aligned in the Klicks cell", async () => {
+    listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+    listLinks.mockResolvedValue([
+      makeLink({ id: "l1", domainId: "d1", trackingEnabled: true, lifetimeClicks: 12345 }),
+    ]);
+
+    const { wrapper } = await mountLinksView();
+
+    const cell = wrapper.find(".cell-clicks");
+    expect(cell.text()).toBe("12.345");
+    expect(cell.classes()).not.toContain("tracking-off");
+    expect(wrapper.find(".tracking-badge").exists()).toBe(false);
+  });
+
+  it("a link with tracking disabled shows the 'Tracking aus' badge and '—' in the Klicks cell (never lifetimeClicks)", async () => {
+    listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+    listLinks.mockResolvedValue([
+      makeLink({ id: "l1", domainId: "d1", trackingEnabled: false, lifetimeClicks: 42 }),
+    ]);
+
+    const { wrapper } = await mountLinksView();
+
+    expect(wrapper.find(".tracking-badge").text()).toBe("Tracking aus");
+    const cell = wrapper.find(".cell-clicks");
+    expect(cell.text()).toBe("—");
+    expect(cell.classes()).toContain("tracking-off");
+  });
+
+  it("editing a link with tracking disabled pre-fills the form's tracking toggle as inactive", async () => {
+    listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+    listLinks.mockResolvedValue([
+      makeLink({ id: "l1", domainId: "d1", slug: "abc123", trackingEnabled: false }),
+    ]);
+
+    const { wrapper } = await mountLinksView();
+
+    await wrapper.find(".row-action[title='Bearbeiten']").trigger("click");
+    await flushPromises();
+
+    const toggle = wrapper.find(".tracking-toggle-group .toggle");
+    expect(toggle.classes()).not.toContain("active");
+  });
+
+  it("creating a link forwards trackingEnabled=false to createLink when the form toggle was switched off", async () => {
+    listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+    listLinks.mockResolvedValue([]);
+    createLink.mockResolvedValue(
+      makeLink({ id: "new1", domainId: "d1", slug: "neu1", trackingEnabled: false }),
+    );
+
+    const { wrapper } = await mountLinksView();
+
+    await wrapper.find(".primary-button").trigger("click");
+    await flushPromises();
+
+    await wrapper.find(".field-input.mono").setValue("https://example.com/n");
+    await wrapper.find(".tracking-toggle-group .toggle").trigger("click");
+    await wrapper.find(".btn-primary").trigger("click");
+    await flushPromises();
+
+    expect(createLink).toHaveBeenCalledWith(
+      expect.objectContaining({ trackingEnabled: false }),
+    );
   });
 });
