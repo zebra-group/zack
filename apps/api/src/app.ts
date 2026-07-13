@@ -31,6 +31,10 @@
  *      on `app` for the same reason as domains/tls-check above; every
  *      write delegates to lib/links.ts's createLink, the D-01 sole insert
  *      site).
+ *   9b. `GET /api/links/:id/analytics`, `GET /api/analytics` (Phase 6,
+ *      TRACK-04/05 — registered directly on `app`, immediately after
+ *      linksRoute, for the same shadowing reason as domains/tls-check/links
+ *      above; read-only, delegates all aggregation to lib/analytics.ts).
  *   10. `GET /health`.
  *   11. `redirectRoute(prisma)` (Phase 5, REDIR-01..05 — replaces the Phase
  *      1 stub; `GET /:slug` + `POST /:slug/verify`, the precedence engine).
@@ -50,6 +54,7 @@ import { prisma as defaultPrisma } from "./db.js";
 import type { PrismaClient } from "./generated/prisma/client.js";
 import { auth as defaultAuth, createAuth } from "./lib/auth.js";
 import type { DnsResolver } from "./lib/dnsClient.js";
+import { analyticsRoute } from "./routes/analytics.js";
 import { authRoute } from "./routes/auth.js";
 import { canaryRoute } from "./routes/canary.js";
 import { domainsRoute } from "./routes/domains.js";
@@ -147,6 +152,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   // redirect stub + static registration (Pitfall 5) so /api/links is never
   // shadowed by the `/:slug` stub or the SPA fallback.
   await app.register(linksRoute(prisma, auth));
+  // Phase 6 (TRACK-04/05): registered directly on `app`, immediately AFTER
+  // linksRoute and BEFORE redirectRoute/registerStatic (Pitfall 5) — its
+  // urls already include the /api/links and /api/analytics segments, so it
+  // must never be shadowed by the /:slug redirect route or the SPA
+  // fallback.
+  await app.register(analyticsRoute(prisma, auth));
   await app.register(healthRoute);
   // Phase 5 (REDIR-01..05): the real precedence engine replaces the Phase 1
   // stub — stays in the SAME slot (AFTER linksRoute, BEFORE

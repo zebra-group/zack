@@ -11,6 +11,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
 import { getGlobalAnalytics, getLinkAnalytics } from "../src/lib/analytics.js";
+import { seedInitialAdmin } from "../src/lib/admin-seed.js";
 import { sendMagicLinkEmail } from "../src/lib/mailer.js";
 import { prisma } from "./setupFileEach.js";
 
@@ -20,6 +21,25 @@ vi.mock("../src/lib/mailer.js", () => ({
 
 const OWNER_EMAIL = "analytics-owner@kurzly.test";
 const OUTSIDER_EMAIL = "analytics-outsider@kurzly.test";
+
+// Invite-only allowlist (D-01, lib/allowlist.ts): sendMagicLink only fires
+// for a User row that already exists — mirrors links.integration.test.ts's
+// beforeEach exactly, otherwise every signInAs() call for these two fixture
+// emails silently no-ops (D-01's neutral non-allowlisted response).
+beforeEach(async () => {
+  vi.mocked(sendMagicLinkEmail).mockClear();
+  await seedInitialAdmin(prisma, OWNER_EMAIL);
+  await prisma.user.upsert({
+    where: { email: OUTSIDER_EMAIL },
+    update: { emailVerified: true },
+    create: {
+      id: "u_analytics_outsider",
+      name: "Analytics Outsider",
+      email: OUTSIDER_EMAIL,
+      emailVerified: true,
+    },
+  });
+});
 
 /** Joins one or more raw `Set-Cookie` headers into a single `Cookie` header value. */
 function toCookieHeader(setCookie: string | string[] | undefined): string {
