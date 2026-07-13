@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 
-describe("Fastify app route ordering (health, SPA fallback, 404, redirect stub)", () => {
+describe("Fastify app route ordering (health, SPA fallback, 404)", () => {
   it("GET /health returns 200 { status: 'ok' }", async () => {
     const app = await buildApp();
 
@@ -44,18 +44,13 @@ describe("Fastify app route ordering (health, SPA fallback, 404, redirect stub)"
     await app.close();
   });
 
-  it("GET /:slug (redirect stub) returns its documented placeholder status, not a real redirect", async () => {
-    const app = await buildApp();
-
-    const res = await app.inject({ method: "GET", url: "/some-slug" });
-
-    expect(res.statusCode).toBe(404);
-    expect(res.headers.location).toBeUndefined();
-    const body = res.json();
-    expect(body.message).toMatch(/Phase 5/);
-
-    await app.close();
-  });
+  // NOTE: The Phase-1 `/:slug` redirect-stub assertion was removed here — Phase 5
+  // (05-06) replaced the stub with the real redirect precedence engine, which needs a
+  // DB connection this DB-less route-ordering file does not provide. `/:slug`
+  // resolution (unregistered host → generic 404, unknown/deleted slug → identical 404,
+  // Cache-Control: no-store on every branch) is now covered by the DB-backed
+  // `redirect.integration.test.ts`. Keeping a DB-dependent assertion in this lightweight
+  // route-ordering file was the actual defect.
 
   it("GET /api/auth/get-session reaches the better-auth handler (JSON response), never the SPA shell (Pitfall 5)", async () => {
     const app = await buildApp();
