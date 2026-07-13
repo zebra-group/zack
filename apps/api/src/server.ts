@@ -24,6 +24,14 @@
  * (lib/auth.ts) never locks out the first admin's own first login. `db.js`
  * is imported dynamically here for the same reason `app.js` already is —
  * its Prisma client construction must run strictly after `loadEnv()`.
+ *
+ * Phase 6 (D-12): after `app.listen` succeeds, a simple daily retention
+ * scheduler (`setInterval` over `RETENTION_INTERVAL_MS` + one immediate
+ * run at boot) prunes `ClickEvent`/`DailySalt` rows via `lib/retention.ts`
+ * — the pruning FUNCTIONS are what the test suite exercises directly
+ * against real Postgres (RESEARCH's Validation Architecture note); this
+ * file only wires the timer, since `server.ts` is never imported by tests
+ * (no isolation concern).
  */
 import "dotenv/config";
 import { loadEnv } from "./env.js";
@@ -44,3 +52,21 @@ try {
   app.log.error(err);
   process.exit(1);
 }
+
+const RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1000; // once a day
+
+async function runRetentionPrune(): Promise<void> {
+  const { pruneClickEvents, pruneDailySalts } = await import("./lib/retention.js");
+  try {
+    const [clickEventsDeleted, dailySaltsDeleted] = await Promise.all([
+      pruneClickEvents(prisma),
+      pruneDailySalts(prisma),
+    ]);
+    app.log.info({ clickEventsDeleted, dailySaltsDeleted }, "retention prune complete");
+  } catch (err) {
+    app.log.error(err, "retention prune failed");
+  }
+}
+
+void runRetentionPrune();
+setInterval(() => void runRetentionPrune(), RETENTION_INTERVAL_MS);
