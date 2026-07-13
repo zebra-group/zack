@@ -217,8 +217,28 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A tracked link records click count, referrer, and country (derived locally, no third-party API calls) for each visit.
   4. User views per-link analytics (total clicks, 30-day time series, top referrers, countries) and a global analytics overview (clicks, unique visitors, active links, QR scans, top links, referrers).
 
-**Plans**: TBD
+**Plans**: 8 plans
 **UI hint**: yes
+
+**Wave 1**
+
+- [ ] 06-01-PLAN.md — Supply-chain sign-off + install maxmind + GEOIP_DB_PATH/CLICK_RETENTION_DAYS env (TRACK-03)
+- [ ] 06-02-PLAN.md — Data model + [BLOCKING] migration (ClickEvent/ScanSource/DailySalt/Link fields) + trackingEnabled write path (TRACK-01)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 06-03-PLAN.md — Privacy helpers (referrer/visitorHash/geoip) + Docker GeoIP .mmdb bake (TRACK-03)
+- [ ] 06-05-PLAN.md — lib/analytics.ts SQL aggregation + IDOR-guarded analytics endpoints (TRACK-04/05)
+- [ ] 06-06-PLAN.md — LinkFormModal tracking toggle + Links-table Klicks column/badge (TRACK-01)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 06-04-PLAN.md — recordClickHook body: zero-rows guarantee + atomic click write + retention (TRACK-02/03)
+- [ ] 06-07-PLAN.md — Per-link analytics UI: tracking card + 4-state analytics section (TRACK-01/04)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 06-08-PLAN.md — Global analytics view (AnalyticsView) + /analytics router swap (TRACK-05)
 
 ### Phase 7: QR Codes (Static + Dynamic, QR Studio)
 
@@ -293,7 +313,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 3. Domains & Multi-Domain TLS Routing | 4/4 | Complete    | 2026-07-11 |
 | 4. Links Management & Bulk Import | 5/5 | Complete    | 2026-07-11 |
 | 5. Core Redirect Engine | 6/6 | Complete    | 2026-07-12 |
-| 6. Internal Tracking & Analytics | 0/TBD | Not started | - |
+| 6. Internal Tracking & Analytics | 0/8 | Not started | - |
 | 7. QR Codes (Static + Dynamic, QR Studio) | 0/TBD | Not started | - |
 | 8. UTM Builder + Custom OG Metadata | 0/TBD | Not started | - |
 | 9. Team Management & Domain-Scoped Authorization Enforcement | 0/TBD | Not started | - |
