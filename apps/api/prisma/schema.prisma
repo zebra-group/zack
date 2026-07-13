@@ -197,10 +197,60 @@ model Link {
   /// query params are merged onto targetUrl at redirect time (target URL
   /// wins on conflict, D-13). Defaults off so existing links are unaffected.
   forwardQuery Boolean   @default(false)
+  /// Internal click tracking toggle (Phase 6, TRACK-01/D-15) — when true,
+  /// the redirect engine records a ClickEvent for this link. Defaults on
+  /// so existing links keep tracking unless the owner opts out.
+  trackingEnabled Boolean @default(true)
+  /// Pruning-resistant all-time click counter (Phase 6, D-13) — incremented
+  /// only by the redirect click hook (06-04), never by this plan. Survives
+  /// ClickEvent retention pruning (06-04) since it is not derived from the
+  /// event rows at read time.
+  lifetimeClicks  Int     @default(0)
 
-  domain  Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
-  creator User?  @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  domain      Domain       @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  creator     User?        @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  clickEvents ClickEvent[]
 
   @@unique([domainId, slug])
   @@index([domainId])
+}
+
+/// Scan source (Phase 6, D-14) — distinguishes a normal short-link redirect
+/// click from a QR-code scan. `qr` is reserved now (Phase 7 wires QR code
+/// scans); only `link` is ever written by Phase 6's redirect click hook.
+enum ScanSource {
+  link
+  qr
+}
+
+/// Internal click-tracking event (Phase 6, TRACK-01/02, D-13/D-14) — the
+/// per-visit row the redirect click hook (06-04) writes and analytics reads
+/// (06-05) aggregate over. Privacy-first (RESEARCH): no raw IP is ever
+/// persisted here — only a derived, non-reversible `visitorHash` and a
+/// coarse `country`. `@@index` is always explicit (never rely on the FK
+/// alone), mirroring `Link`'s own `@@index([domainId])` convention.
+model ClickEvent {
+  id           String     @id @default(cuid())
+  linkId       String
+  createdAt    DateTime   @default(now())
+  country      String?
+  referrerHost String?
+  visitorHash  String
+  source       ScanSource @default(link)
+
+  link Link @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId])
+  @@index([createdAt])
+  @@index([source])
+}
+
+/// Daily rotating salt (Phase 6, D-14) — input to `visitorHash`'s
+/// non-reversible per-day visitor derivation (IP + User-Agent + this salt),
+/// so the same visitor cannot be correlated across days. `date` (UTC
+/// YYYY-MM-DD) is the natural primary key — one row per day.
+model DailySalt {
+  date      String   @id
+  value     String
+  createdAt DateTime @default(now())
 }
