@@ -42,6 +42,12 @@
  *   10. `GET /health`.
  *   11. `redirectRoute(prisma)` (Phase 5, REDIR-01..05 — replaces the Phase
  *      1 stub; `GET /:slug` + `POST /:slug/verify`, the precedence engine).
+ *   11b. `qrRedirectRoute(prisma)` (Phase 7, QR-02/03/07, 07-06 — `GET
+ *      /q/:code` + `POST /q/:code/verify`, the dynamic-QR redirect
+ *      handler). Registered immediately AFTER redirectRoute and BEFORE
+ *      registerStatic (Pitfall 5) so the SPA fallback never shadows
+ *      `/q/:code`. Host-agnostic by design (07-RESEARCH.md Open-Question
+ *      1) — unlike redirectRoute, it does not depend on domain resolution.
  *   12. `@fastify/static` (`wildcard: false` — see plugins/static.ts).
  *   13. `setNotFoundHandler`: JSON 404 for unmatched `/api/*` paths, the SPA
  *      shell (`index.html`) for every other unmatched path.
@@ -65,6 +71,7 @@ import { domainsRoute } from "./routes/domains.js";
 import { healthRoute } from "./routes/health.js";
 import { linksRoute } from "./routes/links.js";
 import { qrCodesRoute } from "./routes/qrCodes.js";
+import { qrRedirectRoute } from "./routes/qrRedirect.js";
 import { redirectRoute } from "./routes/redirect.js";
 import { tlsCheckRoute } from "./routes/tlsCheck.js";
 import { registerCors } from "./plugins/cors.js";
@@ -175,6 +182,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   // registerStatic/setNotFoundHandler, Pitfall 5) so /api/links is never
   // shadowed and the SPA fallback never shadows /:slug.
   await app.register(redirectRoute(prisma));
+  // Phase 7 (QR-02/03/07, 07-06): the dynamic-QR redirect twin — same
+  // Pitfall-5 placement rule as redirectRoute above (AFTER it, BEFORE
+  // registerStatic) so /q/:code is never shadowed by the SPA fallback.
+  await app.register(qrRedirectRoute(prisma));
 
   await registerStatic(app, publicDir);
 
