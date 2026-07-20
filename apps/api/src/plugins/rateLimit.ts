@@ -130,6 +130,33 @@ export const VERIFY_RATE_LIMIT_PER_LINK = {
     `${request.ip}:${request.hostname}:${request.params.slug}`,
 } as const;
 
+/**
+ * Applied to `POST /api/qr-codes` (Phase 7, QR-01) — mirrors
+ * `LINK_CREATE_RATE_LIMIT`'s shape/rationale verbatim: manual QR creation
+ * only requires an authenticated member+ session (same trust boundary as
+ * any other authorized action), but without a dedicated override it would
+ * fall back to the permissive 100-req/15-min global default.
+ */
+export const QR_CREATE_RATE_LIMIT = {
+  max: 20,
+  timeWindow: "15 minutes",
+} as const;
+
+/**
+ * Applied to `GET /api/qr-codes/:id/render.png` and `.svg` (Phase 7,
+ * 07-RESEARCH.md Open-Question 2) — generous, mirrors `TLS_CHECK_RATE_LIMIT`'s
+ * "hot interactive path" rationale: the QR Studio live preview debounces at
+ * 300ms per the UI-SPEC ("kein Client-seitiges Neuzeichnen, D-Server-Only"),
+ * so every color/rounding/logo tweak round-trips through this endpoint —
+ * a legitimate editing session can burst well past the permissive
+ * 100-req/15-min global default within seconds. A tight bucket here would
+ * make the live preview feel broken, not just rate-limited.
+ */
+export const QR_RENDER_RATE_LIMIT = {
+  max: 120,
+  timeWindow: "1 minute",
+} as const;
+
 export async function registerRateLimit(app: FastifyInstance): Promise<void> {
   await app.register(rateLimit, {
     global: true,

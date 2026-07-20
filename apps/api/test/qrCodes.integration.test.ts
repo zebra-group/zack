@@ -5,16 +5,21 @@
  * one remap-transaction site.
  *
  * Runs against `setupFileEach.ts`'s transaction-wrapped Prisma client (real
- * testcontainers Postgres, BEGIN/ROLLBACK per test). Follows
- * `authorization.test.ts`'s direct-seed convention (no HTTP/session layer
- * needed — this suite exercises the lib functions directly, not routes,
- * which land in a later plan), not `links.integration.test.ts`'s full
- * magic-link round trip.
+ * testcontainers Postgres, BEGIN/ROLLBACK per test). The Task 1 (07-04)
+ * blocks below follow `authorization.test.ts`'s direct-seed convention (no
+ * HTTP/session layer — exercises the lib functions directly). The route-
+ * layer blocks appended for 07-05 instead follow
+ * `analytics.test.ts`'s `buildApp` + magic-link -> verify -> cookie flow,
+ * exercising `routes/qrCodes.ts` end-to-end via `app.inject`.
  */
 import { randomUUID } from "node:crypto";
+import jsQR from "jsqr";
 import sharp from "sharp";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildApp } from "../src/app.js";
+import { seedInitialAdmin } from "../src/lib/admin-seed.js";
 import { createLink } from "../src/lib/links.js";
+import { sendMagicLinkEmail } from "../src/lib/mailer.js";
 import {
   createQrCode,
   getQrRemapHistory,
@@ -24,6 +29,133 @@ import {
   type UpdateQrCodeParams,
 } from "../src/lib/qrCodes.js";
 import { prisma } from "./setupFileEach.js";
+
+vi.mock("../src/lib/mailer.js", () => ({
+  sendMagicLinkEmail: vi.fn().mockResolvedValue(undefined),
+}));
+
+const ROUTE_OWNER_EMAIL = "qr-route-owner@kurzly.test";
+const ROUTE_OUTSIDER_EMAIL = "qr-route-outsider@kurzly.test";
+
+// Invite-only allowlist (D-01, lib/allowlist.ts): sendMagicLink only fires
+// for a User row that already exists — mirrors analytics.test.ts's
+// beforeEach exactly, otherwise signInAs() for these fixture emails
+// silently no-ops (D-01's neutral non-allowlisted response).
+beforeEach(async () => {
+  vi.mocked(sendMagicLinkEmail).mockClear();
+  await seedInitialAdmin(prisma, ROUTE_OWNER_EMAIL);
+  await prisma.user.upsert({
+    where: { email: ROUTE_OUTSIDER_EMAIL },
+    update: { emailVerified: true },
+    create: {
+      id: "u_qr_route_outsider",
+      name: "QR Route Outsider",
+      email: ROUTE_OUTSIDER_EMAIL,
+      emailVerified: true,
+    },
+  });
+});
+
+/** Joins one or more raw `Set-Cookie` headers into a single `Cookie` header value. Mirrors analytics.test.ts. */
+function toCookieHeader(setCookie: string | string[] | undefined): string {
+  if (!setCookie) return "";
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+  return cookies.map((cookie) => cookie.split(";")[0]).join("; ");
+}
+
+/** Extracts the `token` query param from a captured magic-link verify URL. Mirrors analytics.test.ts. */
+function extractToken(magicLinkUrl: string): string {
+  const token = new URL(magicLinkUrl).searchParams.get("token");
+  if (!token) {
+    throw new Error(`No token found in magic-link URL: ${magicLinkUrl}`);
+  }
+  return token;
+}
+
+/** Requests a magic link for `email` and returns the captured verify URL. Mirrors analytics.test.ts. */
+async function requestMagicLinkUrl(
+  app: Awaited<ReturnType<typeof buildApp>>,
+  email: string,
+): Promise<string> {
+  await app.inject({
+    method: "POST",
+    url: "/api/auth/sign-in/magic-link",
+    payload: { email, callbackURL: "/", errorCallbackURL: "/auth/error" },
+  });
+  const call = vi.mocked(sendMagicLinkEmail).mock.calls.at(-1);
+  const url = call?.[0]?.url;
+  if (!url) {
+    throw new Error(`sendMagicLinkEmail was not called for ${email}`);
+  }
+  return url;
+}
+
+/** Signs `email` in via the full magic-link round trip and returns a Cookie header. Mirrors analytics.test.ts. */
+async function signInAs(app: Awaited<ReturnType<typeof buildApp>>, email: string): Promise<string> {
+  const magicLinkUrl = await requestMagicLinkUrl(app, email);
+  const token = extractToken(magicLinkUrl);
+  const verifyRes = await app.inject({
+    method: "GET",
+    url: `/api/auth/magic-link/verify?token=${encodeURIComponent(token)}`,
+  });
+  return toCookieHeader(verifyRes.headers["set-cookie"]);
+}
+
+/** Resolves the userId behind an already-signed-in cookie header. Mirrors analytics.test.ts. */
+async function resolveSessionUserId(
+  app: Awaited<ReturnType<typeof buildApp>>,
+  cookieHeader: string,
+): Promise<string> {
+  const session = await app.inject({
+    method: "GET",
+    url: "/api/auth/get-session",
+    headers: { cookie: cookieHeader },
+  });
+  return session.json()?.user?.id as string;
+}
+
+/** Creates a Domain + owner DomainMembership for `userId` (route-layer IDOR fixtures). */
+async function seedOwnedDomainForRoute(userId: string, hostname: string): Promise<string> {
+  const domain = await prisma.domain.create({
+    data: {
+      hostname,
+      type: "subdomain",
+      status: "active",
+      verificationTarget: "shortener.kurzly.local",
+    },
+  });
+  await prisma.domainMembership.create({
+    data: { userId, domainId: domain.id, role: "owner" },
+  });
+  return domain.id;
+}
+
+/** Creates a real Link (route-layer fixtures) via the D-01 single-write-path core. */
+async function seedLinkForRoute(userId: string, domainId: string): Promise<string> {
+  const created = await createLink(prisma, {
+    userId,
+    domainId,
+    targetUrl: `https://example.com/${randomUUID()}`,
+  });
+  if (!created.ok) throw new Error(`setup failed: createLink returned ${created.error}`);
+  return created.link.id;
+}
+
+/** A tiny real PNG (via sharp) — route-layer logo-upload tests. */
+async function tinyPngBuffer(): Promise<Buffer> {
+  return sharp({
+    create: { width: 8, height: 8, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 1 } },
+  })
+    .png()
+    .toBuffer();
+}
+
+/** Decodes an image buffer back to its encoded QR payload string, or null. Mirrors qrDecode.test.ts's decode helper (07-RESEARCH.md Code Example 2). */
+async function decodeQr(imageBuffer: Buffer): Promise<string | null> {
+  const { data, info } = await sharp(imageBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const result = jsQR(new Uint8ClampedArray(data), info.width, info.height);
+  return result?.data ?? null;
+}
 
 describe("QrCode core (QR-02/03/04, single-write-path)", () => {
   let seq = 0;
@@ -490,5 +622,523 @@ describe("QrCode core (QR-02/03/04, single-write-path)", () => {
       const row = await prisma.qrCode.findUniqueOrThrow({ where: { id: created.qrCode.id } });
       expect(row.name).toBe("Update IDOR");
     });
+  });
+});
+
+describe("POST /api/qr-codes (route layer, QR-01)", () => {
+  it("401s with no session", async () => {
+    const app = await buildApp({ prisma });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/qr-codes",
+      payload: { variant: "static", linkId: "anything", name: "x" },
+    });
+
+    expect(res.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it("201s for a valid static body, response DTO has code null", async () => {
+    const app = await buildApp({ prisma });
+    const cookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const userId = await resolveSessionUserId(app, cookie);
+    const domainId = await seedOwnedDomainForRoute(userId, "qr-route-post-static.example.com");
+    const linkId = await seedLinkForRoute(userId, domainId);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/qr-codes",
+      headers: { cookie },
+      payload: { variant: "static", linkId, name: "Static QR" },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.variant).toBe("static");
+    expect(body.code).toBeNull();
+    expect(body.linkId).toBe(linkId);
+    await app.close();
+  });
+
+  it("201s for a valid dynamic body, response DTO has a 7-char code", async () => {
+    const app = await buildApp({ prisma });
+    const cookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const userId = await resolveSessionUserId(app, cookie);
+    const domainId = await seedOwnedDomainForRoute(userId, "qr-route-post-dynamic.example.com");
+    const linkId = await seedLinkForRoute(userId, domainId);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/qr-codes",
+      headers: { cookie },
+      payload: { variant: "dynamic", linkId, name: "Dynamic QR" },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.variant).toBe("dynamic");
+    expect(body.code).toMatch(/^[0-9A-Za-z]{7}$/);
+    await app.close();
+  });
+
+  it("404s (IDOR, no existence oracle) when linkId belongs to a domain the caller cannot access", async () => {
+    const app = await buildApp({ prisma });
+    const outsiderCookie = await signInAs(app, ROUTE_OUTSIDER_EMAIL);
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-post-idor.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+
+    const forbidden = await app.inject({
+      method: "POST",
+      url: "/api/qr-codes",
+      headers: { cookie: outsiderCookie },
+      payload: { variant: "static", linkId, name: "Forbidden" },
+    });
+    const nonexistent = await app.inject({
+      method: "POST",
+      url: "/api/qr-codes",
+      headers: { cookie: outsiderCookie },
+      payload: { variant: "static", linkId: "does-not-exist", name: "Forbidden" },
+    });
+
+    expect(forbidden.statusCode).toBe(404);
+    expect(nonexistent.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("mass-assignment: an invalid enum variant is rejected (400), and code/lifetimeScans in the body never reach the persisted row", async () => {
+    const app = await buildApp({ prisma });
+    const cookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const userId = await resolveSessionUserId(app, cookie);
+    const domainId = await seedOwnedDomainForRoute(userId, "qr-route-post-mass.example.com");
+    const linkId = await seedLinkForRoute(userId, domainId);
+
+    const invalidVariant = await app.inject({
+      method: "POST",
+      url: "/api/qr-codes",
+      headers: { cookie },
+      payload: { variant: "x", linkId, name: "Bad variant" },
+    });
+    expect(invalidVariant.statusCode).toBe(400);
+
+    const smuggled = await app.inject({
+      method: "POST",
+      url: "/api/qr-codes",
+      headers: { cookie },
+      payload: {
+        variant: "dynamic",
+        linkId,
+        name: "Smuggled fields",
+        code: "ATTACKR",
+        lifetimeScans: 999999,
+      },
+    });
+    expect(smuggled.statusCode).toBe(201);
+    const body = smuggled.json();
+    expect(body.code).not.toBe("ATTACKR");
+    expect(body.lifetimeScans).toBe(0);
+    await app.close();
+  });
+});
+
+describe("GET /api/qr-codes and GET /api/qr-codes/:id (route layer)", () => {
+  it("401s with no session on both the list and detail routes", async () => {
+    const app = await buildApp({ prisma });
+
+    const list = await app.inject({ method: "GET", url: "/api/qr-codes" });
+    const detail = await app.inject({ method: "GET", url: "/api/qr-codes/anything" });
+
+    expect(list.statusCode).toBe(401);
+    expect(detail.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it("GET /api/qr-codes lists only the caller's domain-scoped QRs", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const outsiderCookie = await signInAs(app, ROUTE_OUTSIDER_EMAIL);
+    const outsiderId = await resolveSessionUserId(app, outsiderCookie);
+
+    const ownerDomainId = await seedOwnedDomainForRoute(ownerId, "qr-route-list-owner.example.com");
+    const ownerLinkId = await seedLinkForRoute(ownerId, ownerDomainId);
+    await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId: ownerLinkId,
+      name: "Owner QR",
+      color: "#000000",
+    });
+
+    const outsiderDomainId = await seedOwnedDomainForRoute(outsiderId, "qr-route-list-outsider.example.com");
+    const outsiderLinkId = await seedLinkForRoute(outsiderId, outsiderDomainId);
+    await createQrCode(prisma, {
+      userId: outsiderId,
+      variant: "static",
+      linkId: outsiderLinkId,
+      name: "Outsider QR",
+      color: "#000000",
+    });
+
+    const res = await app.inject({ method: "GET", url: "/api/qr-codes", headers: { cookie: ownerCookie } });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as Array<{ name: string }>;
+    expect(body.some((qr) => qr.name === "Owner QR")).toBe(true);
+    expect(body.some((qr) => qr.name === "Outsider QR")).toBe(false);
+    await app.close();
+  });
+
+  it("GET /api/qr-codes/:id 404s identically for a non-existent id and a foreign QR (no existence oracle)", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const outsiderCookie = await signInAs(app, ROUTE_OUTSIDER_EMAIL);
+
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-get-idor.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Foreign QR",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const foreign = await app.inject({
+      method: "GET",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: outsiderCookie },
+    });
+    const nonexistent = await app.inject({
+      method: "GET",
+      url: "/api/qr-codes/does-not-exist",
+      headers: { cookie: outsiderCookie },
+    });
+
+    expect(foreign.statusCode).toBe(404);
+    expect(nonexistent.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("GET /api/qr-codes/:id 200s with the DTO for the owner", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-get-owner.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Owned QR",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().name).toBe("Owned QR");
+    await app.close();
+  });
+});
+
+describe("PATCH /api/qr-codes/:id (route layer)", () => {
+  it("401s with no session", async () => {
+    const app = await buildApp({ prisma });
+
+    const res = await app.inject({ method: "PATCH", url: "/api/qr-codes/anything", payload: { name: "x" } });
+
+    expect(res.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it("404s identically for a non-existent id and a foreign QR (no existence oracle)", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const outsiderCookie = await signInAs(app, ROUTE_OUTSIDER_EMAIL);
+
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-patch-idor.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Foreign QR",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const foreign = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: outsiderCookie },
+      payload: { name: "Attacker rename" },
+    });
+    const nonexistent = await app.inject({
+      method: "PATCH",
+      url: "/api/qr-codes/does-not-exist",
+      headers: { cookie: outsiderCookie },
+      payload: { name: "Attacker rename" },
+    });
+
+    expect(foreign.statusCode).toBe(404);
+    expect(nonexistent.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("style update: color/roundedModules/name persist via updateQrCode", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-patch-style.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "dynamic",
+      linkId,
+      name: "Original",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { name: "Restyled", color: "#ff00ff", roundedModules: true },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.name).toBe("Restyled");
+    expect(body.color).toBe("#ff00ff");
+    expect(body.roundedModules).toBe(true);
+    expect(body.code).toBe(created.qrCode.code);
+    await app.close();
+  });
+
+  it("SECURITY: rejects a non-hex color with 400 at the route boundary (defense-in-depth, T-07-MASS)", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-patch-badcolor.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Color test",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { color: '#000" onload="alert(1)' },
+    });
+
+    expect(res.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("remap: a targetLinkId change on a dynamic QR routes through remapQrCode, leaving code unchanged", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-patch-remap.example.com");
+    const linkA = await seedLinkForRoute(ownerId, domainId);
+    const linkB = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "dynamic",
+      linkId: linkA,
+      name: "Remap route test",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { targetLinkId: linkB },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.code).toBe(created.qrCode.code);
+    expect(body.linkId).toBe(linkB);
+
+    const history = await prisma.qrRemapHistory.findMany({ where: { qrCodeId: created.qrCode.id } });
+    expect(history).toHaveLength(1);
+    await app.close();
+  });
+
+  it("remap: NOT_DYNAMIC (400) when targetLinkId is sent for a static QR", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-patch-remap-static.example.com");
+    const linkA = await seedLinkForRoute(ownerId, domainId);
+    const linkB = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId: linkA,
+      name: "Static remap route test",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { targetLinkId: linkB },
+    });
+
+    expect(res.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("mass-assignment: code/lifetimeScans/variant/linkId in the PATCH body never reach the persisted row", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-patch-mass.example.com");
+    const linkA = await seedLinkForRoute(ownerId, domainId);
+    const linkB = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "dynamic",
+      linkId: linkA,
+      name: "Mass assign route test",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: {
+        name: "New name",
+        code: "ATTACKR",
+        lifetimeScans: 999999,
+        variant: "static",
+        linkId: linkB,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.name).toBe("New name");
+    expect(body.code).toBe(created.qrCode.code);
+    expect(body.lifetimeScans).toBe(0);
+    expect(body.variant).toBe("dynamic");
+    expect(body.linkId).toBe(linkA);
+    await app.close();
+  });
+});
+
+describe("GET /api/qr-codes/:id/remap-history (route layer, QR-04 read seam)", () => {
+  it("401s with no session", async () => {
+    const app = await buildApp({ prisma });
+
+    const res = await app.inject({ method: "GET", url: "/api/qr-codes/anything/remap-history" });
+
+    expect(res.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it("404s identically for a non-existent id and a foreign QR (no existence oracle)", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const outsiderCookie = await signInAs(app, ROUTE_OUTSIDER_EMAIL);
+
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-history-idor.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "dynamic",
+      linkId,
+      name: "History IDOR",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const foreign = await app.inject({
+      method: "GET",
+      url: `/api/qr-codes/${created.qrCode.id}/remap-history`,
+      headers: { cookie: outsiderCookie },
+    });
+    const nonexistent = await app.inject({
+      method: "GET",
+      url: "/api/qr-codes/does-not-exist/remap-history",
+      headers: { cookie: outsiderCookie },
+    });
+
+    expect(foreign.statusCode).toBe(404);
+    expect(nonexistent.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("200s with the chronological history after a remap via the route", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-history-ok.example.com");
+    const linkA = await seedLinkForRoute(ownerId, domainId);
+    const linkB = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "dynamic",
+      linkId: linkA,
+      name: "History OK",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { targetLinkId: linkB },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/qr-codes/${created.qrCode.id}/remap-history`,
+      headers: { cookie: ownerCookie },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as Array<{ fromLinkId: string; toLinkId: string }>;
+    expect(body).toHaveLength(1);
+    expect(body[0]).toMatchObject({ fromLinkId: linkA, toLinkId: linkB });
+    await app.close();
   });
 });
