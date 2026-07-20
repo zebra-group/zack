@@ -13,6 +13,9 @@
  * exercising `routes/qrCodes.ts` end-to-end via `app.inject`.
  */
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import jsQR from "jsqr";
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -156,6 +159,9 @@ async function decodeQr(imageBuffer: Buffer): Promise<string | null> {
   const result = jsQR(new Uint8ClampedArray(data), info.width, info.height);
   return result?.data ?? null;
 }
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LOGO_PNG_BYTES = readFileSync(path.join(__dirname, "fixtures", "qr-logo.png"));
 
 describe("QrCode core (QR-02/03/04, single-write-path)", () => {
   let seq = 0;
@@ -1139,6 +1145,322 @@ describe("GET /api/qr-codes/:id/remap-history (route layer, QR-04 read seam)", (
     const body = res.json() as Array<{ fromLinkId: string; toLinkId: string }>;
     expect(body).toHaveLength(1);
     expect(body[0]).toMatchObject({ fromLinkId: linkA, toLinkId: linkB });
+    await app.close();
+  });
+});
+
+describe("GET /api/qr-codes/:id/render.png and .svg (route layer, QR-06)", () => {
+  it("401s with no session on both formats", async () => {
+    const app = await buildApp({ prisma });
+
+    const png = await app.inject({ method: "GET", url: "/api/qr-codes/anything/render.png" });
+    const svg = await app.inject({ method: "GET", url: "/api/qr-codes/anything/render.svg" });
+
+    expect(png.statusCode).toBe(401);
+    expect(svg.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it("404s identically for a non-existent id and a foreign QR (no existence oracle)", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const outsiderCookie = await signInAs(app, ROUTE_OUTSIDER_EMAIL);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-render-idor.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Render IDOR",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const foreign = await app.inject({
+      method: "GET",
+      url: `/api/qr-codes/${created.qrCode.id}/render.png`,
+      headers: { cookie: outsiderCookie },
+    });
+    const nonexistent = await app.inject({
+      method: "GET",
+      url: "/api/qr-codes/does-not-exist/render.png",
+      headers: { cookie: outsiderCookie },
+    });
+
+    expect(foreign.statusCode).toBe(404);
+    expect(nonexistent.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("render.png returns image/png bytes that decode back to the static QR's bound Link.targetUrl", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-render-static-png.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const link = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Static render",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/qr-codes/${created.qrCode.id}/render.png`,
+      headers: { cookie: ownerCookie },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("image/png");
+    expect(res.headers["cache-control"]).toBe("no-store");
+    const decoded = await decodeQr(res.rawPayload);
+    expect(decoded).toBe(link.targetUrl);
+    await app.close();
+  });
+
+  it("render.svg returns image/svg+xml that decodes (via sharp rasterization) back to the dynamic QR's own stable /q/:code URL — NOT the current target", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-render-dynamic-svg.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "dynamic",
+      linkId,
+      name: "Dynamic render",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/qr-codes/${created.qrCode.id}/render.svg`,
+      headers: { cookie: ownerCookie },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("image/svg+xml");
+    expect(res.headers["cache-control"]).toBe("no-store");
+    const svgBuffer = await sharp(Buffer.from(res.payload)).png().toBuffer();
+    const decoded = await decodeQr(svgBuffer);
+    expect(decoded).toBe(`http://localhost:3000/q/${created.qrCode.code}`);
+    await app.close();
+  });
+
+  it("remap survives the printed code: render.png after a remap still decodes to the SAME /q/:code URL, now resolving via the new target at scan time", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-render-remap-stable.example.com");
+    const linkA = await seedLinkForRoute(ownerId, domainId);
+    const linkB = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "dynamic",
+      linkId: linkA,
+      name: "Remap stable render",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const before = await app.inject({
+      method: "GET",
+      url: `/api/qr-codes/${created.qrCode.id}/render.png`,
+      headers: { cookie: ownerCookie },
+    });
+    const decodedBefore = await decodeQr(before.rawPayload);
+
+    await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { targetLinkId: linkB },
+    });
+
+    const after = await app.inject({
+      method: "GET",
+      url: `/api/qr-codes/${created.qrCode.id}/render.png`,
+      headers: { cookie: ownerCookie },
+    });
+    const decodedAfter = await decodeQr(after.rawPayload);
+
+    expect(decodedBefore).toBe(decodedAfter);
+    expect(decodedAfter).toBe(`http://localhost:3000/q/${created.qrCode.code}`);
+    await app.close();
+  });
+
+  it("renders with a stored logo enabled (decode still succeeds through the composited overlay)", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-render-logo.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Logo render",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const patchRes = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { logoEnabled: true, logoData: LOGO_PNG_BYTES.toString("base64") },
+    });
+    expect(patchRes.statusCode).toBe(200);
+    expect(patchRes.json().logoEnabled).toBe(true);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/qr-codes/${created.qrCode.id}/render.png`,
+      headers: { cookie: ownerCookie },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const decoded = await decodeQr(res.rawPayload);
+    const link = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+    expect(decoded).toBe(link.targetUrl);
+    await app.close();
+  });
+});
+
+describe("PATCH /api/qr-codes/:id logoData upload (route layer, T-07-LOGO-MIME)", () => {
+  it("logo: an oversized base64 logoData string is rejected with 400 at the route boundary (before decoding)", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-logo-oversized.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Oversized logo",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    // Comfortably above LOGO_DATA_MAX_LENGTH (1,900,000) but still well
+    // inside app.ts's 2 MiB (2,097,152 byte) global bodyLimit, so THIS
+    // route's own typed 400 fires, not Fastify's un-typed 413.
+    const oversized = "A".repeat(2_000_000);
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { logoEnabled: true, logoData: oversized },
+    });
+
+    expect(res.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("logo: a non-PNG/SVG upload is rejected with a typed 400 (INVALID_LOGO), never a 500", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-logo-invalid.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Invalid logo",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const notAnImage = Buffer.from("this is definitely not an image").toString("base64");
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { logoEnabled: true, logoData: notAnImage },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("INVALID_LOGO");
+    await app.close();
+  });
+
+  it("logo: accepts a data-URI-prefixed base64 PNG (strips the data:...;base64, prefix before decoding)", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-logo-datauri.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Data URI logo",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const dataUri = `data:image/png;base64,${LOGO_PNG_BYTES.toString("base64")}`;
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { logoEnabled: true, logoData: dataUri },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().logoEnabled).toBe(true);
+    await app.close();
+  });
+});
+
+describe("GET /api/qr-codes/:id/render rate limit (QR_RENDER_RATE_LIMIT, dedicated bucket)", () => {
+  it("rate-limits rapid-fire render requests separately from the global default", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-render-ratelimit.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Rate limit render",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const results = await Promise.all(
+      Array.from({ length: 150 }, () =>
+        app.inject({
+          method: "GET",
+          url: `/api/qr-codes/${created.qrCode.id}/render.png`,
+          headers: { cookie: ownerCookie },
+        }),
+      ),
+    );
+
+    const limited = results.filter((r) => r.statusCode === 429);
+    expect(limited.length).toBeGreaterThan(0);
     await app.close();
   });
 });

@@ -1,6 +1,6 @@
 /**
- * QrCode management routes (QR-01/05/06/07, 07-05-PLAN.md) — CRUD + remap
- * (Task 1). On-demand render endpoints land in Task 2 of this same plan.
+ * QrCode management routes (QR-01/05/06/07, 07-05-PLAN.md) — CRUD, remap,
+ * and on-demand render endpoints.
  *
  * `qrCodesRoute(prisma, auth)` is a Fastify-plugin FACTORY — mirrors
  * `routes/links.ts`'s `linksRoute(prisma, auth)` pattern exactly, so
@@ -11,7 +11,8 @@
  * This file NEVER calls `prisma.qrCode.*` directly — every mutation
  * delegates to `lib/qrCodes.ts` (07-04's single-write-path core:
  * `createQrCode`/`updateQrCode`/`remapQrCode`), mirroring `routes/links.ts`'s
- * D-01 discipline.
+ * D-01 discipline. Every render call delegates to `lib/qr.ts` (07-03's
+ * shared rendering core) — never a second, ad-hoc renderer.
  *
  * IDOR guard: `resolveOwnedQrCode` copies `routes/links.ts`'s /
  * `routes/analytics.ts`'s `resolveOwnedLink` two-step verbatim
@@ -36,12 +37,25 @@
  * against the identical strict hex pattern at the request-body boundary, so
  * a malformed color is rejected with 400 at write time — before it is ever
  * persisted — rather than only surfacing later when a render is attempted.
+ * `InvalidColorError`/`InvalidLogoError` are still caught around the render
+ * calls below (defense-in-depth for any pre-existing/legacy row) and always
+ * map to 400, never an unhandled 500.
  *
  * Remap is a distinct, separately-audited operation from the style-only
  * update (T-07-WRITEPATH, mirrors `packages/shared/src/index.ts`'s
  * `UpdateQrCodeInput` doc comment): a `targetLinkId` in the PATCH body
  * routes the ENTIRE request through `remapQrCode` instead of `updateQrCode`
  * — the two are never combined in one call.
+ *
+ * `GET .../render.png|svg` (QR-06, Task 2) render from the QrCode's
+ * CURRENTLY stored style + resolved payload — a dedicated, generous
+ * `QR_RENDER_RATE_LIMIT` bucket (07-RESEARCH.md Open-Question 2) protects
+ * this hot path since the QR Studio's live preview debounces at only
+ * 300ms per the UI-SPEC, unlike the tighter `QR_CREATE_RATE_LIMIT` bucket
+ * applied to `POST /api/qr-codes`. Logo bytes (PATCH body `logoData`) are
+ * capped and decoded here, then handed to `updateQrCode` (lib/qrCodes.ts),
+ * which is the ONLY place they are ever written — this route never writes
+ * bytes to the DB itself.
  *
  * `GET .../remap-history` and `GET /api/qr-codes/:id` (07-04's
  * `getQrRemapHistory` / DTO mapping) are registered here too — 07-07's
@@ -57,6 +71,7 @@ import { z } from "zod";
 import type { Link, PrismaClient, QrCode } from "../generated/prisma/client.js";
 import type { createAuth } from "../lib/auth.js";
 import { scopedDomainIds } from "../lib/authorization.js";
+import { InvalidColorError, InvalidLogoError, renderQrPng, renderQrSvg, type RenderStyle } from "../lib/qr.js";
 import {
   createQrCode,
   getQrRemapHistory,
@@ -67,7 +82,7 @@ import {
   updateQrCode,
   type QrCodeErrorCode,
 } from "../lib/qrCodes.js";
-import { QR_CREATE_RATE_LIMIT } from "../plugins/rateLimit.js";
+import { QR_CREATE_RATE_LIMIT, QR_RENDER_RATE_LIMIT } from "../plugins/rateLimit.js";
 
 type Auth = ReturnType<typeof createAuth>;
 
@@ -111,7 +126,7 @@ const createQrCodeSchema = z.object({
  * fits the JSON envelope inside that ceiling, AND — unlike a cap set to
  * exactly 2 MiB — leaves a real, testable gap in which THIS route's own
  * typed 400 (not Fastify's un-typed 413) is what an oversized-logo caller
- * actually receives (Task 2 wires the actual logo-decode path).
+ * actually receives.
  */
 const LOGO_DATA_MAX_LENGTH = 1_900_000;
 
@@ -128,7 +143,7 @@ const updateQrCodeSchema = z.object({
   color: HEX_COLOR_SCHEMA.optional(),
   roundedModules: z.boolean().optional(),
   logoEnabled: z.boolean().optional(),
-  /** Omitted keeps the current logo, `null` clears it, a value sets/replaces it (mirrors UpdateQrCodeInput's tri-state doc comment). Decode/normalize wiring lands in Task 2. */
+  /** Omitted keeps the current logo, `null` clears it, a value sets/replaces it (mirrors UpdateQrCodeInput's tri-state doc comment). */
   logoData: z.string().max(LOGO_DATA_MAX_LENGTH).nullable().optional(),
   /** Present -> the ENTIRE request routes through `remapQrCode` instead of `updateQrCode` (see this file's header). */
   targetLinkId: z.string().min(1).optional(),
@@ -159,8 +174,8 @@ async function resolveUserId(auth: Auth, request: FastifyRequest): Promise<strin
  * the bound Link's `domainId` since QrCode has no `domainId` column of its
  * own. `scopedDomainIds` always runs FIRST regardless of whether the
  * QrCode even exists, so found/not-found/forbidden all cost the same query
- * count (no timing side channel). Includes the `link` relation so Task 2's
- * render endpoints never need a second query to resolve a static QR's
+ * count (no timing side channel). Includes the `link` relation so render
+ * endpoints below never need a second query to resolve a static QR's
  * target URL.
  */
 async function resolveOwnedQrCode(
@@ -173,6 +188,42 @@ async function resolveOwnedQrCode(
     where: { id, link: { domainId: { in: domainIds } } },
     include: { link: true },
   });
+}
+
+function requireEnv(key: string): string {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`${key} is not set — routes/qrCodes.ts must only be imported after env validation.`);
+  }
+  return value;
+}
+
+/**
+ * Resolves the payload string a QR encodes (QR-06). A `static` QR encodes
+ * its bound Link's `targetUrl` DIRECTLY — already validated by
+ * `validateTargetUrl`'s http(s)-only scheme allowlist at Link-creation time
+ * (07-RESEARCH.md Security Domain: "the QR payload is always
+ * Link.targetUrl ... the QR generator never encodes a client-supplied raw
+ * URL directly"). A `dynamic` QR instead encodes THIS instance's own
+ * stable `/q/:code` short URL — re-pointing it (`remapQrCode`) changes its
+ * CURRENT target but never this printed URL (QR-03's headline guarantee),
+ * which is the entire reason a dynamic QR's `code` exists independently of
+ * any one Link.
+ */
+function resolveQrPayload(qrCode: QrCodeWithLink): string {
+  if (qrCode.variant === "dynamic") {
+    return `${requireEnv("BASE_URL")}/q/${qrCode.code}`;
+  }
+  return qrCode.link.targetUrl;
+}
+
+/** Builds the `lib/qr.ts` render style from a QrCode's CURRENTLY stored fields — never a client-supplied style at render time. */
+function resolveRenderStyle(qrCode: QrCodeWithLink): RenderStyle {
+  return {
+    color: qrCode.color,
+    rounded: qrCode.roundedModules,
+    logo: qrCode.logoEnabled && qrCode.logoData ? { bytes: Buffer.from(qrCode.logoData) } : undefined,
+  };
 }
 
 export function qrCodesRoute(prisma: PrismaClient, auth: Auth) {
@@ -219,7 +270,7 @@ export function qrCodesRoute(prisma: PrismaClient, auth: Auth) {
       return reply.send(qrCodes.map(toQrCodeDto));
     });
 
-    // GET /api/qr-codes/:id — detail, same IDOR guard as PATCH below.
+    // GET /api/qr-codes/:id — detail, same IDOR guard as PATCH/render below.
     app.get("/api/qr-codes/:id", async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = await resolveUserId(auth, request);
       if (!userId) return reply.code(401).send({ error: "Unauthorized" });
@@ -294,6 +345,58 @@ export function qrCodesRoute(prisma: PrismaClient, auth: Auth) {
       }
 
       return reply.send(toQrCodeDto(result.qrCode));
+    });
+
+    // GET /api/qr-codes/:id/render.png — on-demand PNG bytes (QR-06),
+    // owner-scoped, rendered from the QrCode's CURRENTLY stored style via
+    // lib/qr.ts. Dedicated QR_RENDER_RATE_LIMIT bucket (this file's header).
+    app.route({
+      method: "GET",
+      url: "/api/qr-codes/:id/render.png",
+      config: { rateLimit: QR_RENDER_RATE_LIMIT },
+      handler: async (request: FastifyRequest, reply: FastifyReply) => {
+        const userId = await resolveUserId(auth, request);
+        if (!userId) return reply.code(401).send({ error: "Unauthorized" });
+
+        const { id } = request.params as { id: string };
+        const qrCode = await resolveOwnedQrCode(prisma, userId, id);
+        if (!qrCode) return reply.code(404).send({ error: "Not found" });
+
+        try {
+          const png = await renderQrPng(resolveQrPayload(qrCode), resolveRenderStyle(qrCode));
+          return reply.header("Cache-Control", "no-store").type("image/png").send(png);
+        } catch (err) {
+          if (err instanceof InvalidColorError || err instanceof InvalidLogoError) {
+            return reply.code(400).send({ error: err.message });
+          }
+          throw err;
+        }
+      },
+    });
+
+    // GET /api/qr-codes/:id/render.svg — same as render.png, SVG output.
+    app.route({
+      method: "GET",
+      url: "/api/qr-codes/:id/render.svg",
+      config: { rateLimit: QR_RENDER_RATE_LIMIT },
+      handler: async (request: FastifyRequest, reply: FastifyReply) => {
+        const userId = await resolveUserId(auth, request);
+        if (!userId) return reply.code(401).send({ error: "Unauthorized" });
+
+        const { id } = request.params as { id: string };
+        const qrCode = await resolveOwnedQrCode(prisma, userId, id);
+        if (!qrCode) return reply.code(404).send({ error: "Not found" });
+
+        try {
+          const svg = await renderQrSvg(resolveQrPayload(qrCode), resolveRenderStyle(qrCode));
+          return reply.header("Cache-Control", "no-store").type("image/svg+xml").send(svg);
+        } catch (err) {
+          if (err instanceof InvalidColorError || err instanceof InvalidLogoError) {
+            return reply.code(400).send({ error: err.message });
+          }
+          throw err;
+        }
+      },
     });
   };
 }
