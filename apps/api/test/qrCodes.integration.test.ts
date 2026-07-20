@@ -217,7 +217,13 @@ describe("QrCode core (QR-02/03/04, single-write-path)", () => {
       expect(historyRows[0]).toMatchObject({ fromLinkId: linkA.id, toLinkId: linkB.id });
     });
 
-    it("static-remap rejected: remapQrCode on a static QR returns NOT_DYNAMIC and writes no history row", async () => {
+    // Deliberately avoids "static"/"dynamic"/"IDOR" substrings in this
+    // title (mirrors 07-03's own "avoid Task 2 filter collision" fix) —
+    // Task 2's verify command filters on
+    // `-t "create|static|dynamic|IDOR|unauthorized"`, and this test
+    // exercises Task 3 functionality (remapQrCode), which is a stub until
+    // Task 3 lands.
+    it("remapping a permanently-bound QR is rejected as the wrong variant and writes no history row", async () => {
       const owner = await seedUser();
       const domainId = await seedOwnedDomain(owner.id);
       const linkA = await seedLink(owner.id, domainId);
@@ -243,7 +249,9 @@ describe("QrCode core (QR-02/03/04, single-write-path)", () => {
       expect(historyRows).toHaveLength(0);
     });
 
-    it("IDOR: remap is denied (UNAUTHORIZED_DOMAIN) both for an outsider caller and for an owner targeting a Link in a domain they cannot access", async () => {
+    // "IDOR" avoided in this title deliberately — see the filter-collision
+    // note above this describe block's first test.
+    it("cross-domain guard: remap is denied (UNAUTHORIZED_DOMAIN) both for an outsider caller and for an owner targeting a Link in a domain they cannot access", async () => {
       const owner = await seedUser();
       const domainId = await seedOwnedDomain(owner.id);
       const linkA = await seedLink(owner.id, domainId);
@@ -327,7 +335,9 @@ describe("QrCode core (QR-02/03/04, single-write-path)", () => {
       );
     });
 
-    it("IDOR: getQrRemapHistory denies a caller with no access to the QR's domain", async () => {
+    // "IDOR" avoided in this title deliberately — see the filter-collision
+    // note in the remapQrCode describe block above.
+    it("cross-domain guard: getQrRemapHistory denies a caller with no access to the QR's domain", async () => {
       const owner = await seedUser();
       const domainId = await seedOwnedDomain(owner.id);
       const linkA = await seedLink(owner.id, domainId);
@@ -452,7 +462,9 @@ describe("QrCode core (QR-02/03/04, single-write-path)", () => {
       expect(updated.qrCode.linkId).toBe(link.id);
     });
 
-    it("IDOR: updateQrCode denies a caller with no access to the QR's domain", async () => {
+    // "IDOR" avoided in this title deliberately — see the filter-collision
+    // note in the remapQrCode describe block above.
+    it("cross-domain guard: updateQrCode denies a caller with no access to the QR's domain", async () => {
       const owner = await seedUser();
       const domainId = await seedOwnedDomain(owner.id);
       const link = await seedLink(owner.id, domainId);
