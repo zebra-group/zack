@@ -37,21 +37,30 @@
  * `trackingEnabled` preference, since it is a QR-code-level scan counter
  * (QR-07), not a privacy-sensitive per-visit event.
  *
- * `POST /q/:code/verify` (protected-branch password unlock flow) is added
- * in 07-06 Task 3, below the GET handler's protected-state branch here.
+ * `POST /q/:code/verify` (07-06 Task 3) mirrors `routes/redirect.ts`'s
+ * `POST /:slug/verify` verbatim: bcrypt-compare against the CURRENT target
+ * Link's `passwordHash`, issue the same link-bound unlock cookie mechanism,
+ * 302 straight to the target — no scan recorded on this path either,
+ * exactly like the `/:slug` original; a subsequent `GET /q/:code` with the
+ * unlock cookie is what records the scan. The unlock cookie is scoped to
+ * the `/q/:code` path (`lib/unlockCookie.ts`'s `issueUnlockCookie`, now
+ * taking an explicit `cookiePath` — 07-06 deviation, see that file's
+ * header) so it is independent of any `/:slug` unlock cookie for the same
+ * Link.
  */
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import bcrypt from "bcryptjs";
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { resolveLinkState, mergeQuery } from "../lib/redirectEngine.js";
 import { isBotRequest } from "../lib/botDetection.js";
-import { hasValidUnlockCookie } from "../lib/unlockCookie.js";
+import { hasValidUnlockCookie, issueUnlockCookie } from "../lib/unlockCookie.js";
 import {
   renderPasswordPage,
   renderExpiredPage,
   renderNotFoundPage,
   renderBotOgPage,
 } from "../lib/publicHtml.js";
-import { REDIRECT_RATE_LIMIT } from "../plugins/rateLimit.js";
+import { REDIRECT_RATE_LIMIT, VERIFY_RATE_LIMIT_PER_LINK } from "../plugins/rateLimit.js";
 import { brandCtx, recordClickHook } from "./redirect.js";
 
 /**
@@ -76,6 +85,21 @@ async function incrementLifetimeScans(
     log?.warn({ err, qrCodeId }, "incrementLifetimeScans: counter write failed, swallowed");
   }
 }
+
+/**
+ * Adapts `VERIFY_RATE_LIMIT_PER_LINK`'s max/timeWindow posture (same
+ * bucket shape `routes/redirect.ts`'s `POST /:slug/verify` uses) to a
+ * `/q/:code`-keyed bucket — the `code` param, not `slug`, and a `qr:`
+ * prefix so this never shares a bucket with `/:slug/verify`'s.
+ */
+const qrVerifyRateLimitConfig = {
+  max: VERIFY_RATE_LIMIT_PER_LINK.max,
+  timeWindow: VERIFY_RATE_LIMIT_PER_LINK.timeWindow,
+  keyGenerator: (request: FastifyRequest): string => {
+    const { code } = request.params as { code: string };
+    return `qr:${request.ip}:${request.hostname}:${code}`;
+  },
+};
 
 export function qrRedirectRoute(prisma: PrismaClient) {
   return async function registerQrRedirectRoute(app: FastifyInstance): Promise<void> {
@@ -142,6 +166,57 @@ export function qrRedirectRoute(prisma: PrismaClient) {
           ? mergeQuery(link.targetUrl, new URL(request.url, "http://placeholder.invalid").search)
           : link.targetUrl;
         return reply.code(302).redirect(target);
+      },
+    });
+
+    app.route({
+      method: "POST",
+      url: "/q/:code/verify",
+      config: { rateLimit: qrVerifyRateLimitConfig },
+      handler: async (request: FastifyRequest, reply: FastifyReply) => {
+        reply.header("Cache-Control", "no-store"); // D-18, every branch below.
+
+        const { code } = request.params as { code: string };
+        const rawBody = request.body as { password?: unknown } | undefined;
+        const password = typeof rawBody?.password === "string" ? rawBody.password : undefined;
+
+        const ctx = { ...brandCtx(), domain: request.hostname, slug: code };
+
+        const qrCode = await prisma.qrCode.findUnique({ where: { code } });
+        const link =
+          qrCode && qrCode.variant === "dynamic"
+            ? await prisma.link.findUnique({ where: { id: qrCode.linkId } })
+            : null;
+
+        if (!qrCode || !link || !link.passwordHash) {
+          return reply.code(404).type("text/html").send(renderNotFoundPage(ctx));
+        }
+
+        // Expiry still precedes the password gate on the verify path too
+        // (D-14), mirroring routes/redirect.ts's POST /:slug/verify exactly.
+        if (resolveLinkState(link, false) === "expired") {
+          return reply
+            .code(410)
+            .type("text/html")
+            .send(renderExpiredPage({ ...ctx, expiresAt: link.expiresAt! }));
+        }
+
+        const ok = password ? await bcrypt.compare(password, link.passwordHash) : false;
+        if (!ok) {
+          return reply
+            .code(200)
+            .type("text/html")
+            .send(renderPasswordPage({ ...ctx, errorState: true }));
+        }
+
+        // Cookie scoped to THIS route's own path namespace (/q/:code), not
+        // /:slug's — independent unlock scope per 07-06's unlockCookie.ts
+        // deviation (see that file's header comment).
+        issueUnlockCookie(reply, link.id, `/q/${code}`, link.passwordHash);
+        // No scan recorded here (mirrors redirect.ts's verify) — the
+        // immediately-following GET /q/:code, now carrying the unlock
+        // cookie, resolves to "ok" and records the scan there.
+        return reply.code(302).redirect(link.targetUrl);
       },
     });
   };

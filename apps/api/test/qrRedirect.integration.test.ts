@@ -62,6 +62,13 @@ async function seedDomainWithOwner(hostname: string): Promise<{ userId: string; 
   return { userId, domainId };
 }
 
+/** Joins one or more raw `Set-Cookie` headers into a single `Cookie` header value. */
+function toCookieHeader(setCookie: string | string[] | undefined): string {
+  if (!setCookie) return "";
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+  return cookies.map((cookie) => cookie.split(";")[0]).join("; ");
+}
+
 describe("Dynamic-QR redirect handler (Phase 7, QR-02/03/07, 07-06)", () => {
   describe("QR-02/07: resolves the current target and records a source='qr' scan", () => {
     it("GET /q/:code 302s to the target and records exactly one source='qr' ClickEvent + lifetimeScans+1", async () => {
@@ -255,4 +262,104 @@ describe("Dynamic-QR redirect handler (Phase 7, QR-02/03/07, 07-06)", () => {
     });
   });
 
+  describe("QR-03: /q/:code password unlock flow (Task 3)", () => {
+    it("POST /q/:code/verify with the wrong password re-renders the page with the error state, records nothing", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("qr-verify-wrong.example.com");
+      const link = await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://secret-target.example.com/",
+        slug: "secret",
+        password: "correct-horse-battery",
+      });
+      expect(link.ok).toBe(true);
+      if (!link.ok) return;
+
+      const qr = await createQrCode(prisma, {
+        userId: seed.userId,
+        variant: "dynamic",
+        linkId: link.link.id,
+        name: "Verify-wrong test QR",
+      });
+      expect(qr.ok).toBe(true);
+      if (!qr.ok) return;
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/q/${qr.qrCode.code}/verify`,
+        headers: { host: "qr-verify-wrong.example.com", "user-agent": BROWSER_UA },
+        payload: { password: "wrong-guess" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("Falsches Passwort. Bitte erneut versuchen.");
+      expect(response.body).not.toContain("https://secret-target.example.com/");
+
+      const events = await prisma.clickEvent.count({ where: { linkId: link.link.id } });
+      expect(events).toBe(0);
+      const refetchedQr = await prisma.qrCode.findUnique({ where: { id: qr.qrCode.id } });
+      expect(refetchedQr!.lifetimeScans).toBe(0);
+    });
+
+    it("POST /q/:code/verify with the correct password unlocks; a subsequent GET /q/:code then records the scan + 302s", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("qr-verify-correct.example.com");
+      const link = await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://unlocked-target.example.com/",
+        slug: "secret",
+        password: "correct-horse-battery",
+      });
+      expect(link.ok).toBe(true);
+      if (!link.ok) return;
+
+      const qr = await createQrCode(prisma, {
+        userId: seed.userId,
+        variant: "dynamic",
+        linkId: link.link.id,
+        name: "Verify-correct test QR",
+      });
+      expect(qr.ok).toBe(true);
+      if (!qr.ok) return;
+
+      const verifyResponse = await app.inject({
+        method: "POST",
+        url: `/q/${qr.qrCode.code}/verify`,
+        headers: { host: "qr-verify-correct.example.com", "user-agent": BROWSER_UA },
+        payload: { password: "correct-horse-battery" },
+      });
+
+      expect(verifyResponse.statusCode).toBe(302);
+      expect(verifyResponse.headers.location).toBe("https://unlocked-target.example.com/");
+      expect(verifyResponse.headers["set-cookie"]).toBeDefined();
+
+      // No scan yet — the verify path itself never calls recordClickHook
+      // (mirrors routes/redirect.ts's POST /:slug/verify).
+      const eventsAfterVerify = await prisma.clickEvent.count({ where: { linkId: link.link.id } });
+      expect(eventsAfterVerify).toBe(0);
+
+      const cookieHeader = toCookieHeader(verifyResponse.headers["set-cookie"]);
+      const secondGet = await app.inject({
+        method: "GET",
+        url: `/q/${qr.qrCode.code}`,
+        headers: {
+          host: "qr-verify-correct.example.com",
+          cookie: cookieHeader,
+          "user-agent": BROWSER_UA,
+        },
+      });
+
+      expect(secondGet.statusCode).toBe(302);
+      expect(secondGet.headers.location).toBe("https://unlocked-target.example.com/");
+
+      const eventsAfterGet = await prisma.clickEvent.findMany({ where: { linkId: link.link.id } });
+      expect(eventsAfterGet).toHaveLength(1);
+      expect(eventsAfterGet[0]!.source).toBe("qr");
+
+      const refetchedQr = await prisma.qrCode.findUnique({ where: { id: qr.qrCode.id } });
+      expect(refetchedQr!.lifetimeScans).toBe(1);
+    });
+  });
 });
