@@ -87,9 +87,37 @@ export class InvalidLogoError extends Error {
   }
 }
 
+/**
+ * Strict CSS hex (`#RGB` or `#RRGGBB`). `style.color` is interpolated RAW into a
+ * `fill="${style.color}"` attribute in `buildModuleSvg`, so an unvalidated value
+ * such as `#000" onload="alert(1)` (or one closing the attribute + injecting a
+ * `<script>`/event handler) would break out of the attribute and execute when the
+ * exported SVG is rendered in a browser — SVG attribute-injection XSS. Rejecting
+ * anything but a hex literal at the single rendering seam is the authoritative
+ * guard: no route or caller can reach `buildModuleSvg` with an unescaped color.
+ */
+const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+/** Thrown when the dark-module color is not a strict `#RGB`/`#RRGGBB` hex (SVG-injection guard). */
+export class InvalidColorError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidColorError";
+  }
+}
+
+function assertValidColor(color: string): string {
+  if (!HEX_COLOR.test(color)) {
+    throw new InvalidColorError(
+      `Invalid QR color: expected a #RGB or #RRGGBB hex literal, got ${JSON.stringify(color)}`,
+    );
+  }
+  return color;
+}
+
 function resolveModuleStyle(style: RenderStyle): ModuleStyle {
   return {
-    color: style.color ?? DEFAULT_COLOR,
+    color: assertValidColor(style.color ?? DEFAULT_COLOR),
     rounded: style.rounded ?? false,
     moduleSizePx: style.moduleSizePx ?? DEFAULT_MODULE_SIZE_PX,
   };
@@ -131,6 +159,11 @@ export function resolveErrorCorrectionLevel(logoEnabled: boolean): QrErrorCorrec
  * restores full ~100% contrast and real-world scannability.
  */
 export function buildModuleSvg(payload: string, errorCorrectionLevel: QrErrorCorrectionLevel, style: ModuleStyle): string {
+  // Authoritative SVG attribute-injection guard, applied at the exact interpolation site:
+  // `style.color` is written raw into fill="${style.color}" below. buildModuleSvg is exported and
+  // may be called directly (bypassing resolveModuleStyle), so validating here — not only in the
+  // render entry points — is what actually closes the XSS vector for every caller.
+  assertValidColor(style.color);
   const qr = QRCode.create(payload, { errorCorrectionLevel });
   const size = qr.modules.size;
   const px = style.moduleSizePx;
