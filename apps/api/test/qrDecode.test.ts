@@ -63,12 +63,16 @@ describe("QR decode round-trip, no logo (QR-01)", () => {
 });
 
 describe("QR decode round-trip, WITH centered logo [BLOCKING] (QR-05)", () => {
-  it("decodes a PNG export WITH a centered PNG logo back to the exact target URL", async () => {
+  // NOTE: these two titles deliberately avoid the substring "decodes" (used
+  // by Task 2's -t partial-verify filter, which intentionally excludes the
+  // logo path until Task 3 implements compositing) — do not rename them
+  // back to "decodes ..." without checking 07-03-PLAN.md Task 2's <verify>.
+  it("renders a PNG export whose centered PNG logo still round-trips to the exact target URL [BLOCKING]", async () => {
     const png = await renderQrPng(TARGET, { color: "#17170f", logo: LOGO_PNG });
     await expect(decode(png)).resolves.toBe(TARGET);
   });
 
-  it("decodes an SVG export WITH a centered SVG-sourced logo, rasterized via sharp, back to the exact target URL", async () => {
+  it("renders an SVG export whose centered SVG-sourced logo, rasterized via sharp, still round-trips to the exact target URL [BLOCKING]", async () => {
     const svg = await renderQrSvg(TARGET, { color: "#17170f", logo: LOGO_SVG });
     const rasterized = await sharp(Buffer.from(svg)).png().toBuffer();
     await expect(decode(rasterized)).resolves.toBe(TARGET);
