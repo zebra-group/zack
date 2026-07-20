@@ -253,7 +253,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User adds a centered logo to a QR code; the exported PNG and SVG both still decode correctly to the right destination (error-correction level H enforced automatically whenever a logo is enabled), proven by an automated decode-round-trip test on both formats.
   4. User customizes QR color and rounded-module style in the QR Studio, and sees the code's scan count.
 
-**Plans**: 1/9 plans executed
+**Plans**: 2/9 plans executed
 **UI hint**: yes
 
 Plans:
@@ -264,7 +264,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 07-02-PLAN.md — Install deps + QrCode/QrRemapHistory data model + migration + sharp smoke test
+- [x] 07-02-PLAN.md — Install deps + QrCode/QrRemapHistory data model + migration + sharp smoke test
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -343,7 +343,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4. Links Management & Bulk Import | 5/5 | Complete    | 2026-07-11 |
 | 5. Core Redirect Engine | 6/6 | Complete    | 2026-07-12 |
 | 6. Internal Tracking & Analytics | 8/8 | Complete    | 2026-07-13 |
-| 7. QR Codes (Static + Dynamic, QR Studio) | 1/9 | In Progress|  |
+| 7. QR Codes (Static + Dynamic, QR Studio) | 2/9 | In Progress|  |
 | 8. UTM Builder + Custom OG Metadata | 0/TBD | Not started | - |
 | 9. Team Management & Domain-Scoped Authorization Enforcement | 0/TBD | Not started | - |
 | 10. OIDC/SSO Integration | 0/TBD | Not started | - |

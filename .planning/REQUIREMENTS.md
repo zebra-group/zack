@@ -62,12 +62,12 @@
 ### QR-Codes
 
 - [x] **QR-01**: Nutzer kann einen statischen QR-Code zu einem Kurzlink erzeugen (PNG- und SVG-Export)
-- [ ] **QR-02**: Nutzer kann einen dynamischen QR-Code mit eigener Kurz-URL (`/q/xxxx`) anlegen
-- [ ] **QR-03**: Nutzer kann das Ziel eines dynamischen QR-Codes jederzeit auf einen anderen Link umstellen; der gedruckte Code bleibt gültig
-- [ ] **QR-04**: Nutzer kann die Remapping-Historie eines dynamischen QR-Codes einsehen
+- [x] **QR-02**: Nutzer kann einen dynamischen QR-Code mit eigener Kurz-URL (`/q/xxxx`) anlegen
+- [x] **QR-03**: Nutzer kann das Ziel eines dynamischen QR-Codes jederzeit auf einen anderen Link umstellen; der gedruckte Code bleibt gültig
+- [x] **QR-04**: Nutzer kann die Remapping-Historie eines dynamischen QR-Codes einsehen
 - [x] **QR-05**: Nutzer kann ein zentriertes Logo in den QR-Code einfügen (Fehlerkorrektur-Level H → bleibt scannbar)
 - [x] **QR-06**: Nutzer kann im QR-Studio Farbe wählen und runde Module umschalten
-- [ ] **QR-07**: Nutzer sieht die Scan-Anzahl eines QR-Codes
+- [x] **QR-07**: Nutzer sieht die Scan-Anzahl eines QR-Codes
 
 ### Link-Metadaten (UTM & OG)
 
@@ -158,12 +158,12 @@ Jedes v1-Requirement → genau eine Phase (siehe ROADMAP.md für vollständige P
 | TRACK-04 | Phase 6 | Complete |
 | TRACK-05 | Phase 6 | Complete |
 | QR-01 | Phase 7 | Complete |
-| QR-02 | Phase 7 | Pending |
-| QR-03 | Phase 7 | Pending |
-| QR-04 | Phase 7 | Pending |
+| QR-02 | Phase 7 | Complete |
+| QR-03 | Phase 7 | Complete |
+| QR-04 | Phase 7 | Complete |
 | QR-05 | Phase 7 | Complete |
 | QR-06 | Phase 7 | Complete |
-| QR-07 | Phase 7 | Pending |
+| QR-07 | Phase 7 | Complete |
 | META-01 | Phase 8 | Pending |
 | META-02 | Phase 8 | Pending |
 | TEAM-01 | Phase 9 | Pending |
