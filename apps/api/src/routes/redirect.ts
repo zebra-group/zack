@@ -33,10 +33,17 @@
  * *content* persistence still happens exclusively through `lib/links.ts`'s
  * `createLink`/`updateLink` (the D-01 sole write path for link fields) —
  * `recordClickHook` never touches any Link column besides the counter.
+ *
+ * REUSE (Phase 7, 07-06): `recordClickHook` and `brandCtx` are exported so
+ * `routes/qrRedirect.ts` can reuse them verbatim — `source` is now a
+ * caller-supplied `ScanSource` parameter (still defaulting the `GET /:slug`
+ * call site below to `'link'`) rather than a hardcoded literal, so the `/q`
+ * scan path can pass `'qr'` through the SAME single ClickEvent insert site
+ * instead of a second, drifting write path (T-07-CLICK-DRIFT).
  */
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import bcrypt from "bcryptjs";
-import type { Link, PrismaClient } from "../generated/prisma/client.js";
+import type { Link, PrismaClient, ScanSource } from "../generated/prisma/client.js";
 import { resolveActiveDomainByHost } from "../lib/domainResolution.js";
 import { resolveLinkState, mergeQuery } from "../lib/redirectEngine.js";
 import { isBotRequest } from "../lib/botDetection.js";
@@ -52,8 +59,8 @@ import { getCountryForIp } from "../lib/geoip.js";
 import { normalizeReferrer } from "../lib/referrer.js";
 import { computeVisitorHash, resolveDailySalt } from "../lib/visitorHash.js";
 
-/** Branding context (D-10) shared by every public-HTML render call below — read directly from `process.env` (not `loadEnv()`), mirroring `lib/links.ts`'s `resolvePasswordHashCost` convention so this module works under Vitest without a boot-time ENV parse. */
-function brandCtx(): { brand: string; accent: string } {
+/** Branding context (D-10) shared by every public-HTML render call below — read directly from `process.env` (not `loadEnv()`), mirroring `lib/links.ts`'s `resolvePasswordHashCost` convention so this module works under Vitest without a boot-time ENV parse. Exported (Phase 7, 07-06) so `routes/qrRedirect.ts` reuses the identical branding read instead of a second copy. */
+export function brandCtx(): { brand: string; accent: string } {
   return {
     brand: process.env.BRAND_NAME ?? "Kurzly",
     accent: process.env.BRAND_ACCENT ?? "#d7ff01",
@@ -78,16 +85,24 @@ function brandCtx(): { brand: string; accent: string } {
  * When tracking is on, the `ClickEvent` insert and `Link.lifetimeClicks`
  * increment run as one `prisma.$transaction` batch (D-13, Pitfall 5) so
  * the counter can never drift from the event rows.
+ *
+ * `source` (Phase 7, 07-06): a caller-supplied `ScanSource` rather than a
+ * hardcoded `'link'` literal — the ONLY change this refactor makes to this
+ * function's behavior. `GET /:slug` below passes `'link'` explicitly (same
+ * value as before, so its behavior is unchanged); `routes/qrRedirect.ts`
+ * imports and calls this SAME function with `'qr'` instead of duplicating
+ * the transaction (T-07-CLICK-DRIFT — exactly one ClickEvent insert site).
  */
-async function recordClickHook(ctx: {
+export async function recordClickHook(ctx: {
   prisma: PrismaClient;
   link: Link;
   ip: string;
   userAgent: string | undefined;
   referer: string | undefined;
   log: FastifyBaseLogger;
+  source: ScanSource;
 }): Promise<void> {
-  const { prisma, link, ip, userAgent, referer, log } = ctx;
+  const { prisma, link, ip, userAgent, referer, log, source } = ctx;
   if (!link.trackingEnabled) return; // TRACK-02: structural guard, no Prisma call below this line when off.
 
   try {
@@ -98,7 +113,7 @@ async function recordClickHook(ctx: {
 
     await prisma.$transaction([
       prisma.clickEvent.create({
-        data: { linkId: link.id, country, referrerHost, visitorHash, source: "link" },
+        data: { linkId: link.id, country, referrerHost, visitorHash, source },
       }),
       prisma.link.update({
         where: { id: link.id },
@@ -190,6 +205,7 @@ export function redirectRoute(prisma: PrismaClient) {
           userAgent: request.headers["user-agent"],
           referer: request.headers.referer,
           log: request.log,
+          source: "link",
         });
 
         const target = link.forwardQuery
