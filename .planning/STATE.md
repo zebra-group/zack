@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 7
 current_phase_name: Static + Dynamic, QR Studio
 status: executing
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-07-20T13:12:09.356Z"
+stopped_at: Completed 07-03-PLAN.md
+last_updated: "2026-07-20T13:36:33.834Z"
 last_activity: 2026-07-20
 last_activity_desc: Phase 06 complete, transitioned to Phase 7
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 47
-  completed_plans: 40
+  completed_plans: 41
   percent: 60
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 7 — QR Codes (Static + Dynamic, QR Studio)
-Plan: 3 of 9
+Plan: 4 of 9
 Status: Ready to execute
 Last activity: 2026-07-20 — Phase 06 complete, transitioned to Phase 7
 
@@ -98,6 +98,7 @@ Progress: [█████░░░░░] 50%
 | Phase 06 P08 | 9min | 2 tasks | 4 files |
 | Phase 07 P01 | 2min | 1 tasks | 0 files |
 | Phase 07-qr-codes-static-dynamic-qr-studio P02 | 16 min | 3 tasks | 6 files |
+| Phase 07-qr-codes-static-dynamic-qr-studio P03 | 21min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -189,6 +190,8 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-01: Operator-approved supply-chain sign-off for qrcode, sharp, jsqr, @types/qrcode (T-07-SC) — sharp's [SUS] too-new flag confirmed false-positive (12yr-old, 74.8M/week package); jsqr's [ASSUMED] provenance confirmed OK against github.com/cozmo/jsQR, devDependency/zero-deps only
 - [Phase ?]: 07-02: Authored the add_qr_codes migration against a throwaway ad hoc postgres:18-alpine container (host port 15432), not the docker-compose db service which has no host port mapping — Matches the established project pattern from 03-01/05-02/06-02 for authoring Prisma migrations outside the testcontainers-per-test-run harness
 - [Phase ?]: 07-02: Added test/qr-schema-push.test.ts (Rule 2 deviation) to prove QrCode/QrRemapHistory persist against real Postgres, satisfying the plan's must_haves.truths and mirroring the schema-push.test.ts/tracking-schema-push.test.ts precedent — No task explicitly requested this file, but every prior schema-migration plan in this codebase ships an analogous proof test
+- [Phase 07-qr-codes-static-dynamic-qr-studio]: Added white background + ISO/IEC 18004 4-module quiet zone to buildModuleSvg — Light modules were fully transparent, giving near-zero luminance contrast that broke jsQR decode once a logo was composited; also needed for real-world scanner reliability
+- [Phase 07-qr-codes-static-dynamic-qr-studio]: Logo tile fixed at 46/196 linear fraction of the full rendered dimension, shared by both PNG composite and SVG image-injection paths — Keeps PNG and SVG logo geometry identical and well under EC-H's damage budget
 
 ### Pending Todos
 
@@ -208,6 +211,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-20T13:11:58.513Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-07-20T13:36:33.779Z
+Stopped at: Completed 07-03-PLAN.md
 Resume file: None
