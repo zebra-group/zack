@@ -283,12 +283,15 @@ export type CreateQrCodeInput = {
 };
 
 /**
- * `PATCH /api/qr-codes/:id` request body shape (07-05) — style-ONLY
- * fields, routed through `updateQrCode`'s single style-update site.
- * `code`, `variant`, and `linkId` are deliberately absent: re-pointing a
- * dynamic QR's target is a distinct, separately-audited operation
- * (`remapQrCode`, QR-04's history-recording remap) never reachable through
- * this generic style update (T-07-WRITEPATH).
+ * `PATCH /api/qr-codes/:id` request body shape (07-05) — style fields,
+ * routed through `updateQrCode`'s single style-update site, PLUS the
+ * one-field remap trigger. `code`, `variant`, and `linkId` are
+ * deliberately absent: re-pointing a dynamic QR's target is a distinct,
+ * separately-audited operation (`remapQrCode`, QR-04's history-recording
+ * remap) — `apps/api/src/routes/qrCodes.ts` routes the ENTIRE request
+ * through `remapQrCode` instead of `updateQrCode` whenever `targetLinkId`
+ * is present, never combining a remap with a style update in one call
+ * (T-07-WRITEPATH).
  */
 export type UpdateQrCodeInput = {
   name?: string;
@@ -302,6 +305,8 @@ export type UpdateQrCodeInput = {
    * mirrors `UpdateLinkInput.password`'s keep/clear/set tri-state.
    */
   logoData?: string | null;
+  /** Present -> re-points a `dynamic` QR's CURRENT target via `remapQrCode` (QR-03); never present alongside the style fields above in the same call. */
+  targetLinkId?: string;
 };
 
 /**

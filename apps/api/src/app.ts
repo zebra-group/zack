@@ -35,6 +35,10 @@
  *      TRACK-04/05 — registered directly on `app`, immediately after
  *      linksRoute, for the same shadowing reason as domains/tls-check/links
  *      above; read-only, delegates all aggregation to lib/analytics.ts).
+ *   9c. `POST/GET/PATCH /api/qr-codes*` (Phase 7, QR-01/05/06/07 —
+ *      registered directly on `app`, immediately after analyticsRoute, for
+ *      the same shadowing reason as above; every write delegates to
+ *      lib/qrCodes.ts, every render to lib/qr.ts).
  *   10. `GET /health`.
  *   11. `redirectRoute(prisma)` (Phase 5, REDIR-01..05 — replaces the Phase
  *      1 stub; `GET /:slug` + `POST /:slug/verify`, the precedence engine).
@@ -60,6 +64,7 @@ import { canaryRoute } from "./routes/canary.js";
 import { domainsRoute } from "./routes/domains.js";
 import { healthRoute } from "./routes/health.js";
 import { linksRoute } from "./routes/links.js";
+import { qrCodesRoute } from "./routes/qrCodes.js";
 import { redirectRoute } from "./routes/redirect.js";
 import { tlsCheckRoute } from "./routes/tlsCheck.js";
 import { registerCors } from "./plugins/cors.js";
@@ -158,6 +163,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   // must never be shadowed by the /:slug redirect route or the SPA
   // fallback.
   await app.register(analyticsRoute(prisma, auth));
+  // Phase 7 (QR-01/05/06/07): registered directly on `app`, immediately
+  // AFTER analyticsRoute and BEFORE redirectRoute/registerStatic
+  // (Pitfall 5) — its urls already include the /api/qr-codes segment, so
+  // it must never be shadowed by the /:slug redirect route or the SPA
+  // fallback.
+  await app.register(qrCodesRoute(prisma, auth));
   await app.register(healthRoute);
   // Phase 5 (REDIR-01..05): the real precedence engine replaces the Phase 1
   // stub — stays in the SAME slot (AFTER linksRoute, BEFORE
