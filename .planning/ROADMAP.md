@@ -253,8 +253,31 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User adds a centered logo to a QR code; the exported PNG and SVG both still decode correctly to the right destination (error-correction level H enforced automatically whenever a logo is enabled), proven by an automated decode-round-trip test on both formats.
   4. User customizes QR color and rounded-module style in the QR Studio, and sees the code's scan count.
 
-**Plans**: TBD
+**Plans**: 9 plans
 **UI hint**: yes
+
+Plans:
+
+**Wave 1**
+- [ ] 07-01-PLAN.md — Supply-chain legitimacy gate (blocking-human) for qrcode/sharp/jsqr before install
+
+**Wave 2** *(blocked on Wave 1)*
+- [ ] 07-02-PLAN.md — Install deps + QrCode/QrRemapHistory data model + migration + sharp smoke test
+
+**Wave 3** *(blocked on Wave 2)*
+- [ ] 07-03-PLAN.md — [TDD] Shared QR render core (module-matrix SVG/PNG, logo, forced EC-H) + decode-round-trip
+- [ ] 07-04-PLAN.md — [TDD] QrCode single-write-path service (create/update/remap + history) + shared DTOs
+
+**Wave 4** *(blocked on Wave 3)*
+- [ ] 07-05-PLAN.md — QR management API routes (CRUD/remap/render) + IDOR/mass-assignment guards + render rate limit
+
+**Wave 5** *(blocked on Wave 4)*
+- [ ] 07-06-PLAN.md — /q/:code dynamic redirect + gate reuse + source='qr' scan tracking
+- [ ] 07-07-PLAN.md — Web API client + QrCodesView list surface (states, instant create, optimistic remap, history)
+
+**Wave 6** *(blocked on Wave 5)*
+- [ ] 07-08-PLAN.md — QR Studio panel (live preview, color/rounded/logo controls, validated upload, PNG/SVG export)
+- [ ] 07-09-PLAN.md — LinkDetailView QR-Code entry point (create-or-deep-link static QR)
 
 ### Phase 8: UTM Builder + Custom OG Metadata
 
