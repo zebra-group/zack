@@ -26,6 +26,7 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import {
   buildModuleSvg,
+  InvalidColorError,
   normalizeLogo,
   renderQrPng,
   renderQrSvg,
@@ -48,6 +49,43 @@ async function decode(imageBuffer: Buffer): Promise<string | null> {
   const result = jsQR(new Uint8ClampedArray(data), info.width, info.height);
   return result?.data ?? null;
 }
+
+describe("dark-module color validation (SVG attribute-injection / XSS guard)", () => {
+  // style.color is interpolated raw into fill="${color}" in buildModuleSvg — an unvalidated
+  // value could break out of the attribute and inject markup/event handlers into the exported SVG.
+  const injections = [
+    '#000" onload="alert(1)',
+    '#000"/><script>alert(1)</script><rect fill="#000',
+    "red",
+    "url(#x)",
+    "#12", // too short
+    "#1234567", // too long
+    "javascript:alert(1)",
+  ];
+  for (const bad of injections) {
+    it(`rejects a non-hex / injection color: ${JSON.stringify(bad)}`, () => {
+      expect(() => buildModuleSvg("payload", "M", { color: bad, rounded: false, moduleSizePx: 10 })).toThrow(
+        InvalidColorError,
+      );
+    });
+    it(`rejects it at the render seam too: renderQrSvg(${JSON.stringify(bad)})`, async () => {
+      await expect(renderQrSvg(TARGET, { color: bad })).rejects.toBeInstanceOf(InvalidColorError);
+    });
+  }
+
+  it("accepts valid #RGB and #RRGGBB hex", () => {
+    expect(() => buildModuleSvg("payload", "M", { color: "#000", rounded: false, moduleSizePx: 10 })).not.toThrow();
+    expect(() => buildModuleSvg("payload", "M", { color: "#17170f", rounded: false, moduleSizePx: 10 })).not.toThrow();
+  });
+
+  it("a valid color never yields attribute-breaking characters in the SVG", () => {
+    const svg = buildModuleSvg("payload", "M", { color: "#17170f", rounded: false, moduleSizePx: 10 });
+    // no stray double-quote-then-space (attribute breakout) or angle-bracket injection around fills
+    expect(svg).not.toMatch(/fill="[^"]*"[^\s/>]/);
+    expect(svg).not.toContain("<script");
+    expect(svg).not.toMatch(/on\w+=/i);
+  });
+});
 
 describe("QR decode round-trip, no logo (QR-01)", () => {
   it("decodes a PNG export back to the exact target URL", async () => {
