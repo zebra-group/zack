@@ -210,6 +210,7 @@ model Link {
   domain      Domain       @relation(fields: [domainId], references: [id], onDelete: Cascade)
   creator     User?        @relation(fields: [createdBy], references: [id], onDelete: SetNull)
   clickEvents ClickEvent[]
+  qrCodes     QrCode[]
 
   @@unique([domainId, slug])
   @@index([domainId])
@@ -253,4 +254,77 @@ model DailySalt {
   date      String   @id
   value     String
   createdAt DateTime @default(now())
+}
+
+/// QR code variant (Phase 7, QR-02/QR-03) — static QR codes are permanently
+/// bound to one Link (their `linkId` IS their target); dynamic QR codes own
+/// their own `/q/:code` short code and can be re-pointed to a different
+/// target Link over time (07-06's remap flow) while the printed code stays
+/// valid. Native Postgres enum, mirrors `ScanSource`'s lowercase-value
+/// precedent.
+enum QrCodeVariant {
+  static
+  dynamic
+}
+
+/// QR code model (QR-02/03/04/07) — the single QR-studio resource this phase
+/// introduces. Every row is written through exactly one path:
+/// `apps/api/src/lib/qrCodes.ts` — no other code in the codebase may call
+/// `prisma.qrCode.create`/`update` (mirrors Link's single-write-path
+/// discipline). `linkId` is the bound Link for a static code, or the
+/// *current* target Link for a dynamic code — a single Link relation
+/// serves both cases since a static QR's bound link IS its target.
+/// `code` is the dynamic `/q/:code` short code: a plain `@unique` flat
+/// global namespace (NOT domain-scoped like `Link.slug`, which is why this
+/// differs from Link's composite `@@unique([domainId, slug])`) and is only
+/// ever set for `variant: dynamic` rows. Logo bytes are stored directly on
+/// the row (RESEARCH Open-Question 3 resolution) rather than a new
+/// object-storage dependency — bounded by the 2 MB upload cap enforced in
+/// 07-05. Deleting the bound/target Link cascade-deletes the QrCode (a QR
+/// code has no meaning without a link to encode).
+model QrCode {
+  id             String        @id @default(cuid())
+  variant        QrCodeVariant
+  linkId         String
+  /// Dynamic-only `/q/:code` short code. `null` for static QR codes.
+  code           String?       @unique
+  name           String
+  color          String
+  roundedModules Boolean       @default(false)
+  logoEnabled    Boolean       @default(false)
+  /// Logo image bytes (PNG), present only when `logoEnabled` is true.
+  logoData       Bytes?
+  logoMimeType   String?
+  /// Pruning-resistant all-time scan counter (mirrors `Link.lifetimeClicks`,
+  /// Phase 6, D-13 precedent) — incremented ONLY by the `/q` scan hook
+  /// (07-06), never a live COUNT over ClickEvent rows.
+  lifetimeScans  Int           @default(0)
+  createdBy      String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  link         Link              @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  remapHistory QrRemapHistory[]
+
+  @@index([linkId])
+  @@index([code])
+}
+
+/// Dynamic QR remap audit trail (QR-04) — one row per re-point of a dynamic
+/// QR code's target Link, mirroring `ClickEvent`'s per-event-row shape.
+/// Written exclusively by the remap path in `apps/api/src/lib/qrCodes.ts`
+/// alongside the `QrCode.linkId` update (07-06). `@@index` is always
+/// explicit (never rely on the FK alone), matching `ClickEvent`'s
+/// `@@index([linkId])` / `@@index([createdAt])` convention.
+model QrRemapHistory {
+  id         String   @id @default(cuid())
+  qrCodeId   String
+  fromLinkId String
+  toLinkId   String
+  createdAt  DateTime @default(now())
+
+  qrCode QrCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+
+  @@index([qrCodeId])
+  @@index([createdAt])
 }
