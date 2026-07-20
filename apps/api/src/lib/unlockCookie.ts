@@ -18,9 +18,21 @@
  * Signed via `@fastify/cookie`'s `signed: true` (HMAC, tamper-evident),
  * `httpOnly` (no JS access), `sameSite: "strict"` (the verify form POST is
  * same-origin/top-level so Strict is safe and tighter than Lax), and
- * scoped to `path: /${slug}` (never sent to any other link's path). No
- * `maxAge`/`expires` is set — a browser-session cookie, matching D-08's
- * TTL.
+ * scoped to a caller-supplied `cookiePath` (never sent to any other route's
+ * path). No `maxAge`/`expires` is set — a browser-session cookie, matching
+ * D-08's TTL.
+ *
+ * `cookiePath` (Phase 7, 07-06 deviation — Rule 2, missing critical
+ * functionality): originally derived internally as `/${slug}` since only
+ * `routes/redirect.ts`'s `/:slug` namespace existed. `routes/qrRedirect.ts`
+ * needs the SAME self-invalidating mechanism scoped to `/q/:code` instead —
+ * a cookie issued with `/${slug}`'s path would never be sent back on a
+ * `/q/:code` request (different top-level path), silently breaking the
+ * unlock flow for password-protected dynamic-QR targets. The caller now
+ * builds the full path (`routes/redirect.ts` passes `/${slug}`;
+ * `routes/qrRedirect.ts` passes `/q/${code}`) — `cookieName(linkId)` still
+ * keys purely on the Link, so the two scopes can coexist as two distinct
+ * same-name-different-path cookies without interfering with each other.
  *
  * `Secure` is gated on `NODE_ENV === "production"`, not on
  * `request.protocol` — TLS termination is entirely operator-delegated
@@ -60,18 +72,18 @@ export function unlockPayload(passwordHash: string): string {
 /** The subset of `Link` `hasValidUnlockCookie` needs. */
 export type UnlockCheckLink = Pick<Link, "id" | "passwordHash">;
 
-/** Issues the signed, session-lifetime, link-scoped unlock cookie on a successful password verify. */
+/** Issues the signed, session-lifetime, path-scoped unlock cookie on a successful password verify. `cookiePath` is the FULL path (e.g. `/${slug}` or `/q/${code}`) — see this file's header comment. */
 export function issueUnlockCookie(
   reply: FastifyReply,
   linkId: string,
-  slug: string,
+  cookiePath: string,
   passwordHash: string,
 ): void {
   reply.setCookie(cookieName(linkId), unlockPayload(passwordHash), {
     signed: true,
     httpOnly: true,
     sameSite: "strict",
-    path: `/${slug}`,
+    path: cookiePath,
     secure: process.env.NODE_ENV === "production",
     // no maxAge/expires -> browser-session cookie (D-08).
   });

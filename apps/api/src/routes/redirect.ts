@@ -262,7 +262,7 @@ export function redirectRoute(prisma: PrismaClient) {
             .send(renderPasswordPage({ ...ctx, errorState: true }));
         }
 
-        issueUnlockCookie(reply, link.id, slug, link.passwordHash);
+        issueUnlockCookie(reply, link.id, `/${slug}`, link.passwordHash);
         // RESEARCH's verify skeleton redirects straight to the stored
         // target with no query merge here — a visitor's original GET (the
         // request the query params, if any, actually arrived on) already
