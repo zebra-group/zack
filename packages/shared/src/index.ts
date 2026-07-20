@@ -226,3 +226,94 @@ export type ImportCommitResult = {
    */
   partial?: boolean;
 };
+
+// Phase 7 (QR codes: static/dynamic, QR Studio — QR-02/03/04)
+
+/**
+ * Full QrCode DTO — mirrors `apps/api/src/lib/qrCodes.ts`'s `toQrCodeDto()`
+ * mapping. `code` is `null` for a `static` QR (permanently bound to
+ * `linkId`, its target) and a stable 7-char `/q/:code` short code for a
+ * `dynamic` QR. Re-pointing a dynamic QR (`remapQrCode`, QR-03's headline
+ * guarantee) changes `linkId` (its CURRENT target) but NEVER `code` — a
+ * printed dynamic QR keeps working forever even as its destination
+ * changes. `logoEnabled` is a derived boolean only — the raw `logoData`
+ * bytes NEVER cross the JSON boundary (T-07-DTO-LEAK, mirrors
+ * `LinkDTO.passwordProtected` deriving from `passwordHash` without ever
+ * exposing the hash itself).
+ */
+export type QrCodeDTO = {
+  id: string;
+  variant: "static" | "dynamic";
+  /** The bound Link (static) or the CURRENT target Link (dynamic). */
+  linkId: string;
+  /** `null` for a static QR; a stable 7-char short code for a dynamic QR — never changes across remaps. */
+  code: string | null;
+  name: string;
+  color: string;
+  roundedModules: boolean;
+  /** Derived from whether a logo is stored — never the raw bytes (T-07-DTO-LEAK). */
+  logoEnabled: boolean;
+  /**
+   * Pruning-resistant all-time scan counter (mirrors `LinkDTO.lifetimeClicks`,
+   * D-13 precedent) — read-only, incremented only by the `/q` scan hook
+   * (07-06). NEVER settable via `CreateQrCodeInput`/`UpdateQrCodeInput`
+   * (T-07-MASS).
+   */
+  lifetimeScans: number;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/**
+ * `POST /api/qr-codes` request body shape (07-05) — the SAME shape
+ * `validateQrCodeInput`/`createQrCode` (apps/api/src/lib/qrCodes.ts, D-01
+ * equivalent for QR) accepts sans `userId` (resolved server-side from the
+ * session, never client-supplied). `code`/`lifetimeScans` are NEVER
+ * present here — they are server-owned (T-07-MASS), mirroring
+ * `CreateLinkInput` never accepting `lifetimeClicks`.
+ */
+export type CreateQrCodeInput = {
+  variant: "static" | "dynamic";
+  /** The Link to bind (static) or the initial target Link (dynamic). */
+  linkId: string;
+  name: string;
+  color?: string;
+  roundedModules?: boolean;
+};
+
+/**
+ * `PATCH /api/qr-codes/:id` request body shape (07-05) — style-ONLY
+ * fields, routed through `updateQrCode`'s single style-update site.
+ * `code`, `variant`, and `linkId` are deliberately absent: re-pointing a
+ * dynamic QR's target is a distinct, separately-audited operation
+ * (`remapQrCode`, QR-04's history-recording remap) never reachable through
+ * this generic style update (T-07-WRITEPATH).
+ */
+export type UpdateQrCodeInput = {
+  name?: string;
+  color?: string;
+  roundedModules?: boolean;
+  /**
+   * Omitted keeps the current logo unchanged, `null` clears it, a base64
+   * data string (PNG or SVG) sets/replaces it. The server independently
+   * re-validates the decoded bytes via `normalizeLogo` (magic-byte
+   * sniffing, never a client-declared MIME) before ever persisting them —
+   * mirrors `UpdateLinkInput.password`'s keep/clear/set tri-state.
+   */
+  logoData?: string | null;
+};
+
+/**
+ * `GET /api/qr-codes/:id/remap-history` response entry (QR-04) — mirrors
+ * `apps/api/src/lib/qrCodes.ts`'s `toQrRemapHistoryEntryDto()` mapping.
+ * The full history array is always chronological, oldest-first (mirrors
+ * `LinkAnalyticsDTO.dailySeries`'s oldest-first convention).
+ */
+export type QrRemapHistoryEntryDTO = {
+  id: string;
+  qrCodeId: string;
+  fromLinkId: string;
+  toLinkId: string;
+  createdAt: string;
+};
