@@ -8,14 +8,18 @@
 import type {
   AuthSession,
   CreateLinkInput,
+  CreateQrCodeInput,
   DomainDTO,
   GlobalAnalyticsDTO,
   ImportCommitResult,
   ImportPreviewResult,
   LinkAnalyticsDTO,
   LinkDTO,
+  QrCodeDTO,
+  QrRemapHistoryEntryDTO,
   SessionUser,
   UpdateLinkInput,
+  UpdateQrCodeInput,
 } from "@kurzly/shared";
 import type { CanaryResult } from "@kurzly/shared";
 
@@ -329,4 +333,129 @@ export async function commitImport(
     body: JSON.stringify({ csv, defaultDomainId }),
   });
   return parseJsonOrThrow<ImportCommitResult>(response);
+}
+
+/**
+ * QR code management API client (Phase 7, QR-02/03/04/07) — the SOLE fetch
+ * layer for QR data, consumed by `QrCodesView.vue` (this plan) AND the two
+ * downstream frontend plans (07-08 QR Studio panel, 07-09 Link-Detail entry
+ * point) — neither of those ever calls `fetch()` against `/api/qr-codes*`
+ * directly, mirroring the Link/Domain client's single-fetch-layer
+ * convention above. Mirrors the exact same same-origin `fetch` +
+ * `parseJsonOrThrow<T>` shape; the server independently re-authorizes every
+ * call (IDOR-guarded, `resolveOwnedQrCode`) — this client is convenience
+ * only, never the access boundary.
+ */
+
+/** `POST /api/qr-codes` — creates a static|dynamic QR (QR-01/02/03). */
+export async function createQrCode(data: CreateQrCodeInput): Promise<QrCodeDTO> {
+  const response = await fetch("/api/qr-codes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return parseJsonOrThrow<QrCodeDTO>(response);
+}
+
+/** `GET /api/qr-codes` — scoped to the caller's accessible domains (via the bound Link). */
+export async function listQrCodes(): Promise<QrCodeDTO[]> {
+  const response = await fetch("/api/qr-codes", { method: "GET" });
+  return parseJsonOrThrow<QrCodeDTO[]>(response);
+}
+
+/** `GET /api/qr-codes/:id` — IDOR-guarded detail lookup (404 for both not-found and forbidden). */
+export async function getQrCode(id: string): Promise<QrCodeDTO> {
+  const response = await fetch(`/api/qr-codes/${id}`, { method: "GET" });
+  return parseJsonOrThrow<QrCodeDTO>(response);
+}
+
+/**
+ * `PATCH /api/qr-codes/:id` — style-only update (name/color/roundedModules/
+ * logoData). NEVER combined with a remap (`targetLinkId`) in the same call
+ * — the backend routes those two shapes through entirely separate write
+ * paths (T-07-WRITEPATH); use `remapQrCode` below for re-pointing.
+ */
+export async function updateQrCode(id: string, data: UpdateQrCodeInput): Promise<QrCodeDTO> {
+  const response = await fetch(`/api/qr-codes/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return parseJsonOrThrow<QrCodeDTO>(response);
+}
+
+/**
+ * `PATCH /api/qr-codes/:id` with `{ targetLinkId }` — re-points a dynamic
+ * QR's CURRENT target (QR-03's headline guarantee: the printed `/q/:code`
+ * URL never changes). A distinct call from `updateQrCode` above so callers
+ * never accidentally combine a remap with a style update in one request.
+ */
+export async function remapQrCode(id: string, targetLinkId: string): Promise<QrCodeDTO> {
+  const response = await fetch(`/api/qr-codes/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ targetLinkId }),
+  });
+  return parseJsonOrThrow<QrCodeDTO>(response);
+}
+
+/** `GET /api/qr-codes/:id/remap-history` — full history, oldest-first (QR-04). */
+export async function getQrRemapHistory(id: string): Promise<QrRemapHistoryEntryDTO[]> {
+  const response = await fetch(`/api/qr-codes/${id}/remap-history`, { method: "GET" });
+  return parseJsonOrThrow<QrRemapHistoryEntryDTO[]>(response);
+}
+
+/**
+ * Render URL builders (QR-06) — build `<img>`/download URLs for the
+ * server-rendered PNG/SVG. NEVER redrawn client-side (CONTEXT single-
+ * code-path lock); every thumbnail/preview/export points at these same two
+ * endpoints, rendered fresh from the QrCode's CURRENTLY stored style.
+ */
+export function qrRenderPngUrl(id: string): string {
+  return `/api/qr-codes/${id}/render.png`;
+}
+
+export function qrRenderSvgUrl(id: string): string {
+  return `/api/qr-codes/${id}/render.svg`;
+}
+
+/**
+ * Maps a submit-time `ApiError` to inline QR-form field/general errors,
+ * mirroring `mapLinkFormError` above (04-05's convention: lives in api.ts,
+ * not inside an SFC, since the generic `*.vue` module shim only declares a
+ * `default` export). Covers the two backend `QrCodeErrorCode`s a form
+ * submission can realistically surface (`INVALID_LOGO`, bad logo bytes)
+ * plus the shared rate-limit posture (`@fastify/rate-limit`, 429) that
+ * applies uniformly to QR create/remap per 07-UI-SPEC.md's Copywriting
+ * Contract. `NOT_DYNAMIC`/`CODE_GENERATION_EXHAUSTED`/`UNAUTHORIZED_DOMAIN`
+ * have no dedicated inline copy in the locked contract — they fall back to
+ * `generalError` via the status-only branch below, same discipline as
+ * `mapLinkFormError`'s `default` case.
+ */
+export interface QrFormFieldErrors {
+  logoError?: string;
+  generalError?: string;
+}
+
+const QR_LOGO_UPLOAD_FAILED_MESSAGE = "Logo-Upload fehlgeschlagen. Bitte erneut versuchen.";
+const QR_RATE_LIMIT_MESSAGE = "Zu viele Anfragen. Bitte warte kurz, bevor du es erneut versuchst.";
+const QR_SAVE_FAILED_MESSAGE = "Speichern fehlgeschlagen. Bitte erneut versuchen.";
+
+export function mapQrFormError(err: unknown): QrFormFieldErrors {
+  if (!(err instanceof ApiError)) return {};
+
+  if (err.status === 429) return { generalError: QR_RATE_LIMIT_MESSAGE };
+
+  switch (err.code) {
+    case "INVALID_LOGO":
+      return { logoError: QR_LOGO_UPLOAD_FAILED_MESSAGE };
+    case "NOT_DYNAMIC":
+    case "CODE_GENERATION_EXHAUSTED":
+    case "UNAUTHORIZED_DOMAIN":
+      return { generalError: QR_SAVE_FAILED_MESSAGE };
+    default:
+      // No parsed code (e.g. non-JSON body) — fall back to status alone.
+      if (err.status === 400) return { generalError: QR_SAVE_FAILED_MESSAGE };
+      return {};
+  }
 }
