@@ -253,7 +253,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User adds a centered logo to a QR code; the exported PNG and SVG both still decode correctly to the right destination (error-correction level H enforced automatically whenever a logo is enabled), proven by an automated decode-round-trip test on both formats.
   4. User customizes QR color and rounded-module style in the QR Studio, and sees the code's scan count.
 
-**Plans**: 6/9 plans executed
+**Plans**: 7/9 plans executed
 **UI hint**: yes
 
 Plans:
@@ -278,7 +278,7 @@ Plans:
 **Wave 5** *(blocked on Wave 4)*
 
 - [x] 07-06-PLAN.md — /q/:code dynamic redirect + gate reuse + source='qr' scan tracking
-- [ ] 07-07-PLAN.md — Web API client + QrCodesView list surface (states, instant create, optimistic remap, history)
+- [x] 07-07-PLAN.md — Web API client + QrCodesView list surface (states, instant create, optimistic remap, history)
 
 **Wave 6** *(blocked on Wave 5)*
 
@@ -343,7 +343,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4. Links Management & Bulk Import | 5/5 | Complete    | 2026-07-11 |
 | 5. Core Redirect Engine | 6/6 | Complete    | 2026-07-12 |
 | 6. Internal Tracking & Analytics | 8/8 | Complete    | 2026-07-13 |
-| 7. QR Codes (Static + Dynamic, QR Studio) | 6/9 | In Progress|  |
+| 7. QR Codes (Static + Dynamic, QR Studio) | 7/9 | In Progress|  |
 | 8. UTM Builder + Custom OG Metadata | 0/TBD | Not started | - |
 | 9. Team Management & Domain-Scoped Authorization Enforcement | 0/TBD | Not started | - |
 | 10. OIDC/SSO Integration | 0/TBD | Not started | - |

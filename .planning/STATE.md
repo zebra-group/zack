@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 7
-current_phase_name: Static + Dynamic, QR Studio
+current_phase: 07
+current_phase_name: qr-codes-static-dynamic-qr-studio
 status: executing
-stopped_at: Completed 07-06-PLAN.md
-last_updated: "2026-07-20T20:29:06.846Z"
-last_activity: 2026-07-20
-last_activity_desc: Phase 06 complete, transitioned to Phase 7
+stopped_at: Completed 07-07-PLAN.md
+last_updated: "2026-07-21T07:52:22.357Z"
+last_activity: 2026-07-21
+last_activity_desc: Phase 07 execution started
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 47
-  completed_plans: 44
+  completed_plans: 45
   percent: 60
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-10)
 
 **Core value:** Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hosted, ohne Drittanbieter-Tracking.
-**Current focus:** Phase 06 — internal-tracking-analytics
+**Current focus:** Phase 07 — qr-codes-static-dynamic-qr-studio
 
 ## Current Position
 
-Phase: 7 — QR Codes (Static + Dynamic, QR Studio)
-Plan: 6 of 9
+Phase: 07 (qr-codes-static-dynamic-qr-studio) — EXECUTING
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-07-20 — Phase 06 complete, transitioned to Phase 7
+Last activity: 2026-07-21 — Phase 07 execution started
 
 Progress: [█████░░░░░] 50%
 
@@ -101,6 +101,7 @@ Progress: [█████░░░░░] 50%
 | Phase 07-qr-codes-static-dynamic-qr-studio P03 | 21min | 3 tasks | 4 files |
 | Phase 07 P04 | 20min | 3 tasks | 3 files |
 | Phase 07-qr-codes-static-dynamic-qr-studio P06 | 55min | 3 tasks | 5 files |
+| Phase 07 P07 | 25min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -198,6 +199,9 @@ Recent decisions affecting current work:
 - [Phase ?]: Dynamic /q code generation reuses generateSlug/AUTO_SLUG_RETRY_LIMIT from lib/links.ts verbatim (same 7-char Base62 shape), no re-derivation
 - [Phase ?]: issueUnlockCookie now takes an explicit cookiePath instead of deriving /${slug} internally — so /:slug and /q/:code get independent, correctly path-scoped unlock cookies for the same Link
 - [Phase ?]: QrCode.lifetimeScans increments unconditionally on every completed /q/:code scan — independent of the target Link's trackingEnabled preference (unlike the ClickEvent write) since it is a QR-code-level scan counter, not a privacy-sensitive per-visit event
+- [Phase 07-qr-codes-static-dynamic-qr-studio]: 07-07: apps/web/src/api.qr.test.ts added (Rule 2, MVP+TDD gate) to give Task 1's api.ts additions a RED/GREEN home; no api.test.ts precedent existed in this codebase
+- [Phase 07-qr-codes-static-dynamic-qr-studio]: 07-07: QrCodeDTO has no embedded remap history - fetched per dynamic QR via getQrRemapHistory on load (reversed to newest-first), extended locally with a synthetic entry after each successful remap
+- [Phase 07-qr-codes-static-dynamic-qr-studio]: 07-07: Studio panel left as a header-only placeholder (title + code) for 07-08 to fill with preview/controls/export
 
 ### Pending Todos
 
@@ -217,6 +221,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-20T20:29:00.229Z
-Stopped at: Completed 07-06-PLAN.md
+Last session: 2026-07-21T07:52:22.302Z
+Stopped at: Completed 07-07-PLAN.md
 Resume file: None
