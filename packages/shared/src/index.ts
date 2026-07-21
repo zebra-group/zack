@@ -298,6 +298,17 @@ export type UpdateQrCodeInput = {
   color?: string;
   roundedModules?: boolean;
   /**
+   * Independently toggleable from `logoData` itself (07-08, Studio "Logo
+   * in der Mitte" toggle) — the server's `updateQrCodeSchema` (Zod
+   * allowlist, `routes/qrCodes.ts`) already accepts this field and this
+   * file's own PATCH-body comment on that schema already documents it;
+   * this type was simply missing it (Rule 3 fix, 07-08-SUMMARY.md). `true`
+   * with no `logoData` ever stored renders the QR with no composited logo
+   * server-side — the Studio preview's decorative placeholder tile is a
+   * client-only affordance, never a claim about the exported bytes.
+   */
+  logoEnabled?: boolean;
+  /**
    * Omitted keeps the current logo unchanged, `null` clears it, a base64
    * data string (PNG or SVG) sets/replaces it. The server independently
    * re-validates the decoded bytes via `normalizeLogo` (magic-byte
