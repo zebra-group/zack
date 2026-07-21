@@ -57,6 +57,27 @@ const NON_SQUARE_LOGO = {
 const GEOMETRY_TOLERANCE_PX = 3;
 
 /**
+ * A deliberately LARGE, incompressible logo (800x800 of random RGBA noise,
+ * ~1.9 MiB as PNG) — a solid-colour fixture would compress to a few hundred
+ * bytes and could not distinguish "embedded the upload" from "embedded a
+ * resized tile".
+ */
+async function largeNoisePng(): Promise<Buffer> {
+  const side = 800;
+  const raw = Buffer.alloc(side * side * 4);
+  // Deterministic pseudo-random fill (no seeded-RNG dependency needed).
+  let state = 0x12345678;
+  for (let i = 0; i < raw.length; i += 4) {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    raw[i] = state & 0xff;
+    raw[i + 1] = (state >>> 8) & 0xff;
+    raw[i + 2] = (state >>> 16) & 0xff;
+    raw[i + 3] = 0xff;
+  }
+  return sharp(raw, { raw: { width: side, height: side, channels: 4 } }).png().toBuffer();
+}
+
+/**
  * Decodes an image buffer (PNG bytes, or a pre-rasterized SVG-as-PNG buffer)
  * back to its encoded QR payload string, or null if no code was found.
  * Source: 07-RESEARCH.md Code Example 2.
@@ -223,6 +244,28 @@ describe("single-geometry guarantee (PNG rasterizes the exact SVG geometry, neve
     // markedly wider than it is tall. (Guards against the test passing
     // because BOTH paths were changed to crop to a square.)
     expect(fromPng.width).toBeGreaterThan(fromPng.height * 2);
+  });
+
+  // renderQrSvg base64-embedded the ORIGINAL uploaded bytes while displaying
+  // them in a ~46px tile — with LOGO_DATA_MAX_LENGTH allowing a ~1.36 MiB
+  // stored logo, every render.svg response carried ~1.8 MiB of base64 for a
+  // thumbnail, at 120 req/min/IP. The PNG path already resized first.
+  it("embeds a TILE-SIZED logo in the SVG, never the full-resolution upload", async () => {
+    const largeLogo = { bytes: await largeNoisePng() };
+
+    const svg = await renderQrSvg(TARGET, { color: "#17170f", logo: largeLogo });
+
+    const dim = Number(/<svg[^>]*\swidth="(\d+)"/.exec(svg)?.[1]);
+    const base64 = /href="data:image\/png;base64,([^"]+)"/.exec(svg)?.[1];
+    expect(base64).toBeTruthy();
+    const embedded = Buffer.from(base64 as string, "base64");
+    const meta = await sharp(embedded).metadata();
+
+    // Resized into the square tile box, exactly as the PNG path does.
+    expect(meta.width).toBe(meta.height);
+    expect(meta.width as number).toBeLessThan(dim / 2);
+    // And the payload actually shrank rather than merely being re-declared.
+    expect(embedded.length).toBeLessThan(largeLogo.bytes.length / 10);
   });
 });
 
