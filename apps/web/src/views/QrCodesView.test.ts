@@ -7,20 +7,22 @@
  * session.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { LinkDTO, QrCodeDTO } from "@kurzly/shared";
+import type { LinkDTO, QrCodeDTO, QrRemapHistoryEntryDTO } from "@kurzly/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 import QrCodesView from "./QrCodesView.vue";
 
-const { createQrCode, listLinks, listQrCodes } = vi.hoisted(() => ({
+const { createQrCode, getQrRemapHistory, listLinks, listQrCodes, remapQrCode } = vi.hoisted(() => ({
   createQrCode: vi.fn(),
+  getQrRemapHistory: vi.fn(),
   listLinks: vi.fn(),
   listQrCodes: vi.fn(),
+  remapQrCode: vi.fn(),
 }));
 
 vi.mock("../api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api")>();
-  return { ...actual, createQrCode, listLinks, listQrCodes };
+  return { ...actual, createQrCode, getQrRemapHistory, listLinks, listQrCodes, remapQrCode };
 });
 
 function makeLink(overrides: Partial<LinkDTO> = {}): LinkDTO {
@@ -69,8 +71,13 @@ function makeRouter() {
 
 beforeEach(() => {
   createQrCode.mockReset();
+  getQrRemapHistory.mockReset();
   listLinks.mockReset();
   listQrCodes.mockReset();
+  remapQrCode.mockReset();
+  // Default: no history for any QR unless a test overrides it — every
+  // dynamic card fetches its own history on load (Task 3).
+  getQrRemapHistory.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -200,5 +207,116 @@ describe("QrCodesView", () => {
     const cards = wrapper.findAll(".qr-card");
     expect(cards[0]?.classes()).not.toContain("selected");
     expect(cards[1]?.classes()).toContain("selected");
+  });
+
+  it("remaps a dynamic QR's target optimistically and toasts success", async () => {
+    const links = [makeLink({ id: "l1", slug: "abc123" }), makeLink({ id: "l2", slug: "zzz999" })];
+    const qrCodes = [makeQrCode({ id: "qr1", variant: "dynamic", linkId: "l1", name: "Mein QR" })];
+    listQrCodes.mockResolvedValue(qrCodes);
+    listLinks.mockResolvedValue(links);
+
+    const { wrapper } = await mountQrCodesView();
+    await flushPromises();
+
+    let resolveRemap: (value: QrCodeDTO) => void = () => {};
+    remapQrCode.mockReturnValue(new Promise((resolve) => (resolveRemap = resolve)));
+
+    const select = wrapper.find(".qr-card select");
+    await select.setValue("l2");
+
+    // Optimistic: the select already reflects the new target before the
+    // remapQrCode promise resolves.
+    expect((select.element as HTMLSelectElement).value).toBe("l2");
+    expect(remapQrCode).toHaveBeenCalledWith("qr1", "l2");
+
+    resolveRemap(makeQrCode({ id: "qr1", variant: "dynamic", linkId: "l2", name: "Mein QR" }));
+    await flushPromises();
+
+    expect(wrapper.find(".toast").text()).toBe("Mein QR zeigt jetzt auf /zzz999");
+  });
+
+  it("reverts the select and toasts failure when a remap fails", async () => {
+    const links = [makeLink({ id: "l1", slug: "abc123" }), makeLink({ id: "l2", slug: "zzz999" })];
+    const qrCodes = [makeQrCode({ id: "qr1", variant: "dynamic", linkId: "l1", name: "Mein QR" })];
+    listQrCodes.mockResolvedValue(qrCodes);
+    listLinks.mockResolvedValue(links);
+
+    const { wrapper } = await mountQrCodesView();
+    await flushPromises();
+
+    remapQrCode.mockRejectedValue(new Error("network down"));
+
+    const select = wrapper.find(".qr-card select");
+    await select.setValue("l2");
+    await flushPromises();
+
+    expect((select.element as HTMLSelectElement).value).toBe("l1");
+    expect(wrapper.find(".toast").text()).toBe("Umstellung fehlgeschlagen. Bitte erneut versuchen.");
+  });
+
+  it("shows the disabled select for a static QR without a remap handler firing", async () => {
+    const links = [makeLink({ id: "l1", slug: "abc123" })];
+    const qrCodes = [makeQrCode({ id: "qr1", variant: "static", code: null, linkId: "l1" })];
+    listQrCodes.mockResolvedValue(qrCodes);
+    listLinks.mockResolvedValue(links);
+
+    const { wrapper } = await mountQrCodesView();
+    await flushPromises();
+
+    expect(wrapper.find(".qr-card select").attributes("disabled")).toBeDefined();
+    expect(remapQrCode).not.toHaveBeenCalled();
+  });
+
+  it("shows the latest history line inline and reveals the full Verlauf on expand (newest first)", async () => {
+    const links = [
+      makeLink({ id: "l1", slug: "alt" }),
+      makeLink({ id: "l2", slug: "mittel" }),
+      makeLink({ id: "l3", slug: "neu" }),
+    ];
+    const qrCodes = [makeQrCode({ id: "qr1", variant: "dynamic", linkId: "l3" })];
+    const history: QrRemapHistoryEntryDTO[] = [
+      { id: "h1", qrCodeId: "qr1", fromLinkId: "l1", toLinkId: "l2", createdAt: "2026-07-10T00:00:00.000Z" },
+      { id: "h2", qrCodeId: "qr1", fromLinkId: "l2", toLinkId: "l3", createdAt: "2026-07-20T00:00:00.000Z" },
+    ];
+    listQrCodes.mockResolvedValue(qrCodes);
+    listLinks.mockResolvedValue(links);
+    getQrRemapHistory.mockResolvedValue(history);
+
+    const { wrapper } = await mountQrCodesView();
+    await flushPromises();
+
+    expect(getQrRemapHistory).toHaveBeenCalledWith("qr1");
+
+    const historyLine = wrapper.find(".history-line");
+    expect(historyLine.exists()).toBe(true);
+    expect(historyLine.text()).toBe("Historie: /mittel ➜ /neu (gerade geändert)");
+
+    const expander = wrapper.find(".verlauf-expander");
+    expect(expander.exists()).toBe(true);
+    expect(expander.text()).toBe("Verlauf (2)");
+    expect(wrapper.find(".verlauf-list").exists()).toBe(false);
+
+    await expander.trigger("click");
+
+    const rows = wrapper.findAll(".verlauf-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.text()).toBe("/mittel ➜ /neu · 20.07.2026");
+    expect(rows[1]?.text()).toBe("/alt ➜ /mittel · 10.07.2026");
+  });
+
+  it("does not show a Verlauf expander for exactly one history entry", async () => {
+    const links = [makeLink({ id: "l1", slug: "alt" }), makeLink({ id: "l2", slug: "neu" })];
+    const qrCodes = [makeQrCode({ id: "qr1", variant: "dynamic", linkId: "l2" })];
+    listQrCodes.mockResolvedValue(qrCodes);
+    listLinks.mockResolvedValue(links);
+    getQrRemapHistory.mockResolvedValue([
+      { id: "h1", qrCodeId: "qr1", fromLinkId: "l1", toLinkId: "l2", createdAt: "2026-07-20T00:00:00.000Z" },
+    ]);
+
+    const { wrapper } = await mountQrCodesView();
+    await flushPromises();
+
+    expect(wrapper.find(".history-line").text()).toBe("Historie: /alt ➜ /neu (gerade geändert)");
+    expect(wrapper.find(".verlauf-expander").exists()).toBe(false);
   });
 });
