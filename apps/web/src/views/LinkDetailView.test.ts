@@ -5,23 +5,42 @@
  * `router.push` navigation resolve without a real session.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { DomainDTO, LinkAnalyticsDTO, LinkDTO } from "@kurzly/shared";
+import type { DomainDTO, LinkAnalyticsDTO, LinkDTO, QrCodeDTO } from "@kurzly/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 import LinkDetailView from "./LinkDetailView.vue";
 import { ApiError } from "../api";
 
-const { deleteLink, getLink, getLinkAnalytics, listDomains, updateLink } = vi.hoisted(() => ({
+const {
+  createQrCode,
+  deleteLink,
+  getLink,
+  getLinkAnalytics,
+  listDomains,
+  listQrCodes,
+  updateLink,
+} = vi.hoisted(() => ({
+  createQrCode: vi.fn(),
   deleteLink: vi.fn(),
   getLink: vi.fn(),
   getLinkAnalytics: vi.fn(),
   listDomains: vi.fn(),
+  listQrCodes: vi.fn(),
   updateLink: vi.fn(),
 }));
 
 vi.mock("../api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api")>();
-  return { ...actual, deleteLink, getLink, getLinkAnalytics, listDomains, updateLink };
+  return {
+    ...actual,
+    createQrCode,
+    deleteLink,
+    getLink,
+    getLinkAnalytics,
+    listDomains,
+    listQrCodes,
+    updateLink,
+  };
 });
 
 function makeAnalytics(overrides: Partial<LinkAnalyticsDTO> = {}): LinkAnalyticsDTO {
@@ -72,22 +91,48 @@ function makeLink(overrides: Partial<LinkDTO> = {}): LinkDTO {
   };
 }
 
+/**
+ * 07-09 (Surface B, QR-01): the "QR-Code" entry-point button looks up
+ * any existing static QR for this link via `listQrCodes` (no by-link
+ * query param on `GET /api/qr-codes` — filtered client-side).
+ */
+function makeQrCode(overrides: Partial<QrCodeDTO> = {}): QrCodeDTO {
+  return {
+    id: "qr1",
+    variant: "static",
+    linkId: "l1",
+    code: null,
+    name: "QR für /abc123",
+    color: "#17170f",
+    roundedModules: false,
+    logoEnabled: false,
+    lifetimeScans: 0,
+    createdBy: "u1",
+    createdAt: "2026-07-11T00:00:00.000Z",
+    updatedAt: "2026-07-11T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
 function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
     routes: [
       { path: "/links", name: "links", component: { template: "<div>links</div>" } },
       { path: "/links/:id", name: "link-detail", component: LinkDetailView },
+      { path: "/qr-codes", name: "qr-codes", component: { template: "<div>qr-codes</div>" } },
     ],
   });
 }
 
 beforeEach(() => {
+  createQrCode.mockReset();
   deleteLink.mockReset();
   getLink.mockReset();
   getLinkAnalytics.mockReset();
   getLinkAnalytics.mockResolvedValue(makeAnalytics());
   listDomains.mockReset();
+  listQrCodes.mockReset();
   updateLink.mockReset();
   vi.stubGlobal("navigator", {
     clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
@@ -270,7 +315,8 @@ describe("LinkDetailView", () => {
 
     const { wrapper } = await mountDetailView();
 
-    await wrapper.find(".action-button").trigger("click");
+    // Action-row order (07-09): QR-Code(0), Kopieren(1), Bearbeiten(2), Löschen(3).
+    await wrapper.findAll(".action-button")[1]!.trigger("click");
     await flushPromises();
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("https://s.meinefirma.de/abc123");
@@ -289,7 +335,7 @@ describe("LinkDetailView", () => {
     const { wrapper } = await mountDetailView();
 
     const buttons = wrapper.findAll(".action-button");
-    await buttons[1]!.trigger("click"); // ✎ Bearbeiten
+    await buttons[2]!.trigger("click"); // ✎ Bearbeiten (07-09: index shifted by the new QR-Code button)
     await flushPromises();
 
     expect(wrapper.text()).toContain("Achtung: Slug-Änderung");
@@ -319,7 +365,7 @@ describe("LinkDetailView", () => {
     const { wrapper } = await mountDetailView();
 
     const buttons = wrapper.findAll(".action-button");
-    await buttons[1]!.trigger("click"); // ✎ Bearbeiten
+    await buttons[2]!.trigger("click"); // ✎ Bearbeiten (07-09: index shifted by the new QR-Code button)
     await flushPromises();
 
     await wrapper.find(".btn-primary").trigger("click");
@@ -336,7 +382,7 @@ describe("LinkDetailView", () => {
     const { wrapper, router } = await mountDetailView();
 
     const buttons = wrapper.findAll(".action-button");
-    await buttons[2]!.trigger("click"); // 🗑 Löschen
+    await buttons[3]!.trigger("click"); // 🗑 Löschen (07-09: index shifted by the new QR-Code button)
     await flushPromises();
 
     expect(wrapper.find(".delete-dialog").exists()).toBe(true);
@@ -354,6 +400,49 @@ describe("LinkDetailView", () => {
     await flushPromises();
 
     expect(router.currentRoute.value.name).toBe("links");
+  });
+
+  // 07-09 (Surface B, QR-01): the "QR-Code" action button (first position,
+  // no icon) either deep-links to an existing static QR or creates one on
+  // the spot (no dialog) then deep-links and toasts.
+  it("QR-Code: deep-links to an existing static QR for this link without creating a new one", async () => {
+    listDomains.mockResolvedValue([makeDomain({ id: "d1" })]);
+    getLink.mockResolvedValue(makeLink({ id: "l1", domainId: "d1", slug: "abc123" }));
+    listQrCodes.mockResolvedValue([
+      makeQrCode({ id: "qr-static", variant: "static", linkId: "l1" }),
+      makeQrCode({ id: "qr-other", variant: "dynamic", linkId: "l9" }),
+    ]);
+
+    const { wrapper, router } = await mountDetailView();
+
+    await wrapper.findAll(".action-button")[0]!.trigger("click"); // QR-Code
+    await flushPromises();
+
+    expect(listQrCodes).toHaveBeenCalled();
+    expect(createQrCode).not.toHaveBeenCalled();
+    expect(router.currentRoute.value.name).toBe("qr-codes");
+    expect(router.currentRoute.value.query.selected).toBe("qr-static");
+  });
+
+  it("QR-Code: creates a static QR with the default name when none exists, then deep-links and toasts", async () => {
+    listDomains.mockResolvedValue([makeDomain({ id: "d1" })]);
+    getLink.mockResolvedValue(makeLink({ id: "l1", domainId: "d1", slug: "abc123" }));
+    listQrCodes.mockResolvedValue([]);
+    createQrCode.mockResolvedValue(makeQrCode({ id: "qr-new", variant: "static", linkId: "l1" }));
+
+    const { wrapper, router } = await mountDetailView();
+
+    await wrapper.findAll(".action-button")[0]!.trigger("click"); // QR-Code
+    await flushPromises();
+
+    expect(createQrCode).toHaveBeenCalledWith({
+      variant: "static",
+      linkId: "l1",
+      name: "QR für /abc123",
+    });
+    expect(router.currentRoute.value.name).toBe("qr-codes");
+    expect(router.currentRoute.value.query.selected).toBe("qr-new");
+    expect(wrapper.find(".toast").text()).toBe("QR-Code erstellt");
   });
 
   it("shows a not-found state and does not crash when getLink 404s", async () => {
