@@ -68,7 +68,7 @@
 import { fromNodeHeaders } from "better-auth/node";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import type { Link, PrismaClient, QrCode } from "../generated/prisma/client.js";
+import type { Domain, Link, PrismaClient, QrCode } from "../generated/prisma/client.js";
 import type { createAuth } from "../lib/auth.js";
 import { scopedDomainIds } from "../lib/authorization.js";
 import { InvalidColorError, InvalidLogoError, renderQrPng, renderQrSvg, type RenderStyle } from "../lib/qr.js";
@@ -86,8 +86,13 @@ import { QR_CREATE_RATE_LIMIT, QR_RENDER_RATE_LIMIT } from "../plugins/rateLimit
 
 type Auth = ReturnType<typeof createAuth>;
 
-/** A QrCode row plus its bound/current-target Link — resolveOwnedQrCode's return shape. */
-type QrCodeWithLink = QrCode & { link: Link };
+/**
+ * A QrCode row plus its bound/current-target Link AND that Link's owning
+ * Domain — resolveOwnedQrCode's return shape. The Domain is joined eagerly
+ * (not lazily re-queried) because `resolveQrPayload` needs `domain.hostname`
+ * to build a static QR's short-link URL on every render.
+ */
+type QrCodeWithLink = QrCode & { link: Link & { domain: Domain } };
 
 /**
  * Strict CSS hex (`#RGB` or `#RRGGBB`) — deliberately duplicates
@@ -174,9 +179,9 @@ async function resolveUserId(auth: Auth, request: FastifyRequest): Promise<strin
  * the bound Link's `domainId` since QrCode has no `domainId` column of its
  * own. `scopedDomainIds` always runs FIRST regardless of whether the
  * QrCode even exists, so found/not-found/forbidden all cost the same query
- * count (no timing side channel). Includes the `link` relation so render
- * endpoints below never need a second query to resolve a static QR's
- * target URL.
+ * count (no timing side channel). Includes the `link` relation AND that
+ * Link's `domain` so render endpoints below never need a second query to
+ * build a static QR's short-link payload (`{domain.hostname}/{link.slug}`).
  */
 async function resolveOwnedQrCode(
   prisma: PrismaClient,
@@ -186,7 +191,7 @@ async function resolveOwnedQrCode(
   const domainIds = await scopedDomainIds(prisma, userId);
   return prisma.qrCode.findFirst({
     where: { id, link: { domainId: { in: domainIds } } },
-    include: { link: true },
+    include: { link: { include: { domain: true } } },
   });
 }
 
@@ -199,22 +204,30 @@ function requireEnv(key: string): string {
 }
 
 /**
- * Resolves the payload string a QR encodes (QR-06). A `static` QR encodes
- * its bound Link's `targetUrl` DIRECTLY — already validated by
- * `validateTargetUrl`'s http(s)-only scheme allowlist at Link-creation time
- * (07-RESEARCH.md Security Domain: "the QR payload is always
- * Link.targetUrl ... the QR generator never encodes a client-supplied raw
- * URL directly"). A `dynamic` QR instead encodes THIS instance's own
- * stable `/q/:code` short URL — re-pointing it (`remapQrCode`) changes its
- * CURRENT target but never this printed URL (QR-03's headline guarantee),
- * which is the entire reason a dynamic QR's `code` exists independently of
- * any one Link.
+ * Resolves the payload string a QR encodes (QR-06). BOTH variants encode a
+ * Kurzly URL — never the raw destination — so every scan is a real request
+ * to this service.
+ *
+ * A `static` QR encodes its bound Link's OWN short URL
+ * (`https://{domain.hostname}/{slug}`), matching QR-01 ("statischer
+ * QR-Code zu einem Kurzlink"), 07-CONTEXT.md's "static QR bound to an
+ * existing short link", and ROADMAP Phase 7 success criterion 1. Encoding
+ * `Link.targetUrl` instead would send the scanner straight to the
+ * destination: `resolveLinkState`'s password gate and expiry gate would
+ * never run, the click hook would never fire (so the code's scan count
+ * would stay 0 forever), and editing the Link's target later would
+ * silently invalidate every already-printed code.
+ *
+ * A `dynamic` QR instead encodes THIS instance's own stable `/q/:code`
+ * short URL — re-pointing it (`remapQrCode`) changes its CURRENT target
+ * but never this printed URL (QR-03's headline guarantee), which is the
+ * entire reason a dynamic QR's `code` exists independently of any one Link.
  */
 function resolveQrPayload(qrCode: QrCodeWithLink): string {
   if (qrCode.variant === "dynamic") {
     return `${requireEnv("BASE_URL")}/q/${qrCode.code}`;
   }
-  return qrCode.link.targetUrl;
+  return `https://${qrCode.link.domain.hostname}/${qrCode.link.slug}`;
 }
 
 /** Builds the `lib/qr.ts` render style from a QrCode's CURRENTLY stored fields — never a client-supplied style at render time. */
