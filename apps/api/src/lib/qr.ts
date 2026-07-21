@@ -186,6 +186,18 @@ export function buildModuleSvg(payload: string, errorCorrectionLevel: QrErrorCor
 }
 
 /**
+ * Fits a normalized logo into the square `logoTilePx` box, letterboxed on
+ * transparency — the ONE place logo tile geometry is computed, shared by
+ * `renderQrSvg` and `renderQrPng` so the two exports can never diverge.
+ */
+async function resizeLogoToTile(logoBuffer: Buffer, logoTilePx: number): Promise<Buffer> {
+  return sharp(logoBuffer)
+    .resize(logoTilePx, logoTilePx, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+}
+
+/**
  * Returns the styled SVG string for a QR code. When `style.logo` is
  * present, a centered `<image>` (base64 data-URI of the normalized logo
  * PNG) is injected at the same relative size/position the PNG composite
@@ -208,12 +220,17 @@ export async function renderQrSvg(payload: string, style: RenderStyle = {}): Pro
   const dim = qrDimensionPx(payload, errorCorrectionLevel, moduleStyle.moduleSizePx);
   const logoTilePx = dim * LOGO_TILE_FRACTION;
   const offset = (dim - logoTilePx) / 2;
-  const dataUri = `data:image/png;base64,${normalizedLogo.buffer.toString("base64")}`;
-  // `meet` is the SVG spelling of sharp's `fit: "contain"` — the fit the PNG
-  // path below uses. `slice` (= cover) would scale the logo up and CROP it to
-  // fill the square tile, so a non-square logo came out as visibly different
-  // artwork in the two exports from the same stored bytes. Both paths must
-  // letterbox identically (single-geometry guarantee, proven by
+  // Resize to the tile BEFORE embedding, exactly as the PNG path does.
+  // Base64-embedding the original upload meant every render.svg response
+  // carried up to ~1.8 MiB for a ~46px tile (LOGO_DATA_MAX_LENGTH permits a
+  // ~1.36 MiB stored logo) on the highest-rate-limit endpoint in the app.
+  const resizedLogo = await resizeLogoToTile(normalizedLogo.buffer, Math.round(logoTilePx));
+  const dataUri = `data:image/png;base64,${resizedLogo.toString("base64")}`;
+  // `meet` is the SVG spelling of sharp's `fit: "contain"` — the fit
+  // resizeLogoToTile uses. `slice` (= cover) would scale the logo up and CROP
+  // it to fill the square tile, so a non-square logo came out as visibly
+  // different artwork in the two exports from the same stored bytes. Both
+  // paths must letterbox identically (single-geometry guarantee, proven by
   // qrDecode.test.ts's non-square parity test).
   const imageTag = `<image x="${offset}" y="${offset}" width="${logoTilePx}" height="${logoTilePx}" href="${dataUri}" preserveAspectRatio="xMidYMid meet"/>`;
   return svg.replace("</svg>", `${imageTag}</svg>`);
@@ -238,10 +255,7 @@ export async function renderQrPng(payload: string, style: RenderStyle = {}): Pro
   const normalizedLogo = await normalizeLogo(style.logo);
   const dim = qrDimensionPx(payload, errorCorrectionLevel, moduleStyle.moduleSizePx);
   const logoTilePx = Math.round(dim * LOGO_TILE_FRACTION);
-  const resizedLogo = await sharp(normalizedLogo.buffer)
-    .resize(logoTilePx, logoTilePx, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png()
-    .toBuffer();
+  const resizedLogo = await resizeLogoToTile(normalizedLogo.buffer, logoTilePx);
 
   return sharp(basePng)
     .composite([{ input: resizedLogo, gravity: "centre" }])
