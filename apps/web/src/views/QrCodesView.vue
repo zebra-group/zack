@@ -23,6 +23,16 @@
  * reversing the API's oldest-first convention) and extended locally with
  * one synthetic entry per successful remap (avoids a redundant re-fetch
  * for information the just-succeeded response already proves happened).
+ *
+ * Studio column (07-08): `QrStudioPanel.vue` now fills the previously
+ * header-only placeholder — it owns its full 360px shell, receives the
+ * selected QR as a prop, and emits `styled` after every successful
+ * style/logo mutation. `handleStyled` below syncs that updated DTO back
+ * into `qrCodes` (mirrors `handleRemapChange`'s array-splice-on-success)
+ * AND bumps `renderVersions[id]`, which the list thumbnail's `src` uses as
+ * a cache-busting query param — otherwise an unchanged `<img src>` string
+ * would never actually re-fetch the just-restyled render (a same-string
+ * `src` reassignment does not force a new network request).
  */
 import { computed, ref } from "vue";
 import { useRoute } from "vue-router";
@@ -36,6 +46,7 @@ import {
   remapQrCode,
 } from "../api";
 import { formatDate } from "../lib/format";
+import QrStudioPanel from "../components/QrStudioPanel.vue";
 
 const route = useRoute();
 
@@ -48,6 +59,9 @@ const selectedQrId = ref<string | null>(null);
 /** Newest-first per dynamic QR id (QR-04) — see header comment for the load/remap population strategy. */
 const historyByQr = ref<Record<string, QrRemapHistoryEntryDTO[]>>({});
 const expandedHistory = ref<Set<string>>(new Set());
+
+/** Cache-busting counter per QR id (07-08) — bumped by `handleStyled`, appended to the list thumbnail's render URL. */
+const renderVersions = ref<Record<string, number>>({});
 
 const toastMessage = ref<string | null>(null);
 let toastTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -74,6 +88,19 @@ function linkSlugFor(linkId: string): string {
 function codeDisplay(qr: QrCodeDTO): string {
   if (qr.variant === "dynamic") return `/q/${qr.code}`;
   return linkSlugFor(qr.linkId);
+}
+
+/** Thumbnail `<img>` src (07-08) — appends the per-QR render-version cache-buster so a Studio style change is reflected here too. */
+function thumbnailSrc(qr: QrCodeDTO): string {
+  const version = renderVersions.value[qr.id];
+  return version ? `${qrRenderPngUrl(qr.id)}?v=${version}` : qrRenderPngUrl(qr.id);
+}
+
+/** QrStudioPanel's `@styled` handler (07-08) — syncs the updated DTO into the list and busts the matching thumbnail's cache. */
+function handleStyled(updated: QrCodeDTO): void {
+  const idx = qrCodes.value.findIndex((q) => q.id === updated.id);
+  if (idx !== -1) qrCodes.value[idx] = updated;
+  renderVersions.value[updated.id] = (renderVersions.value[updated.id] ?? 0) + 1;
 }
 
 /** Newest-first history for one QR (empty for a static QR or one with no remaps yet). */
@@ -283,7 +310,7 @@ loadAll();
           @click="selectCard(qr)"
         >
           <div class="card-header">
-            <img class="thumbnail" :src="qrRenderPngUrl(qr.id)" alt="" />
+            <img class="thumbnail" :src="thumbnailSrc(qr)" alt="" />
             <div class="meta-block">
               <div class="name-row">
                 <span class="qr-name">{{ qr.name }}</span>
@@ -331,12 +358,7 @@ loadAll();
         </div>
       </div>
 
-      <div class="studio-panel">
-        <div class="studio-header">
-          <h2 class="studio-title">QR-Studio</h2>
-          <span v-if="selectedQr" class="studio-code">{{ codeDisplay(selectedQr) }}</span>
-        </div>
-      </div>
+      <QrStudioPanel v-if="selectedQr" :qr="selectedQr" @styled="handleStyled" @toast="showToast" />
     </div>
   </div>
 
