@@ -41,6 +41,22 @@ const LOGO_PNG = { bytes: readFileSync(path.join(__dirname, "fixtures", "qr-logo
 const LOGO_SVG = { bytes: readFileSync(path.join(__dirname, "fixtures", "qr-logo.svg")) };
 
 /**
+ * Deliberately 4:1 (200x50) magenta — a colour that appears nowhere in a
+ * black-on-white QR symbol, so its composited pixels can be isolated
+ * exactly. Used by the PNG/SVG logo-geometry parity test below.
+ */
+const NON_SQUARE_LOGO = {
+  bytes: await sharp({
+    create: { width: 200, height: 50, channels: 4, background: { r: 255, g: 0, b: 255, alpha: 1 } },
+  })
+    .png()
+    .toBuffer(),
+};
+
+/** Rasterization/rounding slack between the two export paths, in pixels. */
+const GEOMETRY_TOLERANCE_PX = 3;
+
+/**
  * Decodes an image buffer (PNG bytes, or a pre-rasterized SVG-as-PNG buffer)
  * back to its encoded QR payload string, or null if no code was found.
  * Source: 07-RESEARCH.md Code Example 2.
@@ -49,6 +65,32 @@ async function decode(imageBuffer: Buffer): Promise<string | null> {
   const { data, info } = await sharp(imageBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const result = jsQR(new Uint8ClampedArray(data), info.width, info.height);
   return result?.data ?? null;
+}
+
+/** Pixel bounding box of NON_SQUARE_LOGO's magenta inside a rendered QR image. */
+async function logoBoundingBox(
+  imageBuffer: Buffer,
+): Promise<{ minX: number; minY: number; width: number; height: number }> {
+  const { data, info } = await sharp(imageBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (let y = 0; y < info.height; y++) {
+    for (let x = 0; x < info.width; x++) {
+      const i = (y * info.width + x) * info.channels;
+      const isMagenta = data[i] > 200 && data[i + 1] < 80 && data[i + 2] > 200 && data[i + 3] > 200;
+      if (!isMagenta) continue;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+
+  if (maxX < minX) throw new Error("no logo pixels found in the rendered image");
+  return { minX, minY, width: maxX - minX + 1, height: maxY - minY + 1 };
 }
 
 describe("dark-module color validation (SVG attribute-injection / XSS guard)", () => {
@@ -152,6 +194,35 @@ describe("single-geometry guarantee (PNG rasterizes the exact SVG geometry, neve
     const fromRenderQrSvg = await renderQrSvg(TARGET, style);
     const fromBuildModuleSvg = buildModuleSvg(TARGET, "M", style);
     expect(fromRenderQrSvg).toBe(fromBuildModuleSvg);
+  });
+
+  // The byte-identity case above only covers the NO-LOGO path, so nothing
+  // caught the two export paths compositing the logo with different fit
+  // semantics: the SVG path used preserveAspectRatio="...slice" (cover —
+  // scale up and CROP to fill the tile) while the PNG path resized with
+  // fit:"contain" (letterbox, never crop). A non-square logo therefore
+  // rendered as visibly different artwork from the same stored bytes.
+  it("composites a NON-SQUARE logo into the same box in both the PNG and the SVG export", async () => {
+    const style = { color: "#17170f", rounded: false, moduleSizePx: 10, logo: NON_SQUARE_LOGO };
+
+    const png = await renderQrPng(TARGET, style);
+    const svg = await renderQrSvg(TARGET, style);
+    const rasterizedSvg = await sharp(Buffer.from(svg)).png().toBuffer();
+
+    const fromPng = await logoBoundingBox(png);
+    const fromSvg = await logoBoundingBox(rasterizedSvg);
+
+    // Both exports must place the logo at the same origin and give it the
+    // same extent (a couple of px of rasterization/rounding slack only).
+    expect(Math.abs(fromPng.width - fromSvg.width)).toBeLessThanOrEqual(GEOMETRY_TOLERANCE_PX);
+    expect(Math.abs(fromPng.height - fromSvg.height)).toBeLessThanOrEqual(GEOMETRY_TOLERANCE_PX);
+    expect(Math.abs(fromPng.minX - fromSvg.minX)).toBeLessThanOrEqual(GEOMETRY_TOLERANCE_PX);
+    expect(Math.abs(fromPng.minY - fromSvg.minY)).toBeLessThanOrEqual(GEOMETRY_TOLERANCE_PX);
+
+    // Sanity: the fixture really is 4:1, so a `contain` fit must stay
+    // markedly wider than it is tall. (Guards against the test passing
+    // because BOTH paths were changed to crop to a square.)
+    expect(fromPng.width).toBeGreaterThan(fromPng.height * 2);
   });
 });
 
