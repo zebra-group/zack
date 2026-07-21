@@ -18,6 +18,7 @@ import LinkDetailView from "../views/LinkDetailView.vue";
 import LinksImportView from "../views/LinksImportView.vue";
 import LinksView from "../views/LinksView.vue";
 import LoginView from "../views/LoginView.vue";
+import QrCodesView from "../views/QrCodesView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -61,7 +62,7 @@ const router = createRouter({
     {
       path: "/qr-codes",
       name: "qr-codes",
-      component: ComingSoonView,
+      component: QrCodesView,
       meta: { requiresAuth: true, label: "QR-Codes" },
     },
     {
