@@ -1492,6 +1492,76 @@ describe("PATCH /api/qr-codes/:id logoData upload (route layer, T-07-LOGO-MIME)"
     await app.close();
   });
 
+  // routes/qrCodes.ts's own documented contract: "InvalidLogoError /
+  // InvalidColorError ... always map to 400, never an unhandled 500". Input
+  // that PASSES the magic-byte sniff but that sharp cannot decode used to
+  // escape normalizeLogo as a plain Error, get rethrown by updateQrCode, and
+  // reach the un-try/catch'd PATCH handler as a 500 — reachable by any
+  // authenticated member from a ~200 byte upload.
+  it("logo: a PNG-signature-prefixed buffer with a corrupt body is a typed 400 (INVALID_LOGO), never a 500", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-logo-corrupt-png.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Corrupt PNG logo",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const corrupt = Buffer.concat([PNG_SIGNATURE, Buffer.alloc(64, 0x41)]).toString("base64");
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { logoEnabled: true, logoData: corrupt },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("INVALID_LOGO");
+    await app.close();
+  });
+
+  it("logo: an SVG declaring huge dimensions is a typed 400 (INVALID_LOGO), never a 500", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-logo-huge-svg.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Huge SVG logo",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const hugeSvg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="60000" height="60000">' +
+        '<rect width="60000" height="60000" fill="#000000"/></svg>',
+    ).toString("base64");
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { logoEnabled: true, logoData: hugeSvg },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("INVALID_LOGO");
+    await app.close();
+  });
+
   it("logo: accepts a data-URI-prefixed base64 PNG (strips the data:...;base64, prefix before decoding)", async () => {
     const app = await buildApp({ prisma });
     const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);

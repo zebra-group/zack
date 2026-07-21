@@ -27,6 +27,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildModuleSvg,
   InvalidColorError,
+  InvalidLogoError,
   normalizeLogo,
   renderQrPng,
   renderQrSvg,
@@ -158,5 +159,23 @@ describe("normalizeLogo (T-07-LOGO-MIME, magic-byte validation, not client-decla
   it("rejects a buffer that is neither a valid PNG signature nor a valid SVG root", async () => {
     const invalid = Buffer.from("not an image, not svg, just plain garbage text");
     await expect(normalizeLogo({ bytes: invalid })).rejects.toThrow();
+  });
+
+  // normalizeLogo is the SINGLE funnel every logo byte passes through, so
+  // every rejection it can produce must be typed. Input it *recognises* but
+  // sharp cannot actually decode used to escape as a plain Error, which
+  // updateQrCode rethrows and the PATCH handler never caught -> 500.
+  it("rejects a PNG-signature-prefixed buffer with a corrupt body as InvalidLogoError, not a raw Error", async () => {
+    const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const corrupt = Buffer.concat([PNG_SIGNATURE, Buffer.alloc(64, 0x41)]);
+    await expect(normalizeLogo({ bytes: corrupt })).rejects.toBeInstanceOf(InvalidLogoError);
+  });
+
+  it("rejects an SVG declaring dimensions beyond the rasterization pixel limit as InvalidLogoError", async () => {
+    const hugeSvg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="60000" height="60000">' +
+        '<rect width="60000" height="60000" fill="#000000"/></svg>',
+    );
+    await expect(normalizeLogo({ bytes: hugeSvg })).rejects.toBeInstanceOf(InvalidLogoError);
   });
 });
