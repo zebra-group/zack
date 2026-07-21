@@ -420,6 +420,24 @@ export function qrRenderSvgUrl(id: string): string {
 }
 
 /**
+ * `GET /api/qr-codes/:id/render.png|svg` — fetched as a `Blob` (07-08, QR
+ * Studio export buttons). A real file download needs the actual bytes (a
+ * plain `<img src>` cannot trigger a save-as), so this is the one
+ * exception to "render URLs are only for `<img>`/`<a>` attributes" above —
+ * still routed through this file (never a bare `fetch()` inside
+ * `QrStudioPanel.vue`), keeping api.ts the sole fetch layer for QR data
+ * (this file's QR client header comment, T-07-FETCHLAYER convention).
+ */
+export async function fetchQrRenderBlob(id: string, format: "png" | "svg"): Promise<Blob> {
+  const url = format === "png" ? qrRenderPngUrl(id) : qrRenderSvgUrl(id);
+  const response = await fetch(url, { method: "GET" });
+  if (!response.ok) {
+    throw new ApiError(response.status, response.statusText);
+  }
+  return response.blob();
+}
+
+/**
  * Maps a submit-time `ApiError` to inline QR-form field/general errors,
  * mirroring `mapLinkFormError` above (04-05's convention: lives in api.ts,
  * not inside an SFC, since the generic `*.vue` module shim only declares a
