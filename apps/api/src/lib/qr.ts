@@ -244,18 +244,42 @@ export async function renderQrPng(payload: string, style: RenderStyle = {}): Pro
 }
 
 /**
+ * Explicit rasterization ceiling for an uploaded logo (~4000x4000). Well
+ * below sharp's own ~268 MP default so the limit is a stated product
+ * decision rather than an implementation detail, and enormously generous
+ * for artwork that ends up in a ~46px tile. Exceeding it raises
+ * `InvalidLogoError`, never an unhandled sharp Error (T-07-DOS-RENDER: a
+ * ~200-byte SVG can otherwise declare a multi-gigapixel canvas).
+ */
+const LOGO_MAX_PIXELS = 16_000_000;
+
+/**
  * Validates uploaded logo bytes by magic-byte sniffing (PNG signature or
  * an SVG/XML root) — NEVER a client-declared `declaredMime` — and, for
  * SVG input, rasterizes to PNG immediately so no later render step ever
  * re-parses the original SVG markup (T-07-LOGO-SVG, 07-RESEARCH.md
- * Pitfall 5). Throws `InvalidLogoError` for anything else.
+ * Pitfall 5).
+ *
+ * This is the SINGLE funnel every logo byte in the codebase passes
+ * through, so it is also the single place logo rejection is typed:
+ * `InvalidLogoError` is the ONLY error it may throw. Recognising the
+ * container (PNG signature / `<svg>` root) does not mean sharp can
+ * actually decode it — a valid PNG signature over a corrupt body, or an
+ * SVG declaring dimensions past `LOGO_MAX_PIXELS`, both make sharp throw a
+ * plain `Error`. Those used to escape through `updateQrCode`'s
+ * rethrow-non-InvalidLogoError branch all the way to an unhandled 500, so
+ * every sharp call below is wrapped and converted here instead.
  */
 export async function normalizeLogo(input: LogoInput): Promise<NormalizedLogo> {
   const { bytes } = input;
 
   if (bytes.length >= 8 && bytes.subarray(0, 8).equals(PNG_SIGNATURE)) {
-    const metadata = await sharp(bytes).metadata();
-    return { buffer: bytes, width: metadata.width ?? 0, height: metadata.height ?? 0 };
+    try {
+      const metadata = await sharp(bytes, { limitInputPixels: LOGO_MAX_PIXELS }).metadata();
+      return { buffer: bytes, width: metadata.width ?? 0, height: metadata.height ?? 0 };
+    } catch (err) {
+      throw new InvalidLogoError(`Unreadable PNG logo: ${(err as Error).message}`);
+    }
   }
 
   const head = bytes.subarray(0, 512).toString("utf8").trimStart();
@@ -263,9 +287,13 @@ export async function normalizeLogo(input: LogoInput): Promise<NormalizedLogo> {
   if (looksLikeSvg) {
     // Rasterize once, now — never store/re-parse the original SVG markup
     // at a later render (07-RESEARCH.md Pitfall 5).
-    const rasterBuffer = await sharp(bytes).png().toBuffer();
-    const metadata = await sharp(rasterBuffer).metadata();
-    return { buffer: rasterBuffer, width: metadata.width ?? 0, height: metadata.height ?? 0 };
+    try {
+      const rasterBuffer = await sharp(bytes, { limitInputPixels: LOGO_MAX_PIXELS }).png().toBuffer();
+      const metadata = await sharp(rasterBuffer).metadata();
+      return { buffer: rasterBuffer, width: metadata.width ?? 0, height: metadata.height ?? 0 };
+    } catch (err) {
+      throw new InvalidLogoError(`Unreadable SVG logo: ${(err as Error).message}`);
+    }
   }
 
   throw new InvalidLogoError("Unsupported logo format: expected a PNG (magic bytes) or an SVG (XML/<svg> root)");

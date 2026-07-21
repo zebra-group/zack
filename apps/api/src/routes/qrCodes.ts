@@ -344,14 +344,29 @@ export function qrCodesRoute(prisma: PrismaClient, auth: Auth) {
         logo = { bytes: decodeLogoData(parsed.data.logoData) };
       }
 
-      const result = await updateQrCode(prisma, id, {
-        userId,
-        name: parsed.data.name,
-        color: parsed.data.color,
-        roundedModules: parsed.data.roundedModules,
-        logoEnabled: parsed.data.logoEnabled,
-        logo,
-      });
+      // Defence-in-depth, mirroring the render handlers below: normalizeLogo
+      // is the single funnel that types every logo rejection as
+      // InvalidLogoError, but this handler must never be the layer that turns
+      // a bad upload into an unhandled 500 (see this file's header contract).
+      let result: Awaited<ReturnType<typeof updateQrCode>>;
+      try {
+        result = await updateQrCode(prisma, id, {
+          userId,
+          name: parsed.data.name,
+          color: parsed.data.color,
+          roundedModules: parsed.data.roundedModules,
+          logoEnabled: parsed.data.logoEnabled,
+          logo,
+        });
+      } catch (err) {
+        if (err instanceof InvalidLogoError) {
+          return reply.code(400).send({ error: "INVALID_LOGO" });
+        }
+        if (err instanceof InvalidColorError) {
+          return reply.code(400).send({ error: err.message });
+        }
+        throw err;
+      }
 
       if (!result.ok) {
         return reply.code(statusForQrErrorOrNotFound(result.error)).send({ error: result.error });
