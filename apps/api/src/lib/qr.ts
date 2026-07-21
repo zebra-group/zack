@@ -209,7 +209,13 @@ export async function renderQrSvg(payload: string, style: RenderStyle = {}): Pro
   const logoTilePx = dim * LOGO_TILE_FRACTION;
   const offset = (dim - logoTilePx) / 2;
   const dataUri = `data:image/png;base64,${normalizedLogo.buffer.toString("base64")}`;
-  const imageTag = `<image x="${offset}" y="${offset}" width="${logoTilePx}" height="${logoTilePx}" href="${dataUri}" preserveAspectRatio="xMidYMid slice"/>`;
+  // `meet` is the SVG spelling of sharp's `fit: "contain"` — the fit the PNG
+  // path below uses. `slice` (= cover) would scale the logo up and CROP it to
+  // fill the square tile, so a non-square logo came out as visibly different
+  // artwork in the two exports from the same stored bytes. Both paths must
+  // letterbox identically (single-geometry guarantee, proven by
+  // qrDecode.test.ts's non-square parity test).
+  const imageTag = `<image x="${offset}" y="${offset}" width="${logoTilePx}" height="${logoTilePx}" href="${dataUri}" preserveAspectRatio="xMidYMid meet"/>`;
   return svg.replace("</svg>", `${imageTag}</svg>`);
 }
 
