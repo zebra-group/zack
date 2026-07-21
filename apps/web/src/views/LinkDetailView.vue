@@ -25,10 +25,12 @@ import { useRoute, useRouter } from "vue-router";
 import type { DomainDTO, LinkAnalyticsDTO, LinkDTO } from "@kurzly/shared";
 import {
   ApiError,
+  createQrCode,
   deleteLink,
   getLink,
   getLinkAnalytics,
   listDomains,
+  listQrCodes,
   mapLinkFormError,
   updateLink,
 } from "../api";
@@ -194,6 +196,43 @@ async function toggleTracking(): Promise<void> {
   }
 }
 
+/**
+ * 07-09 (07-UI-SPEC.md Surface B, QR-01): "QR-Code" entry-point button —
+ * a static QR is 1:1 bound to this Link. `GET /api/qr-codes` has no
+ * by-link filter param, so an existing static QR is looked up via
+ * `listQrCodes()` + a client-side filter (linkId + variant==="static").
+ * If found, this is a pure navigation side-effect (deep-link into the QR
+ * Studio, no dialog). If none exists, create one on the spot — mirrors
+ * "+ Dynamischer QR"'s instant-action philosophy — then deep-link and
+ * toast. Domain/IDOR scoping is already guaranteed server-side (the link
+ * itself was loaded via getLink's IDOR-guarded lookup); createQrCode/
+ * listQrCodes independently re-check requireDomainAccess regardless
+ * (T-07-IDOR) — no extra client-side authorization check is added here.
+ */
+async function handleQrCode(): Promise<void> {
+  if (!link.value) return;
+  const currentLink = link.value;
+  try {
+    const existingQrCodes = await listQrCodes();
+    const existing = existingQrCodes.find(
+      (qr) => qr.variant === "static" && qr.linkId === currentLink.id,
+    );
+    if (existing) {
+      router.push({ name: "qr-codes", query: { selected: existing.id } });
+      return;
+    }
+    const created = await createQrCode({
+      variant: "static",
+      linkId: currentLink.id,
+      name: `QR für /${currentLink.slug}`,
+    });
+    router.push({ name: "qr-codes", query: { selected: created.id } });
+    showToast("QR-Code erstellt");
+  } catch {
+    showToast("QR-Code konnte nicht erstellt werden.");
+  }
+}
+
 async function handleCopy(): Promise<void> {
   if (!link.value) return;
   const url = `https://${hostname.value}/${link.value.slug}`;
@@ -313,6 +352,7 @@ loadDomains();
       </div>
       <div class="spacer"></div>
       <div class="actions">
+        <button type="button" class="action-button" @click="handleQrCode">QR-Code</button>
         <button type="button" class="action-button" @click="handleCopy">⧉ Kopieren</button>
         <button type="button" class="action-button" @click="openEditModal">✎ Bearbeiten</button>
         <button type="button" class="action-button delete" @click="requestDelete">
