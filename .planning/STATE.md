@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 07
 current_phase_name: qr-codes-static-dynamic-qr-studio
 status: executing
-stopped_at: Completed 07-07-PLAN.md
-last_updated: "2026-07-21T08:13:20.842Z"
+stopped_at: Completed 07-09-PLAN.md
+last_updated: "2026-07-21T08:27:04.267Z"
 last_activity: 2026-07-21
 last_activity_desc: Phase 07 execution started
 progress:
   total_phases: 10
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 47
-  completed_plans: 46
-  percent: 60
+  completed_plans: 47
+  percent: 70
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 ## Current Position
 
 Phase: 07 (qr-codes-static-dynamic-qr-studio) — EXECUTING
-Plan: 3 of 9
+Plan: 4 of 9
 Status: Ready to execute
 Last activity: 2026-07-21 — Phase 07 execution started
 
@@ -103,6 +103,7 @@ Progress: [█████░░░░░] 50%
 | Phase 07-qr-codes-static-dynamic-qr-studio P06 | 55min | 3 tasks | 5 files |
 | Phase 07 P07 | 25min | 3 tasks | 5 files |
 | Phase 07 P08 | 20min | 3 tasks | 5 files |
+| Phase 07 P09 | 20min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -203,6 +204,9 @@ Recent decisions affecting current work:
 - [Phase 07-qr-codes-static-dynamic-qr-studio]: 07-07: apps/web/src/api.qr.test.ts added (Rule 2, MVP+TDD gate) to give Task 1's api.ts additions a RED/GREEN home; no api.test.ts precedent existed in this codebase
 - [Phase 07-qr-codes-static-dynamic-qr-studio]: 07-07: QrCodeDTO has no embedded remap history - fetched per dynamic QR via getQrRemapHistory on load (reversed to newest-first), extended locally with a synthetic entry after each successful remap
 - [Phase 07-qr-codes-static-dynamic-qr-studio]: 07-07: Studio panel left as a header-only placeholder (title + code) for 07-08 to fill with preview/controls/export
+- [Phase 07]: 07-09: RED/GREEN commit order swapped (test authored first) to satisfy the MVP+TDD gate - mirrors 07-07/07-08 precedent — Plan's Task 1 (implementation) preceded Task 2 (test); tdd=true requires a preceding failing test commit
+- [Phase 07]: 07-09: existing-static-QR lookup uses listQrCodes() + client-side filter (variant/linkId) since GET /api/qr-codes has no by-link query param — No backend change was in scope for this frontend-only plan
+- [Phase 07]: 07-09: added a fallback failure toast for handleQrCode's catch branch — Matches every other async action in LinkDetailView.vue; the UI-SPEC only locks the success toast
 
 ### Pending Todos
 
@@ -222,6 +226,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-21T08:10:52.115Z
-Stopped at: Completed 07-07-PLAN.md
+Last session: 2026-07-21T08:27:04.220Z
+Stopped at: Completed 07-09-PLAN.md
 Resume file: None
