@@ -1194,13 +1194,22 @@ describe("GET /api/qr-codes/:id/render.png and .svg (route layer, QR-06)", () =>
     await app.close();
   });
 
-  it("render.png returns image/png bytes that decode back to the static QR's bound Link.targetUrl", async () => {
+  // QR-01 / 07-CONTEXT.md:11 / ROADMAP Phase 7 success criterion 1: a static
+  // QR is a QR *for the short link*, so it must encode the Link's OWN short
+  // URL (`https://{domain.hostname}/{slug}`), never the raw destination.
+  // Encoding `targetUrl` would route every scanner around Kurzly entirely —
+  // bypassing the password gate and the expiry gate, and making the code's
+  // scan count permanently 0.
+  it("render.png returns image/png bytes that decode back to the static QR's own short-link URL — NOT the raw destination", async () => {
     const app = await buildApp({ prisma });
     const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
     const ownerId = await resolveSessionUserId(app, ownerCookie);
     const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-render-static-png.example.com");
     const linkId = await seedLinkForRoute(ownerId, domainId);
-    const link = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+    const link = await prisma.link.findUniqueOrThrow({
+      where: { id: linkId },
+      include: { domain: true },
+    });
     const created = await createQrCode(prisma, {
       userId: ownerId,
       variant: "static",
@@ -1221,7 +1230,86 @@ describe("GET /api/qr-codes/:id/render.png and .svg (route layer, QR-06)", () =>
     expect(res.headers["content-type"]).toContain("image/png");
     expect(res.headers["cache-control"]).toBe("no-store");
     const decoded = await decodeQr(res.rawPayload);
-    expect(decoded).toBe(link.targetUrl);
+    expect(decoded).toBe(`https://${link.domain.hostname}/${link.slug}`);
+    expect(decoded).not.toBe(link.targetUrl);
+    await app.close();
+  });
+
+  it("static render.svg encodes the same short-link URL the PNG path encodes", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-render-static-svg.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const link = await prisma.link.findUniqueOrThrow({
+      where: { id: linkId },
+      include: { domain: true },
+    });
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Static SVG render",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/qr-codes/${created.qrCode.id}/render.svg`,
+      headers: { cookie: ownerCookie },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const rasterized = await sharp(Buffer.from(res.payload)).png().toBuffer();
+    const decoded = await decodeQr(rasterized);
+    expect(decoded).toBe(`https://${link.domain.hostname}/${link.slug}`);
+    await app.close();
+  });
+
+  // Regression guard for the gate-bypass this defect caused: a static QR for
+  // a password-protected Link must still route the scanner through
+  // GET /:slug (where resolveLinkState applies the gate), never straight to
+  // the protected destination.
+  it("a static QR for a PASSWORD-PROTECTED link never encodes the protected destination", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-render-static-pw.example.com");
+    const createdLink = await createLink(prisma, {
+      userId: ownerId,
+      domainId,
+      targetUrl: `https://secret.example.com/${randomUUID()}`,
+      password: "s3cret-passphrase",
+    });
+    if (!createdLink.ok) throw new Error(`setup failed: createLink returned ${createdLink.error}`);
+    const link = await prisma.link.findUniqueOrThrow({
+      where: { id: createdLink.link.id },
+      include: { domain: true },
+    });
+    expect(link.passwordHash).not.toBeNull();
+
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId: link.id,
+      name: "Protected static QR",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/qr-codes/${created.qrCode.id}/render.png`,
+      headers: { cookie: ownerCookie },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const decoded = await decodeQr(res.rawPayload);
+    expect(decoded).not.toBe(link.targetUrl);
+    expect(decoded).toBe(`https://${link.domain.hostname}/${link.slug}`);
     await app.close();
   });
 
@@ -1332,8 +1420,11 @@ describe("GET /api/qr-codes/:id/render.png and .svg (route layer, QR-06)", () =>
 
     expect(res.statusCode).toBe(200);
     const decoded = await decodeQr(res.rawPayload);
-    const link = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
-    expect(decoded).toBe(link.targetUrl);
+    const link = await prisma.link.findUniqueOrThrow({
+      where: { id: linkId },
+      include: { domain: true },
+    });
+    expect(decoded).toBe(`https://${link.domain.hostname}/${link.slug}`);
     await app.close();
   });
 });
