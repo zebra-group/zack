@@ -15,14 +15,27 @@
  * Toast pattern: per-view ref + setTimeout (04-PATTERNS.md), no global
  * store — matches LinksView.vue/LinkDetailView.vue.
  *
- * Optimistic remap (select onChange) + the remap-history line/Verlauf
- * expander are wired in Task 3 — the select below is structural only in
- * this task (correct value/disabled state, no mutation handler yet).
+ * Optimistic remap (Task 3): the target select mutates `qr.linkId` in
+ * place immediately (mirrors LinkDetailView.vue's `toggleTracking`
+ * pattern), reverting only on a failed `remapQrCode` call. Remap history
+ * is NOT embedded in `QrCodeDTO` — each dynamic QR's full history is
+ * fetched once via `getQrRemapHistory` on load (stored newest-first,
+ * reversing the API's oldest-first convention) and extended locally with
+ * one synthetic entry per successful remap (avoids a redundant re-fetch
+ * for information the just-succeeded response already proves happened).
  */
 import { computed, ref } from "vue";
 import { useRoute } from "vue-router";
-import type { LinkDTO, QrCodeDTO } from "@kurzly/shared";
-import { createQrCode, listLinks, listQrCodes, qrRenderPngUrl } from "../api";
+import type { LinkDTO, QrCodeDTO, QrRemapHistoryEntryDTO } from "@kurzly/shared";
+import {
+  createQrCode,
+  getQrRemapHistory,
+  listLinks,
+  listQrCodes,
+  qrRenderPngUrl,
+  remapQrCode,
+} from "../api";
+import { formatDate } from "../lib/format";
 
 const route = useRoute();
 
@@ -31,6 +44,10 @@ const links = ref<LinkDTO[]>([]);
 const isLoading = ref(true);
 const isError = ref(false);
 const selectedQrId = ref<string | null>(null);
+
+/** Newest-first per dynamic QR id (QR-04) — see header comment for the load/remap population strategy. */
+const historyByQr = ref<Record<string, QrRemapHistoryEntryDTO[]>>({});
+const expandedHistory = ref<Set<string>>(new Set());
 
 const toastMessage = ref<string | null>(null);
 let toastTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -47,11 +64,52 @@ const selectedQr = computed(
   () => qrCodes.value.find((qr) => qr.id === selectedQrId.value) ?? null,
 );
 
+/** Resolves a Link id to its `/{slug}` display form, or `""` if not (yet) loaded. */
+function linkSlugFor(linkId: string): string {
+  const link = links.value.find((l) => l.id === linkId);
+  return link ? `/${link.slug}` : "";
+}
+
 /** `qr.code` for a dynamic QR (`/q/xxxx`), or the bound Link's slug for a static QR (`/{slug}`). */
 function codeDisplay(qr: QrCodeDTO): string {
   if (qr.variant === "dynamic") return `/q/${qr.code}`;
-  const link = links.value.find((l) => l.id === qr.linkId);
-  return link ? `/${link.slug}` : "";
+  return linkSlugFor(qr.linkId);
+}
+
+/** Newest-first history for one QR (empty for a static QR or one with no remaps yet). */
+function historyFor(qr: QrCodeDTO): QrRemapHistoryEntryDTO[] {
+  return historyByQr.value[qr.id] ?? [];
+}
+
+function toggleHistory(qrId: string): void {
+  if (expandedHistory.value.has(qrId)) {
+    expandedHistory.value.delete(qrId);
+  } else {
+    expandedHistory.value.add(qrId);
+  }
+}
+
+/**
+ * Fetches full remap history for every dynamic QR (QR-04) — a history
+ * fetch failure for one QR degrades gracefully to "no history shown" for
+ * that card rather than failing the whole load (history is supplementary,
+ * not gating, per the four-state contract which only governs the QR list
+ * itself).
+ */
+async function loadHistory(qrList: QrCodeDTO[]): Promise<void> {
+  const dynamicQrs = qrList.filter((qr) => qr.variant === "dynamic");
+  const results = await Promise.all(
+    dynamicQrs.map((qr) =>
+      getQrRemapHistory(qr.id).catch((): QrRemapHistoryEntryDTO[] => []),
+    ),
+  );
+  const map: Record<string, QrRemapHistoryEntryDTO[]> = {};
+  dynamicQrs.forEach((qr, idx) => {
+    // API returns oldest-first (packages/shared/src/index.ts) — reversed
+    // here so every consumer (inline line + expander) reads newest-first.
+    map[qr.id] = [...(results[idx] ?? [])].reverse();
+  });
+  historyByQr.value = map;
 }
 
 /**
@@ -77,6 +135,7 @@ async function loadAll(): Promise<void> {
     qrCodes.value = qrResult;
     links.value = linkResult;
     resolveInitialSelection();
+    await loadHistory(qrResult);
   } catch {
     isError.value = true;
   } finally {
@@ -114,6 +173,47 @@ async function createDynamicQr(): Promise<void> {
     showToast("Dynamischer QR erstellt");
   } catch {
     showToast("Speichern fehlgeschlagen. Bitte erneut versuchen.");
+  }
+}
+
+/**
+ * Target-select onChange (QR-03/04) — mutates `qr.linkId` in place
+ * IMMEDIATELY (optimistic, mirrors LinkDetailView.vue's `toggleTracking`),
+ * then confirms via `remapQrCode`. On success: syncs the QrCodeDTO with
+ * the server response, records one synthetic newest-first history entry,
+ * and toasts the locked "{qrName} zeigt jetzt auf /{slug}" copy. On
+ * failure: reverts `qr.linkId` (the select snaps back to its prior value
+ * since it's bound via `:value`) and toasts the locked failure copy.
+ * Static cards never reach this handler (their select is `disabled`).
+ */
+async function handleRemapChange(qr: QrCodeDTO, event: Event): Promise<void> {
+  const select = event.target as HTMLSelectElement;
+  const newLinkId = select.value;
+  const oldLinkId = qr.linkId;
+  if (newLinkId === oldLinkId) return;
+
+  qr.linkId = newLinkId;
+
+  try {
+    const updated = await remapQrCode(qr.id, newLinkId);
+    const idx = qrCodes.value.findIndex((q) => q.id === updated.id);
+    if (idx !== -1) qrCodes.value[idx] = updated;
+
+    historyByQr.value[qr.id] = [
+      {
+        id: `local-${Date.now()}`,
+        qrCodeId: qr.id,
+        fromLinkId: oldLinkId,
+        toLinkId: newLinkId,
+        createdAt: new Date().toISOString(),
+      },
+      ...(historyByQr.value[qr.id] ?? []),
+    ];
+
+    showToast(`${qr.name} zeigt jetzt auf ${linkSlugFor(newLinkId)}`);
+  } catch {
+    qr.linkId = oldLinkId;
+    showToast("Umstellung fehlgeschlagen. Bitte erneut versuchen.");
   }
 }
 
@@ -199,6 +299,7 @@ loadAll();
                   :disabled="qr.variant !== 'dynamic'"
                   :value="qr.linkId"
                   @click.stop
+                  @change="handleRemapChange(qr, $event)"
                 >
                   <option v-for="link in links" :key="link.id" :value="link.id">/{{ link.slug }}</option>
                 </select>
@@ -207,6 +308,24 @@ loadAll();
             <div class="scans-block">
               <div class="scans-value">{{ qr.lifetimeScans.toLocaleString("de-DE") }}</div>
               <div class="scans-label">Scans</div>
+            </div>
+          </div>
+
+          <div v-if="historyFor(qr).length > 0" class="history-line">
+            Historie: {{ linkSlugFor(historyFor(qr)[0]?.fromLinkId ?? "") }} ➜
+            {{ linkSlugFor(historyFor(qr)[0]?.toLinkId ?? "") }} (gerade geändert)
+          </div>
+          <div
+            v-if="historyFor(qr).length > 1"
+            class="verlauf-expander"
+            @click.stop="toggleHistory(qr.id)"
+          >
+            Verlauf ({{ historyFor(qr).length }})
+          </div>
+          <div v-if="expandedHistory.has(qr.id) && historyFor(qr).length > 1" class="verlauf-list">
+            <div v-for="entry in historyFor(qr)" :key="entry.id" class="verlauf-row">
+              {{ linkSlugFor(entry.fromLinkId) }} ➜ {{ linkSlugFor(entry.toLinkId) }} ·
+              {{ formatDate(entry.createdAt) }}
             </div>
           </div>
         </div>
@@ -445,6 +564,36 @@ loadAll();
 .scans-label {
   font-size: 11px;
   color: var(--mut);
+}
+
+.history-line {
+  font-size: 11px;
+  color: var(--mut);
+  font-family: "Geist Mono", monospace;
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+}
+
+.verlauf-expander {
+  font-size: 11px;
+  color: var(--mut);
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+.verlauf-expander:hover {
+  text-decoration: underline;
+}
+
+.verlauf-list {
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.verlauf-row {
+  font-size: 11px;
+  color: var(--mut);
+  font-family: "Geist Mono", monospace;
 }
 
 /* Studio panel (placeholder shell — 07-08 fills preview/controls/export). */
