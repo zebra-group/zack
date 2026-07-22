@@ -51,7 +51,7 @@
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import bcrypt from "bcryptjs";
 import type { PrismaClient } from "../generated/prisma/client.js";
-import { resolveLinkState, mergeQuery } from "../lib/redirectEngine.js";
+import { resolveLinkState, mergeQuery, applyUtmParams } from "../lib/redirectEngine.js";
 import { isBotRequest } from "../lib/botDetection.js";
 import { hasValidUnlockCookie, issueUnlockCookie } from "../lib/unlockCookie.js";
 import {
@@ -158,9 +158,17 @@ export function qrRedirectRoute(prisma: PrismaClient) {
         });
         await incrementLifetimeScans(prisma, qrCode.id, request.log);
 
+        // D-08-02 composition order — identical to routes/redirect.ts's
+        // GET /:slug (T-08-HANDLER-DRIFT, no drift between the two
+        // handlers): the owner's UTM parameters are applied to the resolved
+        // target FIRST, overriding any same-named key already there; only
+        // THEN, if forwardQuery is on, does the visitor's incoming query
+        // merge onto that result via mergeQuery's unchanged target-wins
+        // rule.
+        const utmTarget = applyUtmParams(link.targetUrl, link);
         const target = link.forwardQuery
-          ? mergeQuery(link.targetUrl, new URL(request.url, "http://placeholder.invalid").search)
-          : link.targetUrl;
+          ? mergeQuery(utmTarget, new URL(request.url, "http://placeholder.invalid").search)
+          : utmTarget;
         return reply.code(302).redirect(target);
       },
     });
