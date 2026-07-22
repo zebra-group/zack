@@ -79,11 +79,22 @@ const targetUrl = ref(props.initialTargetUrl ?? "");
 const slug = ref(props.initialSlug ?? "");
 const domainId = ref(props.initialDomainId ?? props.domains[0]?.id ?? "");
 
-// Phase 5 Security accordion + forwardQuery toggle state — collapsed by
-// default (05-UI-SPEC.md: "Standard: eingeklappt"). `password` always
-// starts blank, even in edit mode with an existing password
-// (T-05-PWPREFILL) — the placeholder communicates the "set" state.
-const secOpen = ref(false);
+// Phase 8 (UI-08-01/04): the Phase-5 single-boolean accordion (`secOpen`)
+// generalizes into an exclusive three-section shell shared by the
+// password/expiry section ("sec") and the two Phase-8 sections ("utm",
+// "og") that slot in above it. At most one section is open at a time;
+// clicking the currently-open header's toggle closes it back to `null`.
+// All sections start closed, in both create and edit mode, even when the
+// edited link has values set (05-UI-SPEC.md's "Standard: eingeklappt",
+// carried forward unchanged).
+type AccordionSectionId = "utm" | "og" | "sec";
+const openSection = ref<AccordionSectionId | null>(null);
+function toggleSection(id: AccordionSectionId): void {
+  openSection.value = openSection.value === id ? null : id;
+}
+
+// `password` always starts blank, even in edit mode with an existing
+// password (T-05-PWPREFILL) — the placeholder communicates the "set" state.
 const password = ref("");
 const removePassword = ref(false);
 const expiry = ref(props.initialExpiresAt ?? "");
@@ -193,17 +204,27 @@ function handleSubmit(): void {
         </div>
       </div>
 
-      <!-- Phase 5 Security accordion (05-UI-SPEC.md § Link-Formular-Erweiterung). -->
-      <div class="security-section">
-        <div class="security-header" @click="secOpen = !secOpen">
+      <!-- Passwort & Ablauf accordion section (05-UI-SPEC.md § Link-Formular-
+           Erweiterung; generalized onto the shared accordion shell in
+           Phase 8, UI-08-01/04 — see the `openSection` ref above). -->
+      <div class="accordion-section">
+        <div
+          class="accordion-header accordion-header--sec"
+          role="button"
+          tabindex="0"
+          :aria-expanded="openSection === 'sec'"
+          @click="toggleSection('sec')"
+          @keydown.enter.prevent="toggleSection('sec')"
+          @keydown.space.prevent="toggleSection('sec')"
+        >
           <span>
-            Passwort &amp; Ablauf<span v-if="accordionSummary" class="security-summary">
+            Passwort &amp; Ablauf<span v-if="accordionSummary" class="accordion-summary">
               {{ accordionSummary }}</span
             >
           </span>
-          <span class="security-chevron">{{ secOpen ? "⌃" : "⌄" }}</span>
+          <span class="accordion-chevron">{{ openSection === "sec" ? "⌃" : "⌄" }}</span>
         </div>
-        <div v-if="secOpen" class="security-body">
+        <div v-if="openSection === 'sec'" class="accordion-body accordion-body--sec">
           <div class="field">
             <label class="field-label">Passwortschutz</label>
             <input
@@ -425,14 +446,19 @@ function handleSubmit(): void {
   color: var(--mut);
 }
 
-/* Phase 5 Security accordion (05-UI-SPEC.md, LOCKED tokens). */
-.security-section {
+/* Shared accordion shell (05-UI-SPEC.md, LOCKED tokens; generalized in
+   Phase 8, UI-08-04, from the single-section `.security-*` names shipped
+   in Phase 5 to generic `.accordion-*` ones shared by all three sections
+   — Passwort & Ablauf ("sec") plus the Phase 8 UTM/OG sections. Each
+   section's distinct body layout lives in its own `.accordion-body--*`
+   modifier rather than duplicating the shared shell three times. */
+.accordion-section {
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
 }
 
-.security-header {
+.accordion-header {
   padding: 10px 14px;
   display: flex;
   justify-content: space-between;
@@ -442,26 +468,42 @@ function handleSubmit(): void {
   font-weight: 500;
 }
 
-.security-header:hover {
+.accordion-header:hover {
   background: var(--hover);
 }
 
-.security-summary {
+.accordion-summary {
   font-size: 13px;
   font-weight: 400;
   color: var(--mut);
 }
 
-.security-chevron {
+.accordion-chevron {
   color: var(--mut);
 }
 
-.security-body {
+/* Base body: only the shell every section shares (border + padding). The
+   Passwort & Ablauf body's two-column grid is a `--sec`-only modifier —
+   Phase 8's UTM/OG bodies use a different padding/layout (see their own
+   modifiers), so the grid must not leak onto them. */
+.accordion-body {
   padding: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.accordion-body--sec {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  border-top: 1px solid var(--border);
+}
+
+/* Placeholder slots for the UTM (08-04 Task 3) and OG (next plan) section
+   bodies — shared padding token per the Layout Contract (08-UI-SPEC.md,
+   Surface A/B: `padding:4px 14px 14px`), full layout filled in by their
+   respective tasks/plans. */
+.accordion-body--utm,
+.accordion-body--og {
+  padding: 4px 14px 14px;
 }
 
 .remove-pw-link {
