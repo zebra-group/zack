@@ -292,7 +292,13 @@ model QrCode {
   color          String
   roundedModules Boolean       @default(false)
   logoEnabled    Boolean       @default(false)
-  /// Logo image bytes (PNG), present only when `logoEnabled` is true.
+  /// Logo image bytes — always PNG after `normalizeLogo` (lib/qr.ts)
+  /// rasterizes any SVG upload once at write time. INDEPENDENT of
+  /// `logoEnabled`, which only gates whether these bytes are composited at
+  /// render time: `updateQrCode` (lib/qrCodes.ts) writes the two as
+  /// separate optional fields, and `logoEnabled: true` with no stored bytes
+  /// is an explicitly supported state (see `QrCodeDTO` in
+  /// packages/shared/src/index.ts).
   logoData       Bytes?
   logoMimeType   String?
   /// Pruning-resistant all-time scan counter (mirrors `Link.lifetimeClicks`,
