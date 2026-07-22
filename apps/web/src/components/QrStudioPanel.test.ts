@@ -171,6 +171,56 @@ describe("QrStudioPanel", () => {
     await flushPromises();
   });
 
+  /**
+   * WR-06 regression: every control change fired an independent, unsequenced
+   * PATCH. Two quick swatch clicks issue two requests; if the FIRST response
+   * lands second, its stale DTO was emitted as `styled` and pushed into the
+   * parent's list — so the list showed a colour that is no longer persisted.
+   */
+  it("discards a superseded PATCH response when two style edits overlap", async () => {
+    const resolvers: Array<(value: QrCodeDTO) => void> = [];
+    updateQrCode.mockImplementation(
+      () => new Promise<QrCodeDTO>((resolve) => { resolvers.push(resolve); }),
+    );
+    const wrapper = mountPanel(makeQrCode());
+
+    const swatches = wrapper.findAll(".color-swatch");
+    await swatches[1]!.trigger("click"); // #1e3a5f — issued first
+    await swatches[2]!.trigger("click"); // #14532d — issued second, the newest intent
+    expect(resolvers).toHaveLength(2);
+
+    // The NEWEST request answers first, the older one straggles in after it.
+    resolvers[1]!(makeQrCode({ color: "#14532d" }));
+    await flushPromises();
+    resolvers[0]!(makeQrCode({ color: "#1e3a5f" }));
+    await flushPromises();
+
+    const styled = wrapper.emitted("styled") ?? [];
+    expect(styled).toHaveLength(1);
+    expect((styled[0]![0] as QrCodeDTO).color).toBe("#14532d");
+  });
+
+  it("does not revert local state when a superseded request is the one that fails", async () => {
+    const controllers: Array<{ resolve: (v: QrCodeDTO) => void; reject: (e: unknown) => void }> = [];
+    updateQrCode.mockImplementation(
+      () => new Promise<QrCodeDTO>((resolve, reject) => { controllers.push({ resolve, reject }); }),
+    );
+    const wrapper = mountPanel(makeQrCode());
+
+    const swatches = wrapper.findAll(".color-swatch");
+    await swatches[1]!.trigger("click");
+    await swatches[2]!.trigger("click");
+
+    controllers[1]!.resolve(makeQrCode({ color: "#14532d" }));
+    await flushPromises();
+    controllers[0]!.reject(new ApiError(500, "Internal Server Error"));
+    await flushPromises();
+
+    // The stale failure must not drag the swatch selection backwards.
+    expect(wrapper.findAll(".color-swatch")[2]!.classes()).toContain("selected");
+    expect(wrapper.emitted("toast")).toBeFalsy();
+  });
+
   it("re-syncs local state when the parent supplies a new qr DTO", async () => {
     const wrapper = mountPanel(makeQrCode());
     expect(wrapper.find(".rounded-toggle").classes()).not.toContain("active");
