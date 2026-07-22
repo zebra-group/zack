@@ -364,8 +364,12 @@ export function redirectRoute(prisma: PrismaClient) {
         // target with no query merge here — a visitor's original GET (the
         // request the query params, if any, actually arrived on) already
         // took the GET branch's forwardQuery merge before ever reaching
-        // this form's action URL.
-        return reply.code(302).redirect(link.targetUrl);
+        // this form's action URL. The forwardQuery merge stays skipped, but
+        // the owner's UTM parameters are owner-configured and independent of
+        // any visitor query, so they MUST be applied here exactly as the GET
+        // branch does (CR-01) — otherwise a protected+UTM link loses its
+        // attribution on the only path to its destination.
+        return reply.code(302).redirect(applyUtmParams(link.targetUrl, link));
       },
     });
   };
