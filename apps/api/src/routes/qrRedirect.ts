@@ -240,8 +240,12 @@ export function qrRedirectRoute(prisma: PrismaClient) {
         issueUnlockCookie(reply, link.id, `/q/${code}`, link.passwordHash);
         // No scan recorded here (mirrors redirect.ts's verify) — the
         // immediately-following GET /q/:code, now carrying the unlock
-        // cookie, resolves to "ok" and records the scan there.
-        return reply.code(302).redirect(link.targetUrl);
+        // cookie, resolves to "ok" and records the scan there. The owner's
+        // UTM parameters ARE applied here, identical to redirect.ts's POST
+        // /:slug/verify (CR-01, no /:slug vs /q drift) — the forwardQuery
+        // merge stays skipped, but owner-configured UTM must carry through
+        // on the post-verify redirect of a protected+UTM link.
+        return reply.code(302).redirect(applyUtmParams(link.targetUrl, link));
       },
     });
   };
