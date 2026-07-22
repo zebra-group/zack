@@ -1848,4 +1848,248 @@ describe("Link core + routes (LINK-01/02/03, D-01/D-02/D-03)", () => {
       await app.close();
     });
   });
+
+  describe("UTM + custom OG metadata HTTP surface (META-01/02, D-08-01..06)", () => {
+    it("201s a create carrying all six fields; DTO exposes them", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "meta-create-all.example.com");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/meta-all",
+          slug: "meta-create-all-slug",
+          utmSource: "newsletter",
+          utmMedium: "email",
+          utmCampaign: "sommer aktion",
+          ogTitle: "Custom Title",
+          ogDescription: "Custom Description",
+          ogImageUrl: "https://cdn.example.com/card.png",
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.utmSource).toBe("newsletter");
+      expect(body.utmMedium).toBe("email");
+      expect(body.utmCampaign).toBe("sommer aktion");
+      expect(body.ogTitle).toBe("Custom Title");
+      expect(body.ogDescription).toBe("Custom Description");
+      expect(body.ogImageUrl).toBe("https://cdn.example.com/card.png");
+
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: body.id } });
+      expect(row.utmSource).toBe("newsletter");
+      expect(row.ogImageUrl).toBe("https://cdn.example.com/card.png");
+
+      await app.close();
+    });
+
+    it("400s ogImageUrl javascript: with OG_IMAGE_URL_INVALID and writes zero rows", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "meta-invalid-image.example.com");
+
+      const before = await prisma.link.count();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/meta-invalid-image",
+          ogImageUrl: "javascript:alert(1)",
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error).toBe("OG_IMAGE_URL_INVALID");
+      const after = await prisma.link.count();
+      expect(after).toBe(before);
+
+      await app.close();
+    });
+
+    it("400s a 201-char utmCampaign with UTM_VALUE_TOO_LONG and writes zero rows", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "meta-utm-too-long.example.com");
+
+      const before = await prisma.link.count();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/meta-utm-too-long",
+          utmCampaign: "a".repeat(201),
+        },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error).toBe("UTM_VALUE_TOO_LONG");
+      const after = await prisma.link.count();
+      expect(after).toBe(before);
+
+      await app.close();
+    });
+
+    it("mass-assignment: unknown metadata-shaped keys (utmTerm, ogSiteName) never reach the database", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "meta-mass-assign.example.com");
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/meta-mass-assign",
+          utmSource: "allowed-source",
+          utmTerm: "not-allowlisted",
+          ogSiteName: "not-allowlisted-either",
+        },
+      });
+
+      expect(res.statusCode).toBe(201);
+      const body = res.json();
+      expect(body.utmSource).toBe("allowed-source");
+      expect(body).not.toHaveProperty("utmTerm");
+      expect(body).not.toHaveProperty("ogSiteName");
+      expect(JSON.stringify(body)).not.toContain("not-allowlisted");
+
+      await app.close();
+    });
+
+    it("PATCH: utmSource omitted keeps, null clears, empty string clears, a value replaces", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "meta-patch-utm.example.com");
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/meta-patch-utm",
+          slug: "meta-patch-utm-slug",
+          utmSource: "original-source",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      const linkId = created.json().id;
+
+      const omittedRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { targetUrl: "https://example.com/meta-patch-utm-2" },
+      });
+      expect(omittedRes.statusCode).toBe(200);
+      expect(omittedRes.json().utmSource).toBe("original-source");
+
+      const nullRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { utmSource: null },
+      });
+      expect(nullRes.statusCode).toBe(200);
+      expect(nullRes.json().utmSource).toBeNull();
+
+      const setRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { utmSource: "replacement-source" },
+      });
+      expect(setRes.statusCode).toBe(200);
+      expect(setRes.json().utmSource).toBe("replacement-source");
+
+      const emptyRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { utmSource: "" },
+      });
+      expect(emptyRes.statusCode).toBe(200);
+      expect(emptyRes.json().utmSource).toBeNull();
+
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+      expect(row.utmSource).toBeNull();
+
+      await app.close();
+    });
+
+    it("PATCH: ogTitle omitted keeps, null clears, empty string clears, a value replaces", async () => {
+      const app = await buildApp({ prisma });
+      const ownerCookie = await signInAs(app, OWNER_EMAIL);
+      const ownerId = await resolveSessionUserId(app, ownerCookie);
+      const domainId = await seedOwnedDomain(ownerId, "meta-patch-og.example.com");
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: { cookie: ownerCookie },
+        payload: {
+          domainId,
+          targetUrl: "https://example.com/meta-patch-og",
+          slug: "meta-patch-og-slug",
+          ogTitle: "Original Title",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      const linkId = created.json().id;
+
+      const omittedRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { targetUrl: "https://example.com/meta-patch-og-2" },
+      });
+      expect(omittedRes.statusCode).toBe(200);
+      expect(omittedRes.json().ogTitle).toBe("Original Title");
+
+      const nullRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { ogTitle: null },
+      });
+      expect(nullRes.statusCode).toBe(200);
+      expect(nullRes.json().ogTitle).toBeNull();
+
+      const setRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { ogTitle: "Replacement Title" },
+      });
+      expect(setRes.statusCode).toBe(200);
+      expect(setRes.json().ogTitle).toBe("Replacement Title");
+
+      const emptyRes = await app.inject({
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        headers: { cookie: ownerCookie },
+        payload: { ogTitle: "" },
+      });
+      expect(emptyRes.statusCode).toBe(200);
+      expect(emptyRes.json().ogTitle).toBeNull();
+
+      const row = await prisma.link.findUniqueOrThrow({ where: { id: linkId } });
+      expect(row.ogTitle).toBeNull();
+
+      await app.close();
+    });
+  });
 });
