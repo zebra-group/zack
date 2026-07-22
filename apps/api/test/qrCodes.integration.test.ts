@@ -1591,6 +1591,44 @@ describe("PATCH /api/qr-codes/:id logoData upload (route layer, T-07-LOGO-MIME)"
     expect(res.json().logoEnabled).toBe(true);
     await app.close();
   });
+
+  /**
+   * IN-05 regression: `DATA_URI_PREFIX` was `/^data:[^;]+;base64,/`, which
+   * does not match a data URI carrying an extra parameter such as
+   * `data:image/svg+xml;charset=utf-8;base64,...` — a form a Blob/FileReader
+   * can legitimately produce. The unmatched prefix then survived into
+   * `Buffer.from(..., "base64")`, corrupting the leading bytes and turning a
+   * perfectly valid upload into an INVALID_LOGO 400.
+   */
+  it("logo: accepts a multi-parameter data URI (charset between the mime type and ;base64)", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-logo-datauri-params.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Multi-param data URI logo",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const dataUri = `data:image/png;charset=utf-8;base64,${LOGO_PNG_BYTES.toString("base64")}`;
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { logoEnabled: true, logoData: dataUri },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().logoEnabled).toBe(true);
+    await app.close();
+  });
 });
 
 describe("GET /api/qr-codes/:id/render rate limit (QR_RENDER_RATE_LIMIT, dedicated bucket)", () => {
