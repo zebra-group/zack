@@ -64,6 +64,17 @@ const createLinkSchema = z.object({
   // forwardQuery exactly. lifetimeClicks is intentionally NEVER allowlisted
   // here — it is server-owned (D-13) and must stay client-unsettable.
   trackingEnabled: z.boolean().optional(),
+  // Phase 8 (D-08-01/D-08-05, T-08-MASS): UTM trio + OG trio — plain
+  // optional strings on create (there is no "clear" case yet, nothing to
+  // clear on a brand-new row). Length/scheme validation happens inside
+  // createLink's validateLinkInput core (lib/links.ts), not here — this
+  // schema only bounds the client-settable SHAPE (string vs. not).
+  utmSource: z.string().optional(),
+  utmMedium: z.string().optional(),
+  utmCampaign: z.string().optional(),
+  ogTitle: z.string().optional(),
+  ogDescription: z.string().optional(),
+  ogImageUrl: z.string().optional(),
 });
 
 /**
@@ -91,6 +102,17 @@ const updateLinkSchema = z.object({
   // Phase 6 (TRACK-01/D-15): omitted keeps the current value — same
   // no-tri-state shape as forwardQuery, no "clear" semantic needed.
   trackingEnabled: z.boolean().optional(),
+  // Phase 8 (D-08-01..05, T-08-MASS): keep/clear/set — omitted keeps the
+  // current value, explicit `null` clears it, a value sets/replaces it.
+  // UNLIKE `password` above: an explicit EMPTY STRING here also means
+  // CLEAR (D-08-05) — the PATCH handler below must NOT collapse "" to
+  // undefined for these six, the way it does for `password`.
+  utmSource: z.string().nullable().optional(),
+  utmMedium: z.string().nullable().optional(),
+  utmCampaign: z.string().nullable().optional(),
+  ogTitle: z.string().nullable().optional(),
+  ogDescription: z.string().nullable().optional(),
+  ogImageUrl: z.string().nullable().optional(),
 });
 
 /**
@@ -144,6 +166,14 @@ function statusForLinkError(error: LinkErrorCode): number {
       return 409;
     case "SLUG_GENERATION_EXHAUSTED":
       return 503;
+    // Phase 8 (D-08-04/D-08-05): all five UTM/OG validation failures are
+    // client input errors — same bucket as INVALID_TARGET_URL above.
+    case "UTM_VALUE_TOO_LONG":
+    case "OG_TITLE_TOO_LONG":
+    case "OG_DESCRIPTION_TOO_LONG":
+    case "OG_IMAGE_URL_TOO_LONG":
+    case "OG_IMAGE_URL_INVALID":
+      return 400;
     default: {
       const exhaustive: never = error;
       return exhaustive;
@@ -345,6 +375,18 @@ export function linksRoute(prisma: PrismaClient, auth: Auth) {
         expiresAt: parsed.data.expiresAt,
         forwardQuery: parsed.data.forwardQuery,
         trackingEnabled: parsed.data.trackingEnabled,
+        // Phase 8 (D-08-01..05): pass all six straight through from
+        // parsed.data UNTOUCHED — no `??` fallback to the stored value
+        // (that would destroy the explicit-null/explicit-empty-string
+        // CLEAR signal, mirroring the WR-02 discipline already applied to
+        // `title` above). `deriveMetaField` (lib/links.ts) is the single
+        // place that interprets undefined/null/""/value.
+        utmSource: parsed.data.utmSource,
+        utmMedium: parsed.data.utmMedium,
+        utmCampaign: parsed.data.utmCampaign,
+        ogTitle: parsed.data.ogTitle,
+        ogDescription: parsed.data.ogDescription,
+        ogImageUrl: parsed.data.ogImageUrl,
       });
 
       if (!result.ok) {
