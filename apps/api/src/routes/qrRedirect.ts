@@ -128,8 +128,21 @@ export function qrRedirectRoute(prisma: PrismaClient) {
         const bot = isBotRequest(request.headers["user-agent"]);
         const state = resolveLinkState(link, hasValidUnlockCookie(request, link));
 
+        // D-08-03: serving the target Link's owner-typed OG values here
+        // preserves exactly the property D-06 exists to protect, because
+        // none of the three fields can carry the destination.
         if (bot) {
-          return reply.code(200).type("text/html").send(renderBotOgPage(ctx));
+          return reply
+            .code(200)
+            .type("text/html")
+            .send(
+              renderBotOgPage({
+                ...ctx,
+                ogTitle: link.ogTitle,
+                ogDescription: link.ogDescription,
+                ogImageUrl: link.ogImageUrl,
+              }),
+            );
         }
 
         if (state === "expired") {
