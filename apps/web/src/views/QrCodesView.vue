@@ -228,7 +228,11 @@ async function handleRemapChange(qr: QrCodeDTO, event: Event): Promise<void> {
 
     historyByQr.value[qr.id] = [
       {
-        id: `local-${Date.now()}`,
+        // Must be collision-free: this id is the `:key` of the Verlauf
+        // `v-for` below. `local-${Date.now()}` duplicated whenever two
+        // remaps completed inside the same millisecond, which makes Vue
+        // warn and can mis-patch the list.
+        id: `local-${crypto.randomUUID()}`,
         qrCodeId: qr.id,
         fromLinkId: oldLinkId,
         toLinkId: newLinkId,
@@ -350,7 +354,12 @@ loadAll();
             Verlauf ({{ historyFor(qr).length }})
           </div>
           <div v-if="expandedHistory.has(qr.id) && historyFor(qr).length > 1" class="verlauf-list">
-            <div v-for="entry in historyFor(qr)" :key="entry.id" class="verlauf-row">
+            <div
+              v-for="entry in historyFor(qr)"
+              :key="entry.id"
+              :data-entry-id="entry.id"
+              class="verlauf-row"
+            >
               {{ linkSlugFor(entry.fromLinkId) }} ➜ {{ linkSlugFor(entry.toLinkId) }} ·
               {{ formatDate(entry.createdAt) }}
             </div>
