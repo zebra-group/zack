@@ -92,6 +92,23 @@ export type LinkDTO = {
    * `CreateLinkInput`/`UpdateLinkInput` (T-06-MASS).
    */
   lifetimeClicks: number;
+  /**
+   * Phase 8 UTM builder trio (D-08-01/D-08-02) — stored separately from
+   * `targetUrl`, applied at redirect time. `null` = not set. When set,
+   * overrides same-named query keys already present on the target.
+   */
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  /**
+   * Phase 8 custom OG trio (D-08-03/D-08-04) — owner-authored text served
+   * to bots for every link state; `ogImageUrl` is shape-validated only
+   * (http/https), the server never fetches it. `null` = keep the generic
+   * brand fallback for that field.
+   */
+  ogTitle: string | null;
+  ogDescription: string | null;
+  ogImageUrl: string | null;
 };
 
 /**
@@ -113,6 +130,20 @@ export type CreateLinkInput = {
   forwardQuery?: boolean;
   /** Phase 6 (TRACK-01/D-15): omitted defaults to `true` server-side. */
   trackingEnabled?: boolean;
+  /**
+   * Phase 8 (D-08-01/D-08-05): UTM trio, each optional, max 200 chars.
+   * Stored raw (not percent-encoded) — percent-encoding happens only when
+   * the redirect target is assembled.
+   */
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  /** Phase 8 (D-08-03/D-08-05): optional, max 200 chars. */
+  ogTitle?: string;
+  /** Phase 8 (D-08-03/D-08-05): optional, max 500 chars. */
+  ogDescription?: string;
+  /** Phase 8 (D-08-04/D-08-05): optional, absolute http(s) URL only, max 2048 chars. */
+  ogImageUrl?: string;
 };
 
 /**
@@ -137,6 +168,18 @@ export type UpdateLinkInput = {
   forwardQuery?: boolean;
   /** Phase 6 (TRACK-01/D-15): omitted keeps the current value. */
   trackingEnabled?: boolean;
+  /**
+   * Phase 8 (D-08-05): keep/clear/set — omitted keeps the current value,
+   * `null` OR an empty/whitespace-only string clears it (deliberately
+   * unlike `password`, where an empty string means "keep"), a non-empty
+   * string sets/replaces it.
+   */
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  ogImageUrl?: string | null;
 };
 
 // Phase 6 (internal tracking analytics, TRACK-04/05, D-10)
