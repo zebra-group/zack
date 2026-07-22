@@ -62,10 +62,31 @@ export class ApiError extends Error {
  * `SLUG_RESERVED` share HTTP 400 — the `code` field (when present)
  * disambiguates precisely; the status-only fallback covers a body that
  * couldn't be parsed as JSON.
+ *
+ * Phase 8 (08-04 Task 2, META-01/02): the four `utmError`/`ogTitleError`/
+ * `ogDescriptionError`/`ogImageUrlError` fields were added here — not a
+ * separate error channel — because `LinkFormModal.vue` already consumes
+ * this interface through its single `error` prop, mapped internally via
+ * `fieldErrors`. This mapping lands in THIS plan (rather than the later
+ * OG-specific plan) because both this plan's UTM section (Task 3) and the
+ * next plan's OG section render off the same `fieldErrors` computed,
+ * which would not type-check if the interface arrived two waves later.
  */
 export interface LinkFormFieldErrors {
   targetUrlError?: string;
   slugError?: string;
+  /** Phase 8 (D-08-05): any of utmSource/utmMedium/utmCampaign exceeded 200 chars. */
+  utmError?: string;
+  /** Phase 8 (D-08-05): ogTitle exceeded 200 chars. */
+  ogTitleError?: string;
+  /** Phase 8 (D-08-05): ogDescription exceeded 500 chars. */
+  ogDescriptionError?: string;
+  /**
+   * Phase 8 (D-08-04/D-08-05): ogImageUrl either exceeded 2048 chars or is
+   * not an absolute http(s) URL — two distinct backend codes surface on
+   * this ONE field with two different messages (see the switch below).
+   */
+  ogImageUrlError?: string;
 }
 
 const LINK_TARGET_URL_INVALID_MESSAGE = "Das sieht nicht wie eine gültige URL aus (https://…).";
@@ -77,6 +98,14 @@ const LINK_SLUG_RESERVED_MESSAGE = "Dieser Slug ist reserviert und kann nicht ve
 // issue is invalid characters was actively misleading.
 const LINK_SLUG_INVALID_SHAPE_MESSAGE =
   "Slug darf nur Buchstaben, Zahlen, - und _ enthalten, 2–32 Zeichen.";
+// Phase 8 (08-UI-SPEC.md Copywriting Contract, D-08-05) — copied character
+// for character, including German punctuation.
+const LINK_UTM_VALUE_TOO_LONG_MESSAGE = "Maximal 200 Zeichen pro UTM-Wert.";
+const LINK_OG_TITLE_TOO_LONG_MESSAGE = "Maximal 200 Zeichen.";
+const LINK_OG_DESCRIPTION_TOO_LONG_MESSAGE = "Maximal 500 Zeichen.";
+const LINK_OG_IMAGE_URL_TOO_LONG_MESSAGE = "Maximal 2048 Zeichen.";
+const LINK_OG_IMAGE_URL_INVALID_MESSAGE =
+  "Bitte eine vollständige Bild-URL mit http:// oder https:// angeben.";
 
 export function mapLinkFormError(err: unknown): LinkFormFieldErrors {
   if (!(err instanceof ApiError)) return {};
@@ -90,8 +119,22 @@ export function mapLinkFormError(err: unknown): LinkFormFieldErrors {
       return { slugError: LINK_SLUG_INVALID_SHAPE_MESSAGE };
     case "SLUG_TAKEN":
       return { slugError: LINK_SLUG_TAKEN_MESSAGE };
+    case "UTM_VALUE_TOO_LONG":
+      return { utmError: LINK_UTM_VALUE_TOO_LONG_MESSAGE };
+    case "OG_TITLE_TOO_LONG":
+      return { ogTitleError: LINK_OG_TITLE_TOO_LONG_MESSAGE };
+    case "OG_DESCRIPTION_TOO_LONG":
+      return { ogDescriptionError: LINK_OG_DESCRIPTION_TOO_LONG_MESSAGE };
+    case "OG_IMAGE_URL_TOO_LONG":
+      return { ogImageUrlError: LINK_OG_IMAGE_URL_TOO_LONG_MESSAGE };
+    case "OG_IMAGE_URL_INVALID":
+      return { ogImageUrlError: LINK_OG_IMAGE_URL_INVALID_MESSAGE };
     default:
       // No parsed code (e.g. non-JSON body) — fall back to status alone.
+      // All five Phase 8 codes above are HTTP 400 like INVALID_TARGET_URL,
+      // so leaving this branch untouched is intentional: an unparseable
+      // 400 body still falls back to the target-url message, exactly as
+      // before Phase 8.
       if (err.status === 409) return { slugError: LINK_SLUG_TAKEN_MESSAGE };
       if (err.status === 400) return { targetUrlError: LINK_TARGET_URL_INVALID_MESSAGE };
       return {};
