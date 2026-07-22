@@ -229,9 +229,23 @@ export function redirectRoute(prisma: PrismaClient) {
         const state = resolveLinkState(link, hasValidUnlockCookie(request, link));
 
         // D-06: a detected bot ALWAYS gets the generic-OG 200, regardless of
-        // state — never the human error pages, never a redirect.
+        // state — never the human error pages, never a redirect. D-08-03:
+        // serving the owner's typed OG values here preserves exactly the
+        // property D-06 exists to protect, because none of the three fields
+        // can carry the destination (same spread-and-extend shape the
+        // expired branch below uses for expiresAt).
         if (bot) {
-          return reply.code(200).type("text/html").send(renderBotOgPage(ctx));
+          return reply
+            .code(200)
+            .type("text/html")
+            .send(
+              renderBotOgPage({
+                ...ctx,
+                ogTitle: link.ogTitle,
+                ogDescription: link.ogDescription,
+                ogImageUrl: link.ogImageUrl,
+              }),
+            );
         }
 
         if (state === "expired") {
