@@ -136,6 +136,51 @@ describe("QrStudioPanel", () => {
     expect(wrapper.emitted("toast")).toBeTruthy();
   });
 
+  /**
+   * WR-05 regression: the panel used to assign straight into `props.qr.*`.
+   * `QrCodesView`'s `selectedQr` is a live element of its `qrCodes` array,
+   * so the child was writing into the parent's state behind its back —
+   * while the parent ALSO replaces that element from the `styled` emit.
+   * Two write paths for one piece of state. The optimistic value belongs in
+   * local component state; the parent stays the sole owner of the DTO.
+   */
+  it("never mutates its `qr` prop — optimistic state stays local", async () => {
+    updateQrCode.mockResolvedValue(makeQrCode({ color: "#1e3a5f", roundedModules: true, logoEnabled: true }));
+    const qr = makeQrCode();
+    const wrapper = mountPanel(qr);
+
+    await wrapper.findAll(".color-swatch")[1]!.trigger("click");
+    await wrapper.find(".rounded-toggle").trigger("click");
+    await wrapper.find(".logo-toggle").trigger("click");
+    await flushPromises();
+
+    expect(qr.color).toBe("#17170f");
+    expect(qr.roundedModules).toBe(false);
+    expect(qr.logoEnabled).toBe(false);
+  });
+
+  it("reflects the optimistic value in the UI before the server responds", async () => {
+    let resolveUpdate: ((value: QrCodeDTO) => void) | undefined;
+    updateQrCode.mockReturnValue(new Promise<QrCodeDTO>((resolve) => { resolveUpdate = resolve; }));
+    const wrapper = mountPanel(makeQrCode());
+
+    await wrapper.find(".rounded-toggle").trigger("click");
+
+    expect(wrapper.find(".rounded-toggle").classes()).toContain("active");
+    resolveUpdate?.(makeQrCode({ roundedModules: true }));
+    await flushPromises();
+  });
+
+  it("re-syncs local state when the parent supplies a new qr DTO", async () => {
+    const wrapper = mountPanel(makeQrCode());
+    expect(wrapper.find(".rounded-toggle").classes()).not.toContain("active");
+
+    await wrapper.setProps({ qr: makeQrCode({ roundedModules: true, logoEnabled: true }) });
+
+    expect(wrapper.find(".rounded-toggle").classes()).toContain("active");
+    expect(wrapper.find(".logo-toggle").classes()).toContain("active");
+  });
+
   it("shows the BRAND_NAME-initial placeholder overlay once the logo toggle is on with no upload", async () => {
     updateQrCode.mockResolvedValue(makeQrCode({ logoEnabled: true }));
     const wrapper = mountPanel(makeQrCode());
@@ -230,8 +275,6 @@ describe("QrStudioPanel", () => {
       }
     }
     vi.stubGlobal("FileReader", FailingFileReader);
-    const unhandled = vi.fn();
-    process.on("unhandledRejection", unhandled);
 
     const wrapper = mountPanel(makeQrCode());
     const file = new File(["fake-png-bytes"], "logo.png", { type: "image/png" });
@@ -242,10 +285,11 @@ describe("QrStudioPanel", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     await flushPromises();
 
+    // An inline error can only appear if the rejection was CAUGHT — before
+    // the fix this assertion failed with an empty wrapper while the
+    // rejection escaped unhandled.
     expect(wrapper.find(".logo-error").text()).toBe("Nur PNG oder SVG erlaubt.");
     expect(updateQrCode).not.toHaveBeenCalled();
-    expect(unhandled).not.toHaveBeenCalled();
-    process.off("unhandledRejection", unhandled);
   });
 
   /**

@@ -38,7 +38,7 @@
  * convention with a hardcoded initial instead of adding a new public
  * config endpoint (out of scope; no backend files may be touched here).
  */
-import { computed, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import type { QrCodeDTO } from "@kurzly/shared";
 import { fetchQrRenderBlob, mapQrFormError, qrRenderPngUrl, updateQrCode } from "../api";
 
@@ -88,8 +88,35 @@ const hasCustomLogo = ref(false);
 const logoError = ref<string | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 
+/**
+ * Optimistic mirror of the three styleable DTO fields this panel edits.
+ *
+ * These are deliberately NOT written back into `props.qr`: `QrCodesView`'s
+ * `selectedQr` is a live element of its own `qrCodes` array, so assigning
+ * into the prop would mutate the parent's state behind its back — while the
+ * parent independently replaces that same element from the `styled` emit.
+ * Two write paths for one piece of state (the exact case
+ * `vue/no-mutating-props` exists to catch). Here the panel owns only the
+ * pre-confirmation value; the parent stays the sole owner of the DTO, and
+ * the watch below re-syncs whenever it hands down an authoritative one.
+ */
+const local = reactive({
+  color: props.qr.color,
+  roundedModules: props.qr.roundedModules,
+  logoEnabled: props.qr.logoEnabled,
+});
+
+watch(
+  () => props.qr,
+  (qr) => {
+    local.color = qr.color;
+    local.roundedModules = qr.roundedModules;
+    local.logoEnabled = qr.logoEnabled;
+  },
+);
+
 const studioCode = computed(() => (props.qr.variant === "dynamic" ? `/q/${props.qr.code}` : ""));
-const showLogoOverlay = computed(() => props.qr.logoEnabled && !hasCustomLogo.value);
+const showLogoOverlay = computed(() => local.logoEnabled && !hasCustomLogo.value);
 
 /** Preloads the next server render before swapping `previewSrc` — keeps the previous frame visible (opacity .6) instead of a blank flash. */
 function refreshPreview(): void {
@@ -129,41 +156,43 @@ watch(
 );
 
 async function setColor(color: string): Promise<void> {
-  if (props.qr.color === color) return;
-  const prev = props.qr.color;
-  props.qr.color = color;
+  if (local.color === color) return;
+  const prev = local.color;
+  local.color = color;
   try {
     const updated = await updateQrCode(props.qr.id, { color });
     emit("styled", updated);
     scheduleRender();
   } catch {
-    props.qr.color = prev;
+    local.color = prev;
     emit("toast", SAVE_FAILED_MESSAGE);
   }
 }
 
 async function toggleRounded(): Promise<void> {
-  const prev = props.qr.roundedModules;
-  props.qr.roundedModules = !prev;
+  const prev = local.roundedModules;
+  const next = !prev;
+  local.roundedModules = next;
   try {
-    const updated = await updateQrCode(props.qr.id, { roundedModules: props.qr.roundedModules });
+    const updated = await updateQrCode(props.qr.id, { roundedModules: next });
     emit("styled", updated);
     scheduleRender();
   } catch {
-    props.qr.roundedModules = prev;
+    local.roundedModules = prev;
     emit("toast", SAVE_FAILED_MESSAGE);
   }
 }
 
 async function toggleLogo(): Promise<void> {
-  const prev = props.qr.logoEnabled;
-  props.qr.logoEnabled = !prev;
+  const prev = local.logoEnabled;
+  const next = !prev;
+  local.logoEnabled = next;
   try {
-    const updated = await updateQrCode(props.qr.id, { logoEnabled: props.qr.logoEnabled });
+    const updated = await updateQrCode(props.qr.id, { logoEnabled: next });
     emit("styled", updated);
     scheduleRender();
   } catch {
-    props.qr.logoEnabled = prev;
+    local.logoEnabled = prev;
     emit("toast", SAVE_FAILED_MESSAGE);
   }
 }
@@ -214,7 +243,7 @@ async function handleLogoFile(file: File): Promise<void> {
   try {
     // Upload auto-enables the toggle (07-UI-SPEC.md Copywriting Contract).
     const updated = await updateQrCode(props.qr.id, { logoData: dataUrl, logoEnabled: true });
-    props.qr.logoEnabled = true;
+    local.logoEnabled = true;
     logoFileName.value = file.name;
     hasCustomLogo.value = true;
     emit("styled", updated);
@@ -239,7 +268,7 @@ async function removeLogo(): Promise<void> {
     // decorative placeholder tile reappeared over a preview/export that
     // contains no logo at all.
     const updated = await updateQrCode(props.qr.id, { logoData: null, logoEnabled: false });
-    props.qr.logoEnabled = false;
+    local.logoEnabled = false;
     logoFileName.value = null;
     hasCustomLogo.value = false;
     emit("styled", updated);
@@ -291,7 +320,7 @@ async function exportFile(format: "png" | "svg"): Promise<void> {
             :key="color"
             type="button"
             class="color-swatch"
-            :class="{ selected: qr.color === color }"
+            :class="{ selected: local.color === color }"
             :style="{ background: color }"
             @click="setColor(color)"
           ></button>
@@ -302,9 +331,9 @@ async function exportFile(format: "png" | "svg"): Promise<void> {
         <span class="control-label">Logo in der Mitte</span>
         <div
           class="toggle logo-toggle"
-          :class="{ active: qr.logoEnabled }"
+          :class="{ active: local.logoEnabled }"
           role="switch"
-          :aria-checked="qr.logoEnabled"
+          :aria-checked="local.logoEnabled"
           @click="toggleLogo"
         >
           <div class="toggle-knob"></div>
@@ -315,9 +344,9 @@ async function exportFile(format: "png" | "svg"): Promise<void> {
         <span class="control-label">Runde Module</span>
         <div
           class="toggle rounded-toggle"
-          :class="{ active: qr.roundedModules }"
+          :class="{ active: local.roundedModules }"
           role="switch"
-          :aria-checked="qr.roundedModules"
+          :aria-checked="local.roundedModules"
           @click="toggleRounded"
         >
           <div class="toggle-knob"></div>
