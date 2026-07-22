@@ -199,7 +199,18 @@ async function handleLogoFile(file: File): Promise<void> {
   }
   logoError.value = null;
 
-  const dataUrl = await readAsDataUrl(file);
+  // `readAsDataUrl` rejects on `reader.onerror`, and this function is
+  // invoked as `void handleLogoFile(file)` — so an unguarded await here
+  // escapes as an unhandled promise rejection and the user sees nothing
+  // (no inline error, no toast). Fail visibly instead.
+  let dataUrl: string;
+  try {
+    dataUrl = await readAsDataUrl(file);
+  } catch {
+    logoError.value = LOGO_FORMAT_ERROR;
+    return;
+  }
+
   try {
     // Upload auto-enables the toggle (07-UI-SPEC.md Copywriting Contract).
     const updated = await updateQrCode(props.qr.id, { logoData: dataUrl, logoEnabled: true });

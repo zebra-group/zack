@@ -212,6 +212,42 @@ describe("QrStudioPanel", () => {
     expect(wrapper.find(".file-chip-name").text()).toBe("logo.png");
   });
 
+  /**
+   * WR-04 regression: `readAsDataUrl` rejects on `reader.onerror`, but the
+   * call sat OUTSIDE `handleLogoFile`'s try block. Since the change handler
+   * invokes it as `void handleLogoFile(file)`, the rejection escaped as an
+   * unhandled promise rejection and the user saw nothing at all —
+   * `logoError` stayed null and no toast fired.
+   */
+  it("surfaces an inline error (and no unhandled rejection) when FileReader fails", async () => {
+    class FailingFileReader {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      error = new Error("read failed");
+      result: string | null = null;
+      readAsDataURL(): void {
+        Promise.resolve().then(() => this.onerror?.());
+      }
+    }
+    vi.stubGlobal("FileReader", FailingFileReader);
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+
+    const wrapper = mountPanel(makeQrCode());
+    const file = new File(["fake-png-bytes"], "logo.png", { type: "image/png" });
+    const input = wrapper.find("input[type='file']");
+    Object.defineProperty(input.element, "files", { value: [file], configurable: true });
+
+    await input.trigger("change");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await flushPromises();
+
+    expect(wrapper.find(".logo-error").text()).toBe("Nur PNG oder SVG erlaubt.");
+    expect(updateQrCode).not.toHaveBeenCalled();
+    expect(unhandled).not.toHaveBeenCalled();
+    process.off("unhandledRejection", unhandled);
+  });
+
   it("'Logo entfernen' clears the stored logo via updateQrCode(null)", async () => {
     updateQrCode.mockResolvedValue(makeQrCode({ logoEnabled: true }));
     const wrapper = mountPanel(makeQrCode());
