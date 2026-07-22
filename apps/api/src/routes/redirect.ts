@@ -45,7 +45,7 @@ import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest }
 import bcrypt from "bcryptjs";
 import type { Link, PrismaClient, ScanSource } from "../generated/prisma/client.js";
 import { resolveActiveDomainByHost } from "../lib/domainResolution.js";
-import { resolveLinkState, mergeQuery, QR_SCAN_PARAM } from "../lib/redirectEngine.js";
+import { resolveLinkState, mergeQuery, applyUtmParams, QR_SCAN_PARAM } from "../lib/redirectEngine.js";
 import { isBotRequest } from "../lib/botDetection.js";
 import { hasValidUnlockCookie, issueUnlockCookie } from "../lib/unlockCookie.js";
 import {
@@ -282,9 +282,18 @@ export function redirectRoute(prisma: PrismaClient) {
         // never leaks it to the destination.
         incoming.delete(QR_SCAN_PARAM);
         const forwarded = incoming.toString();
+        // D-08-02 composition order (redirectEngine.ts's module header):
+        // the owner's UTM parameters are applied to the stored target FIRST,
+        // overriding any same-named key already there — the owner typed
+        // these into this link's own builder, so their intent is
+        // authoritative over the stored target. Only THEN, if forwardQuery
+        // is on, does the visitor's incoming query merge onto that result
+        // via mergeQuery's unchanged target-wins rule — the visitor must
+        // never be able to rewrite what the owner just set.
+        const utmTarget = applyUtmParams(link.targetUrl, link);
         const target = link.forwardQuery
-          ? mergeQuery(link.targetUrl, forwarded ? `?${forwarded}` : "")
-          : link.targetUrl;
+          ? mergeQuery(utmTarget, forwarded ? `?${forwarded}` : "")
+          : utmTarget;
         return reply.code(302).redirect(target);
       },
     });
