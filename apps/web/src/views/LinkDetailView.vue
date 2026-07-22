@@ -70,6 +70,25 @@ const hostname = computed(() => {
   return domains.value.find((d) => d.id === domainId)?.hostname ?? "";
 });
 
+/**
+ * Phase 8 (08-06 Task 2, 08-UI-SPEC.md Surface D): whether the loaded link
+ * carries any of the three UTM fields — drives the "UTM-Parameter gesetzt"
+ * chip. Same predicate shape as LinksView.vue's hasUtm, computed here
+ * against the single loaded `link` ref instead of a table row.
+ */
+const hasUtm = computed(
+  () => !!(link.value?.utmSource || link.value?.utmMedium || link.value?.utmCampaign),
+);
+
+/**
+ * Phase 8 (08-06 Task 2, 08-UI-SPEC.md Surface D): whether the loaded link
+ * carries any of the three custom-OG fields — drives the "Custom OG-Tags"
+ * chip.
+ */
+const hasOg = computed(
+  () => !!(link.value?.ogTitle || link.value?.ogDescription || link.value?.ogImageUrl),
+);
+
 // 06-UI-SPEC.md Copywriting Contract: locked ON/OFF hint copy for the
 // "Internes Tracking" card.
 const trackingHint = computed(() =>
@@ -254,7 +273,12 @@ async function handleCopy(): Promise<void> {
 function reportFormError(err: unknown): void {
   formError.value = err;
   const mapped = mapLinkFormError(err);
-  if (!mapped.targetUrlError && !mapped.slugError) {
+  // Phase 8 (08-06, Rule 1 fix): the original WR-09 check only looked at
+  // targetUrlError/slugError, so a mapped UTM/OG field error (e.g.
+  // OG_IMAGE_URL_INVALID) would render its inline message AND still fire
+  // the generic fallback toast — checking every mapped key closes that gap.
+  const hasFieldError = Object.values(mapped).some((v) => v !== undefined);
+  if (!hasFieldError) {
     showToast("Speichern fehlgeschlagen. Bitte erneut versuchen.");
   }
 }
@@ -278,6 +302,17 @@ async function handleEditSubmit(payload: {
   expiresAt?: string | null;
   /** Phase 5 (D-12): `undefined` keeps the current value. */
   forwardQuery?: boolean;
+  /**
+   * Phase 8 (08-06, D-08-05, META-01/02): forwarded EXACTLY as received —
+   * `undefined` keeps, `null` is an explicit clear that must reach the
+   * API rather than being collapsed away (T-08-CLEAR-DROP).
+   */
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  ogImageUrl?: string | null;
 }): Promise<void> {
   if (!link.value) return;
   if (!payload.targetUrl.trim()) {
@@ -292,6 +327,12 @@ async function handleEditSubmit(payload: {
       password: payload.password,
       expiresAt: payload.expiresAt,
       forwardQuery: payload.forwardQuery,
+      utmSource: payload.utmSource,
+      utmMedium: payload.utmMedium,
+      utmCampaign: payload.utmCampaign,
+      ogTitle: payload.ogTitle,
+      ogDescription: payload.ogDescription,
+      ogImageUrl: payload.ogImageUrl,
     });
     link.value = updated;
     closeEditModal();
@@ -364,6 +405,8 @@ loadDomains();
     <div class="chips-row">
       <span class="chip">{{ hostname }}</span>
       <span class="chip">erstellt {{ formatDate(link.createdAt) }}</span>
+      <span v-if="hasUtm" class="chip">UTM-Parameter gesetzt</span>
+      <span v-if="hasOg" class="chip">Custom OG-Tags</span>
     </div>
 
     <!-- Surface A (06-UI-SPEC.md): always-visible tracking card + optimistic toggle. -->
@@ -512,6 +555,12 @@ loadDomains();
     :initial-password-protected="link.passwordProtected"
     :initial-expires-at="link.expiresAt ? link.expiresAt.slice(0, 10) : null"
     :initial-forward-query="link.forwardQuery"
+    :initial-utm-source="link.utmSource ?? undefined"
+    :initial-utm-medium="link.utmMedium ?? undefined"
+    :initial-utm-campaign="link.utmCampaign ?? undefined"
+    :initial-og-title="link.ogTitle ?? undefined"
+    :initial-og-description="link.ogDescription ?? undefined"
+    :initial-og-image-url="link.ogImageUrl ?? undefined"
     :error="formError"
     @close="closeEditModal"
     @submit="handleEditSubmit"
