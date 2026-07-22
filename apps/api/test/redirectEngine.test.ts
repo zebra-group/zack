@@ -29,9 +29,16 @@
  */
 import { describe, expect, it } from "vitest";
 import { isBotRequest } from "../src/lib/botDetection.js";
-import { mergeQuery, resolveLinkState } from "../src/lib/redirectEngine.js";
+import {
+  applyUtmParams,
+  mergeQuery,
+  resolveLinkState,
+  type LinkUtmParams,
+} from "../src/lib/redirectEngine.js";
 import { cookieName, unlockPayload } from "../src/lib/unlockCookie.js";
 import { REDIRECT_RATE_LIMIT, VERIFY_RATE_LIMIT_PER_LINK } from "../src/plugins/rateLimit.js";
+
+const NO_UTM: LinkUtmParams = { utmSource: null, utmMedium: null, utmCampaign: null };
 
 const GOOGLEBOT_UA =
   "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
@@ -166,6 +173,113 @@ describe("mergeQuery (D-12/D-13, target wins on conflict, no open-redirect surfa
     expect(parsed.protocol).toBe("https:");
     expect(parsed.host).toBe("x.example.com");
     expect(parsed.pathname).toBe("/some/path");
+  });
+});
+
+describe("applyUtmParams (D-08-02, owner-wins UTM application)", () => {
+  it("appends a single set parameter to a target with no existing query", () => {
+    const result = applyUtmParams("https://example.com/p", {
+      utmSource: "newsletter",
+      utmMedium: null,
+      utmCampaign: null,
+    });
+    expect(result).toBe("https://example.com/p?utm_source=newsletter");
+  });
+
+  it("adds the parameter alongside an existing query string (delegated to URL, not hand-assembled)", () => {
+    const result = applyUtmParams("https://example.com/p?a=1", {
+      utmSource: "x",
+      utmMedium: null,
+      utmCampaign: null,
+    });
+    const parsed = new URL(result);
+    expect(parsed.searchParams.get("a")).toBe("1");
+    expect(parsed.searchParams.get("utm_source")).toBe("x");
+  });
+
+  it("overrides a same-named utm_source already present on the target (opposite of mergeQuery's target-wins rule)", () => {
+    const result = applyUtmParams("https://example.com/p?utm_source=visitor-set", {
+      utmSource: "owner-set",
+      utmMedium: null,
+      utmCampaign: null,
+    });
+    expect(new URL(result).searchParams.get("utm_source")).toBe("owner-set");
+  });
+
+  it("still renders source, medium, campaign in canonical order even when the target already defines utm_campaign earlier", () => {
+    const result = applyUtmParams("https://example.com/p?utm_campaign=pinned&z=1", {
+      utmSource: "src",
+      utmMedium: "med",
+      utmCampaign: "camp",
+    });
+    const search = new URL(result).search;
+    const sourceIdx = search.indexOf("utm_source");
+    const mediumIdx = search.indexOf("utm_medium");
+    const campaignIdx = search.indexOf("utm_campaign");
+    expect(sourceIdx).toBeGreaterThan(-1);
+    expect(mediumIdx).toBeGreaterThan(sourceIdx);
+    expect(campaignIdx).toBeGreaterThan(mediumIdx);
+  });
+
+  it("percent-encodes values via URLSearchParams; re-parsing yields the original value back", () => {
+    const result = applyUtmParams("https://example.com/p", {
+      utmSource: null,
+      utmMedium: null,
+      utmCampaign: "sommer & sonne",
+    });
+    expect(result).toContain("utm_campaign=");
+    expect(result).not.toContain("sommer & sonne");
+    expect(new URL(result).searchParams.get("utm_campaign")).toBe("sommer & sonne");
+  });
+
+  it("returns the target unchanged, byte-for-byte identical to the input string, when all three are null", () => {
+    const result = applyUtmParams("https://example.com", NO_UTM);
+    expect(result).toBe("https://example.com");
+  });
+
+  it("returns the target unchanged when all three are empty or whitespace-only strings", () => {
+    const result = applyUtmParams("https://example.com/p?a=1#frag", {
+      utmSource: "",
+      utmMedium: "   ",
+      utmCampaign: "",
+    });
+    expect(result).toBe("https://example.com/p?a=1#frag");
+  });
+
+  it("does not URL-round-trip a no-UTM target — no added trailing slash on an origin-only URL", () => {
+    const result = applyUtmParams("https://example.com", NO_UTM);
+    expect(result).not.toBe("https://example.com/");
+    expect(result).toBe("https://example.com");
+  });
+
+  it("only applies non-empty values — a whitespace-only utmMedium is treated as not set", () => {
+    const result = applyUtmParams("https://example.com/p", {
+      utmSource: "src",
+      utmMedium: "   ",
+      utmCampaign: null,
+    });
+    const parsed = new URL(result);
+    expect(parsed.searchParams.has("utm_medium")).toBe(false);
+    expect(parsed.searchParams.get("utm_source")).toBe("src");
+  });
+
+  it("never alters the target's scheme, host, or path", () => {
+    const result = applyUtmParams("https://x.example.com/some/path", {
+      utmSource: "src",
+      utmMedium: null,
+      utmCampaign: null,
+    });
+    const parsed = new URL(result);
+    expect(parsed.protocol).toBe("https:");
+    expect(parsed.host).toBe("x.example.com");
+    expect(parsed.pathname).toBe("/some/path");
+  });
+
+  it("composes with mergeQuery in the D-08-02 order: the owner's utm_source survives a visitor-forwarded utm_source", () => {
+    const target = "https://example.com/p";
+    const utm: LinkUtmParams = { utmSource: "owner", utmMedium: null, utmCampaign: null };
+    const composed = mergeQuery(applyUtmParams(target, utm), "?utm_source=visitor");
+    expect(new URL(composed).searchParams.get("utm_source")).toBe("owner");
   });
 });
 
