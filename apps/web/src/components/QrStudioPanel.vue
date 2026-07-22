@@ -233,7 +233,13 @@ function handleFileInputChange(event: Event): void {
 
 async function removeLogo(): Promise<void> {
   try {
-    const updated = await updateQrCode(props.qr.id, { logoData: null });
+    // Clear BOTH fields, mirroring the upload path's symmetry. Sending only
+    // `logoData: null` left `logoEnabled` true, so the server kept forcing
+    // error-correction level H for a logo it no longer had, and the
+    // decorative placeholder tile reappeared over a preview/export that
+    // contains no logo at all.
+    const updated = await updateQrCode(props.qr.id, { logoData: null, logoEnabled: false });
+    props.qr.logoEnabled = false;
     logoFileName.value = null;
     hasCustomLogo.value = false;
     emit("styled", updated);

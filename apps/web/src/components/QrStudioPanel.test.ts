@@ -248,7 +248,16 @@ describe("QrStudioPanel", () => {
     process.off("unhandledRejection", unhandled);
   });
 
-  it("'Logo entfernen' clears the stored logo via updateQrCode(null)", async () => {
+  /**
+   * WR-08 regression: `removeLogo` used to send only `{ logoData: null }`,
+   * leaving `logoEnabled` true server-side — which silently dropped the
+   * error-correction level from H back to M — while the client reset
+   * `hasCustomLogo`, flipping the decorative placeholder tile back on. The
+   * user then saw a logo in the preview that the exported bytes did not
+   * contain. Both fields must be cleared together, mirroring the upload
+   * path's symmetry.
+   */
+  it("'Logo entfernen' clears BOTH logoData and logoEnabled, and hides the placeholder tile", async () => {
     updateQrCode.mockResolvedValue(makeQrCode({ logoEnabled: true }));
     const wrapper = mountPanel(makeQrCode());
     const file = new File(["fake-png-bytes"], "logo.png", { type: "image/png" });
@@ -259,13 +268,15 @@ describe("QrStudioPanel", () => {
     await flushPromises();
 
     updateQrCode.mockClear();
-    updateQrCode.mockResolvedValue(makeQrCode({ logoEnabled: true }));
+    updateQrCode.mockResolvedValue(makeQrCode({ logoEnabled: false }));
 
     await wrapper.find(".file-chip-remove").trigger("click");
     await flushPromises();
 
-    expect(updateQrCode).toHaveBeenCalledWith("qr1", { logoData: null });
+    expect(updateQrCode).toHaveBeenCalledWith("qr1", { logoData: null, logoEnabled: false });
     expect(wrapper.find(".file-chip").exists()).toBe(false);
+    // No stored logo AND the toggle is off -> nothing may suggest a logo.
+    expect(wrapper.find(".logo-overlay").exists()).toBe(false);
   });
 
   it("clicking 'PNG ⬇' fetches the PNG blob and triggers a browser download", async () => {
