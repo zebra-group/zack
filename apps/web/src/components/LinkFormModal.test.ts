@@ -165,7 +165,7 @@ describe("LinkFormModal", () => {
     });
 
     await wrapper.find(".field-input.mono").setValue("https://example.com/x");
-    await wrapper.find(".security-header").trigger("click");
+    await wrapper.find(".accordion-header--sec").trigger("click");
     await wrapper.find("input[type='password']").setValue("s3cret");
     await wrapper.find("input[type='date']").setValue("2026-08-01");
     await wrapper.find(".toggle").trigger("click");
@@ -194,7 +194,7 @@ describe("LinkFormModal", () => {
       },
     });
 
-    await wrapper.find(".security-header").trigger("click");
+    await wrapper.find(".accordion-header--sec").trigger("click");
     const pwInput = wrapper.find("input[type='password']");
     expect((pwInput.element as HTMLInputElement).value).toBe("");
     expect(pwInput.attributes("placeholder")).toBe("•••• gesetzt — leer lassen, um beizubehalten");
@@ -216,7 +216,7 @@ describe("LinkFormModal", () => {
       },
     });
 
-    await wrapper.find(".security-header").trigger("click");
+    await wrapper.find(".accordion-header--sec").trigger("click");
     await wrapper.find(".remove-pw-link").trigger("click");
     await wrapper.find(".btn-primary").trigger("click");
 
@@ -235,7 +235,7 @@ describe("LinkFormModal", () => {
       },
     });
 
-    await wrapperClear.find(".security-header").trigger("click");
+    await wrapperClear.find(".accordion-header--sec").trigger("click");
     await wrapperClear.find("input[type='date']").setValue("");
     await wrapperClear.find(".btn-primary").trigger("click");
 
@@ -262,13 +262,76 @@ describe("LinkFormModal", () => {
       props: { mode: "create", domains: [makeDomain()] },
     });
 
-    expect(wrapper.find(".security-body").exists()).toBe(false);
-    expect(wrapper.find(".security-header").text()).not.toContain("gesetzt");
+    expect(wrapper.find(".accordion-body--sec").exists()).toBe(false);
+    expect(wrapper.find(".accordion-header--sec").text()).not.toContain("gesetzt");
 
-    await wrapper.find(".security-header").trigger("click");
+    await wrapper.find(".accordion-header--sec").trigger("click");
     await wrapper.find("input[type='password']").setValue("secret");
 
-    expect(wrapper.find(".security-header").text()).toContain("Passwort gesetzt");
+    expect(wrapper.find(".accordion-header--sec").text()).toContain("Passwort gesetzt");
+  });
+
+  // Phase 8 (UI-08-01/02/04): the single-boolean accordion became an
+  // exclusive multi-section shell with generic `.accordion-*` classes.
+  // Full cross-section exclusivity (opening one closes another) is
+  // exercised end-to-end once a second section exists (08-04 Task 3 adds
+  // the UTM section onto the same `openSection` ref) — these cases cover
+  // what Task 1 alone can render: the toggle mechanics and a11y contract
+  // on the one section that exists at this point in the sweep.
+  describe("accordion shell (Phase 8, UI-08-01/02/04)", () => {
+    it("the section header exposes role=button, tabindex=0, and aria-expanded tracking open state", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      const header = wrapper.find(".accordion-header--sec");
+      expect(header.attributes("role")).toBe("button");
+      expect(header.attributes("tabindex")).toBe("0");
+      expect(header.attributes("aria-expanded")).toBe("false");
+
+      await header.trigger("click");
+      expect(header.attributes("aria-expanded")).toBe("true");
+    });
+
+    it("clicking an open section header closes it again — at most one body renders at a time", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      const header = wrapper.find(".accordion-header--sec");
+      await header.trigger("click");
+      expect(wrapper.find(".accordion-body--sec").exists()).toBe(true);
+
+      await header.trigger("click");
+      expect(wrapper.find(".accordion-body--sec").exists()).toBe(false);
+    });
+
+    it("Enter and Space on a focused header toggle it exactly like a click", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      const header = wrapper.find(".accordion-header--sec");
+      await header.trigger("keydown.enter");
+      expect(wrapper.find(".accordion-body--sec").exists()).toBe(true);
+
+      await header.trigger("keydown.space");
+      expect(wrapper.find(".accordion-body--sec").exists()).toBe(false);
+    });
+
+    it("every retired .security-* class name is gone from the rendered markup", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+      await wrapper.find(".accordion-header--sec").trigger("click");
+
+      const html = wrapper.html();
+      expect(html).not.toContain("security-section");
+      expect(html).not.toContain("security-header");
+      expect(html).not.toContain("security-summary");
+      expect(html).not.toContain("security-chevron");
+      expect(html).not.toContain("security-body");
+    });
   });
 
   // Phase 6 footer tracking toggle (06-UI-SPEC.md § C1, TRACK-01/D-15).
