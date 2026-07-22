@@ -123,10 +123,10 @@ function resolveModuleStyle(style: RenderStyle): ModuleStyle {
   };
 }
 
-/** Full QR pixel dimension INCLUDING the quiet zone on all sides — same computation buildModuleSvg makes internally. */
-function qrDimensionPx(payload: string, errorCorrectionLevel: QrErrorCorrectionLevel, moduleSizePx: number): number {
-  const qr = QRCode.create(payload, { errorCorrectionLevel });
-  return qr.modules.size * moduleSizePx + 2 * QUIET_ZONE_MODULES * moduleSizePx;
+/** `buildModuleSvg`'s full result: the SVG string plus the symbol's full pixel dimension INCLUDING the quiet zone. */
+interface ModuleSvg {
+  svg: string;
+  dim: number;
 }
 
 /**
@@ -159,6 +159,24 @@ export function resolveErrorCorrectionLevel(logoEnabled: boolean): QrErrorCorrec
  * restores full ~100% contrast and real-world scannability.
  */
 export function buildModuleSvg(payload: string, errorCorrectionLevel: QrErrorCorrectionLevel, style: ModuleStyle): string {
+  return buildModuleSvgWithDim(payload, errorCorrectionLevel, style).svg;
+}
+
+/**
+ * The actual implementation, returning the symbol's pixel dimension
+ * alongside the SVG string.
+ *
+ * The dimension is a by-product of the matrix this function has already
+ * walked, so handing it back removes the separate `qrDimensionPx` helper
+ * that re-ran `QRCode.create` on the identical payload/EC level purely to
+ * measure the symbol — two full Reed-Solomon encodes per logo render, on the
+ * endpoint with the highest rate limit in the app.
+ */
+function buildModuleSvgWithDim(
+  payload: string,
+  errorCorrectionLevel: QrErrorCorrectionLevel,
+  style: ModuleStyle,
+): ModuleSvg {
   // Authoritative SVG attribute-injection guard, applied at the exact interpolation site:
   // `style.color` is written raw into fill="${style.color}" below. buildModuleSvg is exported and
   // may be called directly (bypassing resolveModuleStyle), so validating here — not only in the
@@ -182,7 +200,8 @@ export function buildModuleSvg(payload: string, errorCorrectionLevel: QrErrorCor
 
   const dim = size * px + margin * 2;
   const background = `<rect x="0" y="0" width="${dim}" height="${dim}" fill="${BACKGROUND_COLOR}"/>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${dim}" height="${dim}" viewBox="0 0 ${dim} ${dim}">${background}${rects.join("")}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${dim}" height="${dim}" viewBox="0 0 ${dim} ${dim}">${background}${rects.join("")}</svg>`;
+  return { svg, dim };
 }
 
 /**
@@ -207,7 +226,7 @@ async function resizeLogoToTile(logoBuffer: Buffer, logoTilePx: number): Promise
 export async function renderQrSvg(payload: string, style: RenderStyle = {}): Promise<string> {
   const errorCorrectionLevel = resolveErrorCorrectionLevel(Boolean(style.logo));
   const moduleStyle = resolveModuleStyle(style);
-  const svg = buildModuleSvg(payload, errorCorrectionLevel, moduleStyle);
+  const { svg, dim } = buildModuleSvgWithDim(payload, errorCorrectionLevel, moduleStyle);
 
   if (!style.logo) {
     // Deliberately the exact string returned for the no-logo case — must
@@ -217,7 +236,6 @@ export async function renderQrSvg(payload: string, style: RenderStyle = {}): Pro
   }
 
   const normalizedLogo = await normalizeLogo(style.logo);
-  const dim = qrDimensionPx(payload, errorCorrectionLevel, moduleStyle.moduleSizePx);
   const logoTilePx = dim * LOGO_TILE_FRACTION;
   const offset = (dim - logoTilePx) / 2;
   // Resize to the tile BEFORE embedding, exactly as the PNG path does.
@@ -245,7 +263,7 @@ export async function renderQrSvg(payload: string, style: RenderStyle = {}): Pro
 export async function renderQrPng(payload: string, style: RenderStyle = {}): Promise<Buffer> {
   const errorCorrectionLevel = resolveErrorCorrectionLevel(Boolean(style.logo));
   const moduleStyle = resolveModuleStyle(style);
-  const svg = buildModuleSvg(payload, errorCorrectionLevel, moduleStyle);
+  const { svg, dim } = buildModuleSvgWithDim(payload, errorCorrectionLevel, moduleStyle);
   const basePng = await sharp(Buffer.from(svg)).png().toBuffer();
 
   if (!style.logo) {
@@ -253,7 +271,6 @@ export async function renderQrPng(payload: string, style: RenderStyle = {}): Pro
   }
 
   const normalizedLogo = await normalizeLogo(style.logo);
-  const dim = qrDimensionPx(payload, errorCorrectionLevel, moduleStyle.moduleSizePx);
   const logoTilePx = Math.round(dim * LOGO_TILE_FRACTION);
   const resizedLogo = await resizeLogoToTile(normalizedLogo.buffer, logoTilePx);
 
