@@ -23,7 +23,7 @@
  * on submit means KEEP (`undefined`); only the explicit "Passwortschutz
  * entfernen" action emits `null` to CLEAR (T-05-KEEPCLEAR).
  */
-import { computed, ref } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import type { DomainDTO } from "@kurzly/shared";
 import { mapLinkFormError } from "../api";
 import { buildUtmPreview } from "../lib/utm";
@@ -191,6 +191,71 @@ const ogSetCount = computed(
 
 /** `· {n} gesetzt`, or empty when nothing is set — identical format to utmSummary above. */
 const ogSummary = computed(() => (ogSetCount.value > 0 ? `· ${ogSetCount.value} gesetzt` : ""));
+
+/**
+ * Surface B social-card domain line (UI-08-06, T-08-CARD-LEAK): derives
+ * ONLY from the currently selected short-link domain — the create-mode
+ * Select's `domains` prop looked up by `domainId`, or the edit-mode
+ * `domainHostname` prop — NEVER from `targetUrl`. Blank (no placeholder
+ * text) when nothing is selected yet, matching the Copywriting Contract.
+ */
+const ogCardDomain = computed(() => {
+  if (props.mode === "edit") return props.domainHostname ?? "";
+  return props.domains.find((d) => d.id === domainId.value)?.hostname ?? "";
+});
+
+/**
+ * Surface B image binding gate (T-08-IMG-SCHEME/T-08-IMG-BEACON,
+ * 08-UI-SPEC.md's "Bild-Request-Auslöser" Checker-Nachtrag): an absolute
+ * http/https URL only — a relative path, `javascript:`, `data:`, or any
+ * other scheme never becomes an `<img src>`. `new URL()` throws on
+ * anything that doesn't parse as absolute, which doubles as the "still
+ * mid-typing" guard (e.g. "h", "https:/").
+ */
+function isAbsoluteHttpUrl(value: string): boolean {
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+const OG_IMAGE_DEBOUNCE_MS = 300;
+
+/** The actually-bound `<img src>` — set only after the debounce below confirms an absolute http/https URL. */
+const ogDebouncedImageSrc = ref<string | null>(null);
+/** Raised by the `<img>`'s `@error` handler; reverts the card to the hatched placeholder (never a broken-image icon). */
+const ogImageLoadFailed = ref(false);
+let ogImageDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * This is the ONE exception to "every preview updates synchronously"
+ * (UI-08-10's Checker-Nachtrag): the `<img src>` binding is debounced and
+ * parse-gated so that typing a URL character by character never fires a
+ * browser request for every partial host (`h`, `ht`, `https://ex`, …).
+ * Every OTHER field in this modal (UTM preview, OG title/description
+ * text) still updates per keystroke with no debounce — only this one
+ * binding is exempt, and only because it is the sole one that causes the
+ * BROWSER (not this app's server, D-08-04/T-08-SSRF-CLIENT) to issue a
+ * network request.
+ */
+watch(ogImageUrl, (value) => {
+  ogImageLoadFailed.value = false;
+  ogDebouncedImageSrc.value = null;
+  if (ogImageDebounceTimer) clearTimeout(ogImageDebounceTimer);
+  ogImageDebounceTimer = setTimeout(() => {
+    if (isAbsoluteHttpUrl(value)) ogDebouncedImageSrc.value = value;
+  }, OG_IMAGE_DEBOUNCE_MS);
+});
+
+onUnmounted(() => {
+  if (ogImageDebounceTimer) clearTimeout(ogImageDebounceTimer);
+});
+
+function handleOgImageError(): void {
+  ogImageLoadFailed.value = true;
+}
 
 /**
  * Surface A live preview (UI-08-10): recomputes on every keystroke of the
@@ -393,6 +458,33 @@ function handleSubmit(): void {
               Social-Netzwerke zeigen typischerweise ca. 60 Zeichen Titel und ca. 155 Zeichen
               Beschreibung.
             </p>
+          </div>
+
+          <!-- Surface B social-card live preview (08-05 Task 2). Always
+               rendered while the section is open — even with all three
+               fields empty (hatch + locked placeholders), never an
+               empty-state swap. -->
+          <div class="og-preview-column">
+            <div class="og-card">
+              <div class="og-card-image">
+                <!-- The browser (not our server) fetches this URL once it's
+                     bound — D-08-04/T-08-SSRF-CLIENT: no server-side fetch
+                     is ever introduced by this preview. -->
+                <img
+                  v-if="ogDebouncedImageSrc && !ogImageLoadFailed"
+                  :src="ogDebouncedImageSrc"
+                  class="og-card-img"
+                  @error="handleOgImageError"
+                />
+                <span v-else class="og-card-image-label">OG-Bild</span>
+              </div>
+              <div class="og-card-text">
+                <div class="og-card-title">{{ ogTitle || "OG-Titel erscheint hier" }}</div>
+                <div class="og-card-desc">{{ ogDescription || "Beschreibung erscheint hier" }}</div>
+                <div class="og-card-domain">{{ ogCardDomain }}</div>
+              </div>
+            </div>
+            <p class="og-card-caption">Vorschau · Slack / X / LinkedIn</p>
           </div>
         </div>
       </div>
@@ -771,6 +863,82 @@ function handleSubmit(): void {
   font-size: 11px;
   color: var(--mut);
   margin: 0;
+}
+
+/* Right column: the 210px social-card live preview (08-05 Task 2). */
+.og-preview-column {
+  width: 210px;
+  flex: none;
+  padding-top: 10px;
+}
+
+.og-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.og-card-image {
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Theme-token hatch (no hardcoded colour, automatically light/dark
+     correct) — stays underneath a loaded <img>, which covers it visually
+     (Prototyp Z.727). */
+  background: repeating-linear-gradient(45deg, var(--chip), var(--chip) 8px, var(--bg) 8px, var(--bg) 16px);
+}
+
+.og-card-image-label {
+  font-size: 10px;
+  font-family: "Geist Mono", monospace;
+  color: var(--mut);
+}
+
+.og-card-img {
+  width: 100%;
+  height: 76px;
+  object-fit: cover;
+  display: block;
+}
+
+.og-card-text {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.og-card-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.og-card-desc {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--mut);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.og-card-domain {
+  font-size: 9.5px;
+  font-family: "Geist Mono", monospace;
+  color: var(--mut);
+}
+
+.og-card-caption {
+  font-size: 10px;
+  color: var(--mut);
+  margin-top: 5px;
+  text-align: center;
 }
 
 .remove-pw-link {
