@@ -459,4 +459,201 @@ describe("LinkDetailView", () => {
 
     expect(wrapper.text()).toContain("Link nicht gefunden");
   });
+
+  // Phase 8 (08-06 Task 2, 08-UI-SPEC.md Surface D, META-01/02, UI-08-07):
+  // payload threading for the UTM/OG sections built in 08-04/08-05, and
+  // the two new metadata chips.
+  describe("UTM/OG payload threading and metadata chips (Surface D)", () => {
+    it("opening the edit modal pre-fills all six fields from the link", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      getLink.mockResolvedValue(
+        makeLink({
+          id: "l1",
+          domainId: "d1",
+          slug: "abc123",
+          utmSource: "newsletter",
+          utmMedium: "email",
+          utmCampaign: "launch",
+          ogTitle: "Ein Titel",
+          ogDescription: "Eine Beschreibung",
+          ogImageUrl: "https://example.com/og.png",
+        }),
+      );
+
+      const { wrapper } = await mountDetailView();
+
+      const buttons = wrapper.findAll(".action-button");
+      await buttons[2]!.trigger("click"); // ✎ Bearbeiten
+      await flushPromises();
+
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      const utmInputs = wrapper.findAll(".utm-input");
+      expect((utmInputs[0]!.element as HTMLInputElement).value).toBe("newsletter");
+      expect((utmInputs[1]!.element as HTMLInputElement).value).toBe("email");
+      expect((utmInputs[2]!.element as HTMLInputElement).value).toBe("launch");
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      const ogInputs = wrapper.findAll(".og-input");
+      expect((ogInputs[0]!.element as HTMLInputElement).value).toBe("Ein Titel");
+      expect((ogInputs[1]!.element as HTMLInputElement).value).toBe("Eine Beschreibung");
+      expect((ogInputs[2]!.element as HTMLInputElement).value).toBe("https://example.com/og.png");
+    });
+
+    it("saving forwards the modal's payload unchanged, including explicit null clears", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      getLink.mockResolvedValue(
+        makeLink({
+          id: "l1",
+          domainId: "d1",
+          slug: "abc123",
+          utmSource: "newsletter",
+          utmMedium: "email",
+          utmCampaign: "launch",
+          ogTitle: "Ein Titel",
+          ogDescription: "Eine Beschreibung",
+          ogImageUrl: "https://example.com/og.png",
+        }),
+      );
+      updateLink.mockResolvedValue(makeLink({ id: "l1", domainId: "d1", slug: "abc123" }));
+
+      const { wrapper } = await mountDetailView();
+
+      const buttons = wrapper.findAll(".action-button");
+      await buttons[2]!.trigger("click"); // ✎ Bearbeiten
+      await flushPromises();
+
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      const utmInputs = wrapper.findAll(".utm-input");
+      await utmInputs[0]!.setValue("");
+      await utmInputs[1]!.setValue("");
+      await utmInputs[2]!.setValue("");
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      const ogInputs = wrapper.findAll(".og-input");
+      await ogInputs[0]!.setValue("");
+      await ogInputs[1]!.setValue("");
+      await ogInputs[2]!.setValue("");
+
+      await wrapper.find(".btn-primary").trigger("click");
+      await flushPromises();
+
+      expect(updateLink).toHaveBeenCalledWith(
+        "l1",
+        expect.objectContaining({
+          utmSource: null,
+          utmMedium: null,
+          utmCampaign: null,
+          ogTitle: null,
+          ogDescription: null,
+          ogImageUrl: null,
+        }),
+      );
+    });
+
+    it("a failed save carrying the OG-image-url-invalid code renders the locked message beneath the image-URL input inside the still-open modal", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      getLink.mockResolvedValue(
+        makeLink({ id: "l1", domainId: "d1", slug: "abc123", targetUrl: "https://example.com/1" }),
+      );
+      updateLink.mockRejectedValue(new ApiError(400, "Bad Request", "OG_IMAGE_URL_INVALID"));
+
+      const { wrapper } = await mountDetailView();
+
+      const buttons = wrapper.findAll(".action-button");
+      await buttons[2]!.trigger("click"); // ✎ Bearbeiten
+      await flushPromises();
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      await wrapper.findAll(".og-input")[2]!.setValue("javascript:alert(1)");
+
+      await wrapper.find(".btn-primary").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find(".modal-dialog").exists()).toBe(true);
+      expect(wrapper.find(".accordion-body--og .field-error").text()).toBe(
+        "Bitte eine vollständige Bild-URL mit http:// oder https:// angeben.",
+      );
+    });
+
+    it("shows the UTM chip and OG chip, in order, after the hostname/created chips, only when those values are set", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      getLink.mockResolvedValue(
+        makeLink({
+          id: "l1",
+          domainId: "d1",
+          slug: "abc123",
+          utmSource: "newsletter",
+          ogTitle: "Ein Titel",
+        }),
+      );
+
+      const { wrapper } = await mountDetailView();
+
+      const chips = wrapper.findAll(".chip");
+      expect(chips.map((c) => c.text())).toEqual([
+        "s.meinefirma.de",
+        expect.stringContaining("erstellt"),
+        "UTM-Parameter gesetzt",
+        "Custom OG-Tags",
+      ]);
+    });
+
+    it("neither chip renders when the link carries no UTM or OG values", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      getLink.mockResolvedValue(makeLink({ id: "l1", domainId: "d1", slug: "abc123" }));
+
+      const { wrapper } = await mountDetailView();
+
+      expect(wrapper.text()).not.toContain("UTM-Parameter gesetzt");
+      expect(wrapper.text()).not.toContain("Custom OG-Tags");
+    });
+
+    it("after a successful save the chips update in place from the returned DTO, without a reload", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      getLink.mockResolvedValue(
+        makeLink({ id: "l1", domainId: "d1", slug: "abc123", targetUrl: "https://example.com/1" }),
+      );
+      updateLink.mockResolvedValue(
+        makeLink({
+          id: "l1",
+          domainId: "d1",
+          slug: "abc123",
+          targetUrl: "https://example.com/1",
+          utmCampaign: "launch",
+        }),
+      );
+
+      const { wrapper } = await mountDetailView();
+
+      expect(wrapper.text()).not.toContain("UTM-Parameter gesetzt");
+
+      const buttons = wrapper.findAll(".action-button");
+      await buttons[2]!.trigger("click"); // ✎ Bearbeiten
+      await flushPromises();
+      await wrapper.find(".btn-primary").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.text()).toContain("UTM-Parameter gesetzt");
+    });
+
+    it("the destination line keeps showing the stored target URL without any UTM parameters appended (UI-08-07)", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      getLink.mockResolvedValue(
+        makeLink({
+          id: "l1",
+          domainId: "d1",
+          slug: "abc123",
+          targetUrl: "https://example.com/1",
+          utmSource: "newsletter",
+          utmMedium: "email",
+          utmCampaign: "launch",
+        }),
+      );
+
+      const { wrapper } = await mountDetailView();
+
+      expect(wrapper.find(".link-target").text()).toBe("➜ https://example.com/1");
+      expect(wrapper.find(".link-target").text()).not.toContain("utm_");
+    });
+  });
 });
