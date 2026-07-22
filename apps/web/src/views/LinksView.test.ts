@@ -349,7 +349,7 @@ describe("LinksView", () => {
 
     await wrapper.find(".row-action[title='Bearbeiten']").trigger("click");
     await flushPromises();
-    await wrapper.find(".security-header").trigger("click");
+    await wrapper.find(".accordion-header--sec").trigger("click");
 
     const pwInput = wrapper.find("input[type='password']");
     expect((pwInput.element as HTMLInputElement).value).toBe("");
