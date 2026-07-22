@@ -19,7 +19,7 @@
  * implementation turns the resolution/gate-reuse/scan-recording/redirect
  * blocks GREEN; Task 3 adds the password-unlock-flow blocks at the bottom.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
 import { createLink } from "../src/lib/links.js";
 import { createQrCode, remapQrCode } from "../src/lib/qrCodes.js";
@@ -259,6 +259,50 @@ describe("Dynamic-QR redirect handler (Phase 7, QR-02/03/07, 07-06)", () => {
 
       expect(response.statusCode).toBe(404);
       expect(response.body).toContain("Dieser Kurzlink existiert nicht");
+    });
+  });
+
+  /**
+   * IN-07: `POST /q/:code/verify` interpolates the raw `:code` param into
+   * `issueUnlockCookie`'s `Path` attribute, and `cookie.serialize` throws a
+   * `TypeError` (-> 500) for characters outside ` -:=-~`. Today that line is
+   * only reachable after an exact `findUnique` match against a
+   * server-generated Base62 code, so it is not exploitable — but the safety
+   * rests entirely on that ordering rather than on the param's own shape.
+   * A guard at the top of both handlers makes it structural, mirroring
+   * `customSlugSchema`'s discipline in lib/links.ts.
+   */
+  describe("IN-07: the :code param is shape-guarded before any lookup or cookie write", () => {
+    it("404s a malformed code on GET without ever querying the database", async () => {
+      const app = await buildApp({ prisma });
+      const findUnique = vi.spyOn(prisma.qrCode, "findUnique");
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/q/abc%3B%20Path%3D%2F",
+        headers: { host: "any-host.example.com", "user-agent": BROWSER_UA },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.body).toContain("Dieser Kurzlink existiert nicht");
+      expect(findUnique).not.toHaveBeenCalled();
+      findUnique.mockRestore();
+    });
+
+    it("404s a malformed code on the verify path without ever querying the database", async () => {
+      const app = await buildApp({ prisma });
+      const findUnique = vi.spyOn(prisma.qrCode, "findUnique");
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/q/abc%3B%20Path%3D%2F/verify",
+        headers: { host: "any-host.example.com", "user-agent": BROWSER_UA },
+        payload: { password: "irrelevant" },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(findUnique).not.toHaveBeenCalled();
+      findUnique.mockRestore();
     });
   });
 
