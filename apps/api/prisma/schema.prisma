@@ -207,6 +207,28 @@ model Link {
   /// event rows at read time.
   lifetimeClicks  Int     @default(0)
 
+  /// UTM builder trio (Phase 8, D-08-01/D-08-02) — stored as their own
+  /// columns, never concatenated into `targetUrl`: applied at redirect time
+  /// (redirectEngine.ts) so the owner-typed target stays clean and the
+  /// link list/detail screens can render a "UTM set" badge/chip. When set,
+  /// these override same-named query keys already present on the target
+  /// (D-08-02) — the link owner's intent wins over whatever the stored
+  /// target happens to carry. `null` means "no UTM parameters set".
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  /// Custom OG trio (Phase 8, D-08-03/D-08-04) — owner-authored text served
+  /// to bots for EVERY link state (protected/expired/active alike, per
+  /// D-06's generic-branded-200 contract, which this preserves). `null`
+  /// means "keep the generic brand fallback" for that field.
+  /// `ogImageUrl` is validated for SHAPE ONLY (absolute http/https) and the
+  /// server NEVER fetches it (D-08-04) — the whole anti-SSRF point of this
+  /// phase; only the visitor's own browser (form preview) or a crawler
+  /// (og:image tag) ever requests it.
+  ogTitle       String?
+  ogDescription String?
+  ogImageUrl    String?
+
   domain      Domain       @relation(fields: [domainId], references: [id], onDelete: Cascade)
   creator     User?        @relation(fields: [createdBy], references: [id], onDelete: SetNull)
   clickEvents ClickEvent[]

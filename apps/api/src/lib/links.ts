@@ -435,6 +435,16 @@ export function toLinkDto(link: Link) {
     forwardQuery: link.forwardQuery,
     trackingEnabled: link.trackingEnabled,
     lifetimeClicks: link.lifetimeClicks,
+    // Phase 8 (D-08-01/02/03/04) — UTM/OG values cross the JSON boundary
+    // verbatim: no percent-encoding (that's a redirect-time concern,
+    // 08-02) and no HTML escaping (that's a bot-page-render-time concern,
+    // 08-02's publicHtml.ts).
+    utmSource: link.utmSource,
+    utmMedium: link.utmMedium,
+    utmCampaign: link.utmCampaign,
+    ogTitle: link.ogTitle,
+    ogDescription: link.ogDescription,
+    ogImageUrl: link.ogImageUrl,
   };
 }
 
