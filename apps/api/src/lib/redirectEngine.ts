@@ -23,6 +23,23 @@
  * `lib/links.ts`'s `validateTargetUrl`. Encoding is delegated entirely to
  * WHATWG `URL`/`URLSearchParams` (RESEARCH "Don't Hand-Roll" — no manual
  * `&`/`=` splitting).
+ *
+ * UTM APPLICATION (D-08-02, META-01): `applyUtmParams` is `mergeQuery`'s
+ * mirror image, not a variant of it — same `URL`/`URLSearchParams`-only
+ * mutation discipline (scheme/host/path never touched), but the OPPOSITE
+ * conflict resolution. The composition order the route layer must use when
+ * building a redirect target is:
+ *   1. start from `targetUrl`
+ *   2. apply the link's UTM parameters via `applyUtmParams`, OVERRIDING any
+ *      same-named keys already on the target
+ *   3. only when `forwardQuery` is on, merge the visitor's incoming query
+ *      onto the result of step 2 via `mergeQuery`, whose target-wins rule
+ *      is unchanged — the result of step 2 is "the target" for that merge
+ * The two functions resolve conflicts in opposite directions on purpose:
+ * the visitor must never be able to rewrite the destination (`mergeQuery`,
+ * D-13), whereas the owner typed the UTM parameters into this link's own
+ * builder and their intent is authoritative over whatever the stored
+ * target happens to already carry (`applyUtmParams`, D-08-02).
  */
 import type { Link } from "../generated/prisma/client.js";
 
@@ -77,4 +94,67 @@ export function mergeQuery(targetUrl: string, incomingSearch: string): string {
     }
   }
   return target.toString();
+}
+
+/**
+ * Standalone structural type — deliberately NOT `Pick<Link, ...>`. This
+ * plan runs in the same wave as the migration that adds `utmSource`/
+ * `utmMedium`/`utmCampaign` to the generated Prisma `Link` type, and a
+ * structural declaration keeps this module genuinely dependency-free, as
+ * this file's header promises (zero Fastify/HTTP/Prisma-runtime awareness).
+ * A fetched Prisma `Link` row structurally satisfies this type, so the
+ * route layer can pass the row straight through without any mapping step.
+ */
+export type LinkUtmParams = {
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+};
+
+/**
+ * Applies the link owner's UTM parameters to a target URL (D-08-02,
+ * META-01) — the opposite conflict rule from `mergeQuery` (see the module
+ * header's composition order): a same-named key already on the target is
+ * OVERRIDDEN, because the owner typed these values into this link's own
+ * builder, not forwarded from an untrusted visitor.
+ *
+ * The guard below is load-bearing, not an optimisation: when none of the
+ * three values is set, `targetUrl` is returned UNCHANGED as the raw input
+ * string, with no `new URL()` round-trip. `new URL(x).toString()` silently
+ * normalises its input (e.g. it appends a trailing slash to an origin-only
+ * URL, and can rewrite encoding/fragments), which would make every
+ * no-UTM redirect differ from the exact target string `lib/links.ts`
+ * stored — breaking the Phase 5 guarantee that a plain link redirects to
+ * exactly what was saved.
+ *
+ * When at least one value is set, only `searchParams` is mutated —
+ * scheme/host/path are never touched, the same structural no-open-redirect
+ * guarantee `mergeQuery` already carries (T-08-OPENREDIR-UTM). The three
+ * canonical keys are deleted before being re-set in `source, medium,
+ * campaign` order, so a target that already carries e.g. `utm_campaign`
+ * still renders the three keys in the locked order rather than pinning it
+ * to its original position (a bare `set` alone would not reorder it).
+ * `URLSearchParams` performs the percent-encoding (D-08-05) — no
+ * hand-rolled `&`/`=` assembly.
+ */
+export function applyUtmParams(targetUrl: string, utm: LinkUtmParams): string {
+  const hasAny =
+    isSetUtmValue(utm.utmSource) || isSetUtmValue(utm.utmMedium) || isSetUtmValue(utm.utmCampaign);
+  if (!hasAny) return targetUrl;
+
+  const target = new URL(targetUrl);
+  target.searchParams.delete("utm_source");
+  target.searchParams.delete("utm_medium");
+  target.searchParams.delete("utm_campaign");
+  if (isSetUtmValue(utm.utmSource)) target.searchParams.set("utm_source", utm.utmSource as string);
+  if (isSetUtmValue(utm.utmMedium)) target.searchParams.set("utm_medium", utm.utmMedium as string);
+  if (isSetUtmValue(utm.utmCampaign)) {
+    target.searchParams.set("utm_campaign", utm.utmCampaign as string);
+  }
+  return target.toString();
+}
+
+/** A UTM value counts as "set" only when it is a non-empty, non-whitespace-only string. */
+function isSetUtmValue(value: string | null): boolean {
+  return typeof value === "string" && value.trim().length > 0;
 }
