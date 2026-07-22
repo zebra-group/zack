@@ -263,6 +263,32 @@ describe("applyUtmParams (D-08-02, owner-wins UTM application)", () => {
     expect(parsed.searchParams.get("utm_source")).toBe("src");
   });
 
+  it("preserves a target's manually-embedded utm_campaign when the builder only sets utm_source (WR-01)", () => {
+    const result = applyUtmParams("https://shop.com/?utm_campaign=fall", {
+      utmSource: "newsletter",
+      utmMedium: null,
+      utmCampaign: null,
+    });
+    const parsed = new URL(result);
+    // utm_source is applied...
+    expect(parsed.searchParams.get("utm_source")).toBe("newsletter");
+    // ...but the owner's manually-typed utm_campaign is NOT erased, because
+    // the builder's utm_campaign field was left empty (only present keys are
+    // delete-then-set).
+    expect(parsed.searchParams.get("utm_campaign")).toBe("fall");
+  });
+
+  it("leaves an embedded utm_medium untouched when the builder sets only utm_campaign (WR-01)", () => {
+    const result = applyUtmParams("https://shop.com/?utm_medium=cpc", {
+      utmSource: null,
+      utmMedium: null,
+      utmCampaign: "spring",
+    });
+    const parsed = new URL(result);
+    expect(parsed.searchParams.get("utm_medium")).toBe("cpc");
+    expect(parsed.searchParams.get("utm_campaign")).toBe("spring");
+  });
+
   it("never alters the target's scheme, host, or path", () => {
     const result = applyUtmParams("https://x.example.com/some/path", {
       utmSource: "src",
