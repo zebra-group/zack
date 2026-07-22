@@ -12,6 +12,7 @@ import type { DomainDTO, LinkDTO } from "@kurzly/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 import LinksView from "./LinksView.vue";
+import { ApiError } from "../api";
 
 const { createLink, deleteLink, listDomains, listLinks, updateLink } = vi.hoisted(() => ({
   createLink: vi.fn(),
@@ -370,7 +371,7 @@ describe("LinksView", () => {
     const cell = wrapper.find(".cell-clicks");
     expect(cell.text()).toBe("12.345");
     expect(cell.classes()).not.toContain("tracking-off");
-    expect(wrapper.find(".tracking-badge").exists()).toBe(false);
+    expect(wrapper.find(".attr-badge").exists()).toBe(false);
   });
 
   it("a link with tracking disabled shows the 'Tracking aus' badge and '—' in the Klicks cell (never lifetimeClicks)", async () => {
@@ -381,7 +382,7 @@ describe("LinksView", () => {
 
     const { wrapper } = await mountLinksView();
 
-    expect(wrapper.find(".tracking-badge").text()).toBe("Tracking aus");
+    expect(wrapper.find(".attr-badge").text()).toBe("Tracking aus");
     const cell = wrapper.find(".cell-clicks");
     expect(cell.text()).toBe("—");
     expect(cell.classes()).toContain("tracking-off");
@@ -422,5 +423,258 @@ describe("LinksView", () => {
     expect(createLink).toHaveBeenCalledWith(
       expect.objectContaining({ trackingEnabled: false }),
     );
+  });
+
+  // Phase 8 (08-06 Task 1, 08-UI-SPEC.md Surface C, META-01/02): payload
+  // threading for the UTM/OG sections built in 08-04/08-05, and the two
+  // new "UTM"/"OG" attribute badges.
+  describe("UTM/OG payload threading and attribute badges (Surface C)", () => {
+    it("creating a link with UTM and OG values typed in the modal sends all six on the create request", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      listLinks.mockResolvedValue([]);
+      createLink.mockResolvedValue(
+        makeLink({
+          id: "new1",
+          domainId: "d1",
+          slug: "neu1",
+          utmSource: "newsletter",
+          utmMedium: "email",
+          utmCampaign: "launch",
+          ogTitle: "Ein Titel",
+          ogDescription: "Eine Beschreibung",
+          ogImageUrl: "https://example.com/og.png",
+        }),
+      );
+
+      const { wrapper } = await mountLinksView();
+
+      await wrapper.find(".primary-button").trigger("click");
+      await flushPromises();
+
+      await wrapper.find(".field-input.mono").setValue("https://example.com/n");
+
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      const utmInputs = wrapper.findAll(".utm-input");
+      await utmInputs[0]!.setValue("newsletter");
+      await utmInputs[1]!.setValue("email");
+      await utmInputs[2]!.setValue("launch");
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      const ogInputs = wrapper.findAll(".og-input");
+      await ogInputs[0]!.setValue("Ein Titel");
+      await ogInputs[1]!.setValue("Eine Beschreibung");
+      await ogInputs[2]!.setValue("https://example.com/og.png");
+
+      await wrapper.find(".btn-primary").trigger("click");
+      await flushPromises();
+
+      expect(createLink).toHaveBeenCalledWith(
+        expect.objectContaining({
+          utmSource: "newsletter",
+          utmMedium: "email",
+          utmCampaign: "launch",
+          ogTitle: "Ein Titel",
+          ogDescription: "Eine Beschreibung",
+          ogImageUrl: "https://example.com/og.png",
+        }),
+      );
+    });
+
+    it("after a successful create the new row shows the UTM and OG badges immediately, without a reload", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      listLinks.mockResolvedValue([]);
+      createLink.mockResolvedValue(
+        makeLink({
+          id: "new1",
+          domainId: "d1",
+          slug: "neu1",
+          utmSource: "newsletter",
+          ogTitle: "Ein Titel",
+        }),
+      );
+
+      const { wrapper } = await mountLinksView();
+
+      await wrapper.find(".primary-button").trigger("click");
+      await flushPromises();
+      await wrapper.find(".field-input.mono").setValue("https://example.com/n");
+      await wrapper.find(".btn-primary").trigger("click");
+      await flushPromises();
+
+      const badges = wrapper.find(".cell-slug").findAll(".attr-badge");
+      expect(badges.map((b) => b.text())).toEqual(["UTM", "OG"]);
+    });
+
+    it("editing a link opens the modal with all six fields pre-filled from the link's DTO", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      listLinks.mockResolvedValue([
+        makeLink({
+          id: "l1",
+          domainId: "d1",
+          slug: "abc123",
+          utmSource: "newsletter",
+          utmMedium: "email",
+          utmCampaign: "launch",
+          ogTitle: "Ein Titel",
+          ogDescription: "Eine Beschreibung",
+          ogImageUrl: "https://example.com/og.png",
+        }),
+      ]);
+
+      const { wrapper } = await mountLinksView();
+
+      await wrapper.find(".row-action[title='Bearbeiten']").trigger("click");
+      await flushPromises();
+
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      const utmInputs = wrapper.findAll(".utm-input");
+      expect((utmInputs[0]!.element as HTMLInputElement).value).toBe("newsletter");
+      expect((utmInputs[1]!.element as HTMLInputElement).value).toBe("email");
+      expect((utmInputs[2]!.element as HTMLInputElement).value).toBe("launch");
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      const ogInputs = wrapper.findAll(".og-input");
+      expect((ogInputs[0]!.element as HTMLInputElement).value).toBe("Ein Titel");
+      expect((ogInputs[1]!.element as HTMLInputElement).value).toBe("Eine Beschreibung");
+      expect((ogInputs[2]!.element as HTMLInputElement).value).toBe("https://example.com/og.png");
+    });
+
+    it("clearing all six pre-filled fields and saving forwards explicit null clears to updateLink", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      listLinks.mockResolvedValue([
+        makeLink({
+          id: "l1",
+          domainId: "d1",
+          slug: "abc123",
+          utmSource: "newsletter",
+          utmMedium: "email",
+          utmCampaign: "launch",
+          ogTitle: "Ein Titel",
+          ogDescription: "Eine Beschreibung",
+          ogImageUrl: "https://example.com/og.png",
+        }),
+      ]);
+      updateLink.mockResolvedValue(makeLink({ id: "l1", domainId: "d1", slug: "abc123" }));
+
+      const { wrapper } = await mountLinksView();
+
+      await wrapper.find(".row-action[title='Bearbeiten']").trigger("click");
+      await flushPromises();
+
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      const utmInputs = wrapper.findAll(".utm-input");
+      await utmInputs[0]!.setValue("");
+      await utmInputs[1]!.setValue("");
+      await utmInputs[2]!.setValue("");
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      const ogInputs = wrapper.findAll(".og-input");
+      await ogInputs[0]!.setValue("");
+      await ogInputs[1]!.setValue("");
+      await ogInputs[2]!.setValue("");
+
+      await wrapper.find(".btn-primary").trigger("click");
+      await flushPromises();
+
+      expect(updateLink).toHaveBeenCalledWith(
+        "l1",
+        expect.objectContaining({
+          utmSource: null,
+          utmMedium: null,
+          utmCampaign: null,
+          ogTitle: null,
+          ogDescription: null,
+          ogImageUrl: null,
+        }),
+      );
+    });
+
+    it("a failed create carrying the OG-image-url-invalid code renders the locked message beneath the image-URL input inside the still-open modal", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      listLinks.mockResolvedValue([]);
+      createLink.mockRejectedValue(new ApiError(400, "Bad Request", "OG_IMAGE_URL_INVALID"));
+
+      const { wrapper } = await mountLinksView();
+
+      await wrapper.find(".primary-button").trigger("click");
+      await flushPromises();
+      await wrapper.find(".field-input.mono").setValue("https://example.com/n");
+      await wrapper.find(".accordion-header--og").trigger("click");
+      await wrapper.findAll(".og-input")[2]!.setValue("javascript:alert(1)");
+
+      await wrapper.find(".btn-primary").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find(".modal-dialog").exists()).toBe(true);
+      expect(wrapper.find(".accordion-body--og .field-error").text()).toBe(
+        "Bitte eine vollständige Bild-URL mit http:// oder https:// angeben.",
+      );
+    });
+
+    it("a failed edit carrying the UTM-value-too-long code renders the locked message beneath the UTM inputs inside the still-open modal", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      listLinks.mockResolvedValue([
+        makeLink({ id: "l1", domainId: "d1", slug: "abc123" }),
+      ]);
+      updateLink.mockRejectedValue(new ApiError(400, "Bad Request", "UTM_VALUE_TOO_LONG"));
+
+      const { wrapper } = await mountLinksView();
+
+      await wrapper.find(".row-action[title='Bearbeiten']").trigger("click");
+      await flushPromises();
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      await wrapper.findAll(".utm-input")[0]!.setValue("a-very-long-utm-source-value");
+
+      await wrapper.find(".btn-primary").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.find(".modal-dialog").exists()).toBe(true);
+      expect(wrapper.find(".accordion-body--utm .field-error").text()).toBe(
+        "Maximal 200 Zeichen pro UTM-Wert.",
+      );
+    });
+
+    it("a row with only UTM values shows only the UTM badge", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      listLinks.mockResolvedValue([
+        makeLink({ id: "l1", domainId: "d1", slug: "abc123", utmCampaign: "launch" }),
+      ]);
+
+      const { wrapper } = await mountLinksView();
+
+      const badges = wrapper.find(".cell-slug").findAll(".attr-badge");
+      expect(badges.map((b) => b.text())).toEqual(["UTM"]);
+    });
+
+    it("a row with only OG values shows only the OG badge", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      listLinks.mockResolvedValue([
+        makeLink({ id: "l1", domainId: "d1", slug: "abc123", ogDescription: "hallo" }),
+      ]);
+
+      const { wrapper } = await mountLinksView();
+
+      const badges = wrapper.find(".cell-slug").findAll(".attr-badge");
+      expect(badges.map((b) => b.text())).toEqual(["OG"]);
+    });
+
+    it("shows UTM before OG before the Tracking-aus badge when a link carries all three (locked order)", async () => {
+      listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+      listLinks.mockResolvedValue([
+        makeLink({
+          id: "l1",
+          domainId: "d1",
+          slug: "abc123",
+          trackingEnabled: false,
+          utmSource: "newsletter",
+          ogTitle: "Ein Titel",
+        }),
+      ]);
+
+      const { wrapper } = await mountLinksView();
+
+      const badges = wrapper.find(".cell-slug").findAll(".attr-badge");
+      expect(badges.map((b) => b.text())).toEqual(["UTM", "OG", "Tracking aus"]);
+    });
   });
 });
