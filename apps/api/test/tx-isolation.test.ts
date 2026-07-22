@@ -18,10 +18,13 @@
  * Also logs `process.pid` (diagnostic only) so it can be cross-referenced
  * against `test/db.diagnostic.test.ts`'s own pid log for A3.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, inject } from "vitest";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../src/generated/prisma/client.js";
 import { prisma } from "./setupFileEach.js";
 
 const CANARY_TOKEN = `tx-isolation-canary-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const INTERACTIVE_TOKEN = `${CANARY_TOKEN}-interactive`;
 
 describe("transaction-rollback isolation canary (resolves A4)", () => {
   it("writes a PersistenceCanary row with a distinctive token", async () => {
@@ -35,6 +38,54 @@ describe("transaction-rollback isolation canary (resolves A4)", () => {
 
   it("does not see the previous test's row — proves the rollback isolated it", async () => {
     const found = await prisma.persistenceCanary.findFirst({ where: { token: CANARY_TOKEN } });
+
+    expect(found).toBeNull();
+  });
+});
+
+/**
+ * The canary above only ever exercises a PLAIN write. Production routes also
+ * write through `prisma.$transaction` — and `routes/domains.ts` uses the
+ * *interactive* form, which every domain-seeding test reaches. Postgres has no
+ * nested transactions, so a naive per-test wrapper that opens its own `BEGIN`
+ * gets committed out from under itself by the inner transaction's `COMMIT`,
+ * turning the per-test rollback into a silent no-op and leaking rows into the
+ * database other tests read. These two tests close that gap.
+ */
+describe("isolation holds for writes made through $transaction", () => {
+  async function countCommitted(token: string): Promise<number> {
+    // An independent connection can only ever observe COMMITTED rows, so a
+    // non-zero count here means the write escaped this test's isolation.
+    const observer = new PrismaClient({
+      adapter: new PrismaPg({ connectionString: inject("dbUrl"), max: 1 }),
+    });
+    try {
+      return await observer.persistenceCanary.count({ where: { token } });
+    } finally {
+      await observer.$disconnect();
+    }
+  }
+
+  it("batch form does not commit its writes", async () => {
+    const token = `${CANARY_TOKEN}-batch`;
+
+    await prisma.$transaction([prisma.persistenceCanary.create({ data: { token } })]);
+
+    expect(await countCommitted(token)).toBe(0);
+  });
+
+  it("interactive form does not commit its writes", async () => {
+    await prisma.$transaction(async (tx) => {
+      await tx.persistenceCanary.create({ data: { token: INTERACTIVE_TOKEN } });
+    });
+
+    expect(await countCommitted(INTERACTIVE_TOKEN)).toBe(0);
+  });
+
+  it("does not see the interactive write from the previous test", async () => {
+    const found = await prisma.persistenceCanary.findFirst({
+      where: { token: INTERACTIVE_TOKEN },
+    });
 
     expect(found).toBeNull();
   });
