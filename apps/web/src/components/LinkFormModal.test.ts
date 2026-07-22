@@ -13,7 +13,7 @@
  */
 import { mount } from "@vue/test-utils";
 import type { DomainDTO } from "@kurzly/shared";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LinkFormModal from "./LinkFormModal.vue";
 import { ApiError, mapLinkFormError } from "../api";
 
@@ -759,6 +759,177 @@ describe("LinkFormModal", () => {
       });
       await wrapper.find(".accordion-header--og").trigger("click");
       expect(wrapper.find(".accordion-body--og .field-error").exists()).toBe(false);
+    });
+  });
+
+  // Phase 8 (08-05 Task 2, META-02, 08-UI-SPEC.md Surface B): the 210px
+  // social-card live preview, its hatched image fallback, and the
+  // debounced/parse-gated image binding (T-08-IMG-SCHEME/T-08-IMG-BEACON).
+  describe("Custom OG-Tags section (Surface B) — social-card preview", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("with all three fields empty the card still renders the hatched placeholder, locked placeholder texts and caption", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+
+      expect(wrapper.find(".og-card-image-label").text()).toBe("OG-Bild");
+      expect(wrapper.find(".og-card-img").exists()).toBe(false);
+      expect(wrapper.find(".og-card-title").text()).toBe("OG-Titel erscheint hier");
+      expect(wrapper.find(".og-card-desc").text()).toBe("Beschreibung erscheint hier");
+      expect(wrapper.find(".og-card-caption").text()).toBe("Vorschau · Slack / X / LinkedIn");
+    });
+
+    it("typing a title/description replaces the placeholders immediately", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      const inputs = wrapper.findAll(".og-input");
+      await inputs[0]!.setValue("Kampagnen-Titel");
+      await inputs[1]!.setValue("Kampagnen-Beschreibung");
+
+      expect(wrapper.find(".og-card-title").text()).toBe("Kampagnen-Titel");
+      expect(wrapper.find(".og-card-desc").text()).toBe("Kampagnen-Beschreibung");
+    });
+
+    it("renders the full typed title/description text in the DOM even when very long — CSS truncates visually, the underlying value is never cut", async () => {
+      const longTitle = "A".repeat(120);
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      await wrapper.findAll(".og-input")[0]!.setValue(longTitle);
+
+      expect(wrapper.find(".og-card-title").text()).toBe(longTitle);
+    });
+
+    it("the domain line shows the selected create-mode domain's hostname and is blank when none is selected", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain({ id: "d1", hostname: "s.meinefirma.de" })] },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      expect(wrapper.find(".og-card-domain").text()).toBe("s.meinefirma.de");
+
+      const wrapperNoDomain = mount(LinkFormModal, {
+        props: { mode: "create", domains: [] },
+      });
+      await wrapperNoDomain.find(".accordion-header--og").trigger("click");
+      expect(wrapperNoDomain.find(".og-card-domain").text()).toBe("");
+    });
+
+    it("the domain line shows the edit-mode domainHostname prop", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          domainHostname: "s.meinefirma.de",
+          initialTargetUrl: "https://example.com",
+          initialSlug: "abc123",
+        },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      expect(wrapper.find(".og-card-domain").text()).toBe("s.meinefirma.de");
+    });
+
+    it("typing a partial value like 'h' or 'https:/' triggers no image element even after the debounce elapses", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      await wrapper.findAll(".og-input")[2]!.setValue("https:/");
+
+      vi.advanceTimersByTime(500);
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".og-card-img").exists()).toBe(false);
+      expect(wrapper.find(".og-card-image-label").exists()).toBe(true);
+    });
+
+    it("binds the image only once the value parses as an absolute http/https URL, and only after the debounce interval", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      await wrapper.findAll(".og-input")[2]!.setValue("https://example.com/og.png");
+
+      // Not yet — debounce has not elapsed.
+      expect(wrapper.find(".og-card-img").exists()).toBe(false);
+
+      vi.advanceTimersByTime(299);
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find(".og-card-img").exists()).toBe(false);
+
+      vi.advanceTimersByTime(1);
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find(".og-card-img").attributes("src")).toBe("https://example.com/og.png");
+      expect(wrapper.find(".og-card-image-label").exists()).toBe(false);
+    });
+
+    it("a javascript: URL never becomes an image source", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      await wrapper.findAll(".og-input")[2]!.setValue("javascript:alert(1)");
+
+      vi.advanceTimersByTime(500);
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".og-card-img").exists()).toBe(false);
+      expect(wrapper.find(".og-card-image-label").exists()).toBe(true);
+    });
+
+    it("an image load failure reverts to the hatched placeholder rather than a broken-image icon", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      await wrapper.findAll(".og-input")[2]!.setValue("https://example.com/broken.png");
+      vi.advanceTimersByTime(300);
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find(".og-card-img").exists()).toBe(true);
+
+      await wrapper.find(".og-card-img").trigger("error");
+
+      expect(wrapper.find(".og-card-img").exists()).toBe(false);
+      expect(wrapper.find(".og-card-image-label").exists()).toBe(true);
+    });
+
+    it("changing the URL after a failure clears the failed state and allows a fresh attempt", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      const imageInput = wrapper.findAll(".og-input")[2]!;
+      await imageInput.setValue("https://example.com/broken.png");
+      vi.advanceTimersByTime(300);
+      await wrapper.vm.$nextTick();
+      await wrapper.find(".og-card-img").trigger("error");
+      expect(wrapper.find(".og-card-img").exists()).toBe(false);
+
+      await imageInput.setValue("https://example.com/fresh.png");
+      vi.advanceTimersByTime(300);
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".og-card-img").attributes("src")).toBe("https://example.com/fresh.png");
     });
   });
 });
