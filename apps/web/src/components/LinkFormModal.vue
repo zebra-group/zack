@@ -239,15 +239,26 @@ let ogImageDebounceTimer: ReturnType<typeof setTimeout> | null = null;
  * binding is exempt, and only because it is the sole one that causes the
  * BROWSER (not this app's server, D-08-04/T-08-SSRF-CLIENT) to issue a
  * network request.
+ *
+ * Phase 8 (08-06, D8 fix): `{ immediate: true }` — 08-05 originally left
+ * this change-only, which meant an edit-mode link that already has a
+ * valid image URL showed the hatched placeholder until the user edited
+ * the field once. Running on mount too closes that gap while keeping the
+ * exact same debounce + parse-gate timing (no per-keystroke request, no
+ * behavior change for create mode or for a freshly typed value).
  */
-watch(ogImageUrl, (value) => {
-  ogImageLoadFailed.value = false;
-  ogDebouncedImageSrc.value = null;
-  if (ogImageDebounceTimer) clearTimeout(ogImageDebounceTimer);
-  ogImageDebounceTimer = setTimeout(() => {
-    if (isAbsoluteHttpUrl(value)) ogDebouncedImageSrc.value = value;
-  }, OG_IMAGE_DEBOUNCE_MS);
-});
+watch(
+  ogImageUrl,
+  (value) => {
+    ogImageLoadFailed.value = false;
+    ogDebouncedImageSrc.value = null;
+    if (ogImageDebounceTimer) clearTimeout(ogImageDebounceTimer);
+    ogImageDebounceTimer = setTimeout(() => {
+      if (isAbsoluteHttpUrl(value)) ogDebouncedImageSrc.value = value;
+    }, OG_IMAGE_DEBOUNCE_MS);
+  },
+  { immediate: true },
+);
 
 onUnmounted(() => {
   if (ogImageDebounceTimer) clearTimeout(ogImageDebounceTimer);
