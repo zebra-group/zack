@@ -296,8 +296,26 @@ Plans:
   1. User builds UTM parameters (source/medium/campaign) for a link and sees a live preview of the final destination URL with parameters appended.
   2. User sets a custom OG title/description/image for a link and sees a live social-card preview; these user-typed values (never auto-fetched from the real destination) are exactly what bots/crawlers receive.
 
-**Plans**: TBD
+**Plans**: 6 plans
 **UI hint**: yes
+
+**Wave 1**
+
+- [ ] 08-01-PLAN.md — Six nullable Link columns + migration, validation and three-state threading through the single write path, Zod allowlist on the links HTTP surface
+- [ ] 08-02-PLAN.md — Pure helpers: owner-wins `applyUtmParams` in the redirect engine, custom OG values on the bot page
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 08-03-PLAN.md — Wire both redirect handlers: append owner UTM parameters, serve custom OG to bots for every link state
+- [ ] 08-04-PLAN.md — Exclusive three-section accordion + class sweep, `buildUtmPreview`, „UTM-Parameter" section with live destination preview (Surface A)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 08-05-PLAN.md — „Custom OG-Tags" section with 210px social-card live preview and debounced, parse-gated image (Surface B)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 08-06-PLAN.md — Inline error mapping + payload threading in both parent views, UTM/OG badges and chips (Surfaces C and D)
 
 ### Phase 9: Team Management & Domain-Scoped Authorization Enforcement
 
