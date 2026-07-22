@@ -363,12 +363,6 @@ export async function listQrCodes(): Promise<QrCodeDTO[]> {
   return parseJsonOrThrow<QrCodeDTO[]>(response);
 }
 
-/** `GET /api/qr-codes/:id` — IDOR-guarded detail lookup (404 for both not-found and forbidden). */
-export async function getQrCode(id: string): Promise<QrCodeDTO> {
-  const response = await fetch(`/api/qr-codes/${id}`, { method: "GET" });
-  return parseJsonOrThrow<QrCodeDTO>(response);
-}
-
 /**
  * `PATCH /api/qr-codes/:id` — style-only update (name/color/roundedModules/
  * logoData). NEVER combined with a remap (`targetLinkId`) in the same call
