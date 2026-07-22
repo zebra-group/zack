@@ -129,13 +129,16 @@ export type LinkUtmParams = {
  *
  * When at least one value is set, only `searchParams` is mutated —
  * scheme/host/path are never touched, the same structural no-open-redirect
- * guarantee `mergeQuery` already carries (T-08-OPENREDIR-UTM). The three
- * canonical keys are deleted before being re-set in `source, medium,
- * campaign` order, so a target that already carries e.g. `utm_campaign`
- * still renders the three keys in the locked order rather than pinning it
- * to its original position (a bare `set` alone would not reorder it).
- * `URLSearchParams` performs the percent-encoding (D-08-05) — no
- * hand-rolled `&`/`=` assembly.
+ * guarantee `mergeQuery` already carries (T-08-OPENREDIR-UTM). Only the
+ * canonical keys the builder actually SETS are delete-then-set, each in the
+ * locked `source, medium, campaign` order (WR-01): the delete-before-set of
+ * a present key strips any pre-existing occurrence so the key re-appends at
+ * the end in canonical order rather than staying pinned in its original
+ * position. A key whose builder field is EMPTY is left untouched, so a
+ * value the owner manually embedded in `targetUrl` (e.g. `utm_campaign=fall`
+ * with only `utm_source` filled in the builder) is preserved instead of
+ * being silently erased. `URLSearchParams` performs the percent-encoding
+ * (D-08-05) — no hand-rolled `&`/`=` assembly.
  */
 export function applyUtmParams(targetUrl: string, utm: LinkUtmParams): string {
   const hasAny =
@@ -143,12 +146,16 @@ export function applyUtmParams(targetUrl: string, utm: LinkUtmParams): string {
   if (!hasAny) return targetUrl;
 
   const target = new URL(targetUrl);
-  target.searchParams.delete("utm_source");
-  target.searchParams.delete("utm_medium");
-  target.searchParams.delete("utm_campaign");
-  if (isSetUtmValue(utm.utmSource)) target.searchParams.set("utm_source", utm.utmSource as string);
-  if (isSetUtmValue(utm.utmMedium)) target.searchParams.set("utm_medium", utm.utmMedium as string);
+  if (isSetUtmValue(utm.utmSource)) {
+    target.searchParams.delete("utm_source");
+    target.searchParams.set("utm_source", utm.utmSource as string);
+  }
+  if (isSetUtmValue(utm.utmMedium)) {
+    target.searchParams.delete("utm_medium");
+    target.searchParams.set("utm_medium", utm.utmMedium as string);
+  }
   if (isSetUtmValue(utm.utmCampaign)) {
+    target.searchParams.delete("utm_campaign");
     target.searchParams.set("utm_campaign", utm.utmCampaign as string);
   }
   return target.toString();

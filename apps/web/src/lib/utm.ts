@@ -67,10 +67,16 @@ export function buildUtmPreview(targetUrl: string, utm: UtmValues): string {
 
   try {
     const target = new URL(targetUrl);
-    target.searchParams.delete("utm_source");
-    target.searchParams.delete("utm_medium");
-    target.searchParams.delete("utm_campaign");
-    for (const [key, value] of pairs) target.searchParams.set(key, value);
+    // Only the keys the builder actually sets are delete-then-set (WR-01),
+    // mirroring the server's narrowed applyUtmParams exactly: a key whose
+    // builder field is empty is absent from `pairs` and left untouched, so
+    // a value the owner manually embedded in the target is preserved. The
+    // delete-before-set of a present key re-appends it at the end in the
+    // locked source/medium/campaign order rather than leaving it pinned.
+    for (const [key, value] of pairs) {
+      target.searchParams.delete(key);
+      target.searchParams.set(key, value);
+    }
     return target.toString();
   } catch {
     // Fallback: `targetUrl` does not parse as an absolute URL — keep the
