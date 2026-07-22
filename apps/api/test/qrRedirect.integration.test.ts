@@ -363,3 +363,189 @@ describe("Dynamic-QR redirect handler (Phase 7, QR-02/03/07, 07-06)", () => {
     });
   });
 });
+
+/**
+ * Static-QR scan attribution (Phase 7, QR-07 / ROADMAP success criterion 4).
+ *
+ * A static QR encodes its Link's own short URL, so its scans arrive at
+ * `routes/redirect.ts`'s `GET /:slug` — a handler that otherwise has no way
+ * to know which QrCode (if any) a request came from, which is why static
+ * codes previously displayed "0 Scans" forever. The encoded URL therefore
+ * carries a `?qr={qrCodeId}` marker that the redirect handler attributes back
+ * to that QrCode row.
+ */
+describe("Static-QR scan attribution on GET /:slug (QR-07)", () => {
+  it("a scan carrying the ?qr marker increments that QR's lifetimeScans and records source='qr'", async () => {
+    const app = await buildApp({ prisma });
+    const seed = await seedDomainWithOwner("static-scan.example.com");
+    const link = await createLink(prisma, {
+      userId: seed.userId,
+      domainId: seed.domainId,
+      targetUrl: "https://destination.example.com/static",
+      slug: "printed",
+    });
+    expect(link.ok).toBe(true);
+    if (!link.ok) return;
+
+    const qr = await createQrCode(prisma, {
+      userId: seed.userId,
+      variant: "static",
+      linkId: link.link.id,
+      name: "Printed flyer",
+    });
+    expect(qr.ok).toBe(true);
+    if (!qr.ok) return;
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/printed?qr=${qr.qrCode.id}`,
+      headers: { host: "static-scan.example.com", "user-agent": BROWSER_UA },
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("https://destination.example.com/static");
+
+    const refetched = await prisma.qrCode.findUnique({ where: { id: qr.qrCode.id } });
+    expect(refetched!.lifetimeScans).toBe(1);
+
+    const events = await prisma.clickEvent.findMany({ where: { linkId: link.link.id } });
+    expect(events).toHaveLength(1);
+    expect(events[0]!.source).toBe("qr");
+  });
+
+  it("a plain visit without the marker leaves lifetimeScans at 0 and records source='link'", async () => {
+    const app = await buildApp({ prisma });
+    const seed = await seedDomainWithOwner("static-scan-plain.example.com");
+    const link = await createLink(prisma, {
+      userId: seed.userId,
+      domainId: seed.domainId,
+      targetUrl: "https://destination.example.com/plain",
+      slug: "plain",
+    });
+    if (!link.ok) return;
+
+    const qr = await createQrCode(prisma, {
+      userId: seed.userId,
+      variant: "static",
+      linkId: link.link.id,
+      name: "Unscanned",
+    });
+    if (!qr.ok) return;
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/plain",
+      headers: { host: "static-scan-plain.example.com", "user-agent": BROWSER_UA },
+    });
+
+    expect(response.statusCode).toBe(302);
+
+    const refetched = await prisma.qrCode.findUnique({ where: { id: qr.qrCode.id } });
+    expect(refetched!.lifetimeScans).toBe(0);
+
+    const events = await prisma.clickEvent.findMany({ where: { linkId: link.link.id } });
+    expect(events[0]!.source).toBe("link");
+  });
+
+  it("a marker naming a QR bound to a DIFFERENT link never inflates that QR's counter", async () => {
+    const app = await buildApp({ prisma });
+    const seed = await seedDomainWithOwner("static-scan-foreign.example.com");
+    const linkA = await createLink(prisma, {
+      userId: seed.userId,
+      domainId: seed.domainId,
+      targetUrl: "https://destination.example.com/a",
+      slug: "a",
+    });
+    const linkB = await createLink(prisma, {
+      userId: seed.userId,
+      domainId: seed.domainId,
+      targetUrl: "https://destination.example.com/b",
+      slug: "b",
+    });
+    if (!linkA.ok || !linkB.ok) return;
+
+    const qrForB = await createQrCode(prisma, {
+      userId: seed.userId,
+      variant: "static",
+      linkId: linkB.link.id,
+      name: "Belongs to B",
+    });
+    if (!qrForB.ok) return;
+
+    // Scan link A while claiming to be B's QR code.
+    const response = await app.inject({
+      method: "GET",
+      url: `/a?qr=${qrForB.qrCode.id}`,
+      headers: { host: "static-scan-foreign.example.com", "user-agent": BROWSER_UA },
+    });
+
+    expect(response.statusCode).toBe(302);
+
+    const refetched = await prisma.qrCode.findUnique({ where: { id: qrForB.qrCode.id } });
+    expect(refetched!.lifetimeScans).toBe(0);
+  });
+
+  it("a gated (expired) link does not count the scan", async () => {
+    const app = await buildApp({ prisma });
+    const seed = await seedDomainWithOwner("static-scan-expired.example.com");
+    const link = await createLink(prisma, {
+      userId: seed.userId,
+      domainId: seed.domainId,
+      targetUrl: "https://destination.example.com/gone",
+      slug: "gone",
+      expiresAt: "2020-01-01",
+    });
+    if (!link.ok) return;
+
+    const qr = await createQrCode(prisma, {
+      userId: seed.userId,
+      variant: "static",
+      linkId: link.link.id,
+      name: "Expired",
+    });
+    if (!qr.ok) return;
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/gone?qr=${qr.qrCode.id}`,
+      headers: { host: "static-scan-expired.example.com", "user-agent": BROWSER_UA },
+    });
+
+    expect(response.statusCode).toBe(410);
+
+    const refetched = await prisma.qrCode.findUnique({ where: { id: qr.qrCode.id } });
+    expect(refetched!.lifetimeScans).toBe(0);
+  });
+
+  it("strips its own marker before forwarding the query to the target", async () => {
+    const app = await buildApp({ prisma });
+    const seed = await seedDomainWithOwner("static-scan-forward.example.com");
+    const link = await createLink(prisma, {
+      userId: seed.userId,
+      domainId: seed.domainId,
+      targetUrl: "https://campaign.example.com/lp",
+      slug: "campaign",
+      forwardQuery: true,
+    });
+    if (!link.ok) return;
+
+    const qr = await createQrCode(prisma, {
+      userId: seed.userId,
+      variant: "static",
+      linkId: link.link.id,
+      name: "Campaign",
+    });
+    if (!qr.ok) return;
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/campaign?qr=${qr.qrCode.id}&utm_source=flyer`,
+      headers: { host: "static-scan-forward.example.com", "user-agent": BROWSER_UA },
+    });
+
+    expect(response.statusCode).toBe(302);
+    const location = new URL(response.headers.location as string);
+    expect(location.searchParams.get("utm_source")).toBe("flyer");
+    expect(location.searchParams.get("qr")).toBeNull();
+  });
+});

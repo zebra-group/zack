@@ -1230,7 +1230,7 @@ describe("GET /api/qr-codes/:id/render.png and .svg (route layer, QR-06)", () =>
     expect(res.headers["content-type"]).toContain("image/png");
     expect(res.headers["cache-control"]).toBe("no-store");
     const decoded = await decodeQr(res.rawPayload);
-    expect(decoded).toBe(`https://${link.domain.hostname}/${link.slug}`);
+    expect(decoded).toBe(`https://${link.domain.hostname}/${link.slug}?qr=${created.qrCode.id}`);
     expect(decoded).not.toBe(link.targetUrl);
     await app.close();
   });
@@ -1264,7 +1264,7 @@ describe("GET /api/qr-codes/:id/render.png and .svg (route layer, QR-06)", () =>
     expect(res.statusCode).toBe(200);
     const rasterized = await sharp(Buffer.from(res.payload)).png().toBuffer();
     const decoded = await decodeQr(rasterized);
-    expect(decoded).toBe(`https://${link.domain.hostname}/${link.slug}`);
+    expect(decoded).toBe(`https://${link.domain.hostname}/${link.slug}?qr=${created.qrCode.id}`);
     await app.close();
   });
 
@@ -1309,7 +1309,7 @@ describe("GET /api/qr-codes/:id/render.png and .svg (route layer, QR-06)", () =>
     expect(res.statusCode).toBe(200);
     const decoded = await decodeQr(res.rawPayload);
     expect(decoded).not.toBe(link.targetUrl);
-    expect(decoded).toBe(`https://${link.domain.hostname}/${link.slug}`);
+    expect(decoded).toBe(`https://${link.domain.hostname}/${link.slug}?qr=${created.qrCode.id}`);
     await app.close();
   });
 
@@ -1424,7 +1424,7 @@ describe("GET /api/qr-codes/:id/render.png and .svg (route layer, QR-06)", () =>
       where: { id: linkId },
       include: { domain: true },
     });
-    expect(decoded).toBe(`https://${link.domain.hostname}/${link.slug}`);
+    expect(decoded).toBe(`https://${link.domain.hostname}/${link.slug}?qr=${created.qrCode.id}`);
     await app.close();
   });
 });
