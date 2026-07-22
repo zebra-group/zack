@@ -22,8 +22,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import jsQR from "jsqr";
+import QRCode from "qrcode";
 import sharp from "sharp";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildModuleSvg,
   InvalidColorError,
@@ -206,6 +207,30 @@ describe("buildModuleSvg geometry (QR-06, color + rounded-module toggle)", () =>
   it("has no positive corner radius on module rects when rounded is false", () => {
     const svg = buildModuleSvg(TARGET, "M", { color: "#17170f", rounded: false, moduleSizePx: 10 });
     expect(svg).not.toMatch(/rx="[1-9]/);
+  });
+});
+
+/**
+ * IN-03: both logo render paths used to call `buildModuleSvg` (which runs
+ * `QRCode.create`) and then `qrDimensionPx` (which ran `QRCode.create` again
+ * on the identical payload/EC level) purely to measure the symbol — two full
+ * Reed-Solomon encodes per render, on the endpoint carrying the highest rate
+ * limit in the app. The dimension is already known from the matrix the SVG
+ * builder just walked.
+ */
+describe("module-matrix encode count (IN-03)", () => {
+  it("encodes the module matrix exactly once per logo PNG render", async () => {
+    const createSpy = vi.spyOn(QRCode, "create");
+    await renderQrPng(TARGET, { color: "#17170f", rounded: false, moduleSizePx: 10, logo: LOGO_PNG });
+    expect(createSpy).toHaveBeenCalledTimes(1);
+    createSpy.mockRestore();
+  });
+
+  it("encodes the module matrix exactly once per logo SVG render", async () => {
+    const createSpy = vi.spyOn(QRCode, "create");
+    await renderQrSvg(TARGET, { color: "#17170f", rounded: false, moduleSizePx: 10, logo: LOGO_PNG });
+    expect(createSpy).toHaveBeenCalledTimes(1);
+    createSpy.mockRestore();
   });
 });
 
