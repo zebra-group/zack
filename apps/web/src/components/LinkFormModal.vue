@@ -26,6 +26,7 @@
 import { computed, ref } from "vue";
 import type { DomainDTO } from "@kurzly/shared";
 import { mapLinkFormError } from "../api";
+import { buildUtmPreview } from "../lib/utm";
 
 type LinkFormModalProps = {
   mode: "create" | "edit";
@@ -52,6 +53,16 @@ type LinkFormModalProps = {
    * `link.trackingEnabled`.
    */
   initialTrackingEnabled?: boolean;
+  /**
+   * Phase 8 UTM builder trio (D-08-01/D-08-05, 08-04 Task 3, META-01):
+   * pre-fills the Surface A inputs in edit mode. `undefined`/omitted (both
+   * in create mode and when the link never had the field set) renders an
+   * empty input — the UI-08-05 keep-vs-clear submit logic below treats
+   * "started populated" and "never populated" differently.
+   */
+  initialUtmSource?: string;
+  initialUtmMedium?: string;
+  initialUtmCampaign?: string;
   /** Last submit error from the parent, mapped to inline field errors. */
   error?: unknown;
 };
@@ -71,6 +82,9 @@ const emit = defineEmits<{
       expiresAt?: string | null;
       forwardQuery: boolean;
       trackingEnabled: boolean;
+      utmSource?: string | null;
+      utmMedium?: string | null;
+      utmCampaign?: string | null;
     },
   ];
 }>();
@@ -78,6 +92,12 @@ const emit = defineEmits<{
 const targetUrl = ref(props.initialTargetUrl ?? "");
 const slug = ref(props.initialSlug ?? "");
 const domainId = ref(props.initialDomainId ?? props.domains[0]?.id ?? "");
+
+// Phase 8 UTM builder trio (08-04 Task 3, META-01) — pre-filled from the
+// initial-value props in edit mode, blank in create mode.
+const utmSource = ref(props.initialUtmSource ?? "");
+const utmMedium = ref(props.initialUtmMedium ?? "");
+const utmCampaign = ref(props.initialUtmCampaign ?? "");
 
 // Phase 8 (UI-08-01/04): the Phase-5 single-boolean accordion (`secOpen`)
 // generalizes into an exclusive three-section shell shared by the
@@ -137,6 +157,45 @@ const accordionSummary = computed(() => {
   return parts.length ? `· ${parts.join(" · ")}` : "";
 });
 
+/** Number of the three UTM fields that currently hold a non-empty value (Copywriting Contract's `n`). */
+const utmSetCount = computed(
+  () => [utmSource.value, utmMedium.value, utmCampaign.value].filter((v) => v.trim().length > 0).length,
+);
+
+/** `· {n} gesetzt`, or empty when nothing is set — identical format to the Phase-5 accordionSummary above. */
+const utmSummary = computed(() => (utmSetCount.value > 0 ? `· ${utmSetCount.value} gesetzt` : ""));
+
+/**
+ * Surface A live preview (UI-08-10): recomputes on every keystroke of the
+ * target URL or any of the three UTM fields — no debounce, no network
+ * call — via `buildUtmPreview`, the pure client-side mirror of the
+ * server's `applyUtmParams` (../lib/utm.ts's doc comment). Stays live even
+ * while the section is closed since it reads the same refs the inputs
+ * bind to; there is no separate "snapshot on open" state.
+ */
+const utmPreview = computed(() =>
+  buildUtmPreview(targetUrl.value, {
+    utmSource: utmSource.value,
+    utmMedium: utmMedium.value,
+    utmCampaign: utmCampaign.value,
+  }),
+);
+
+/**
+ * UI-08-05 keep-vs-clear for the six Phase 8 fields (this plan's three UTM
+ * ones; the OG trio in the next plan follows the identical shape): a
+ * non-empty current value is sent as-is, an empty value is sent as an
+ * explicit clear (`null`) only when the field started out populated, and
+ * is omitted (`undefined`, i.e. "keep") when it never had a value to
+ * begin with. Factored into one helper rather than repeated three times —
+ * unlike the password field (T-05-KEEPCLEAR), an emptied Phase 8 field
+ * always means "delete", never "leave unchanged".
+ */
+function keepClearOrSet(current: string, initial: string | undefined): string | null | undefined {
+  if (current.trim()) return current;
+  return initial ? null : undefined;
+}
+
 function handleSubmit(): void {
   const passwordPayload = removePassword.value ? null : password.value ? password.value : undefined;
   const expiresAtPayload = expiry.value ? expiry.value : props.initialExpiresAt ? null : undefined;
@@ -149,6 +208,9 @@ function handleSubmit(): void {
     expiresAt: expiresAtPayload,
     forwardQuery: forwardQuery.value,
     trackingEnabled: trackingEnabled.value,
+    utmSource: keepClearOrSet(utmSource.value, props.initialUtmSource),
+    utmMedium: keepClearOrSet(utmMedium.value, props.initialUtmMedium),
+    utmCampaign: keepClearOrSet(utmCampaign.value, props.initialUtmCampaign),
   });
 }
 </script>
@@ -201,6 +263,53 @@ function handleSubmit(): void {
             Diese Änderung ändert die Kurz-URL. Bestehende geteilte Links (und später QR-Codes)
             verweisen weiterhin auf `{{ initialSlug }}` und funktionieren danach nicht mehr.
           </div>
+        </div>
+      </div>
+
+      <!-- Phase 8 "UTM-Parameter" accordion section (08-UI-SPEC.md Surface A,
+           META-01, UI-08-03/10). Sits above the OG section (next plan) and
+           Passwort & Ablauf on the shared accordion shell (openSection). -->
+      <div class="accordion-section">
+        <div
+          class="accordion-header accordion-header--utm"
+          role="button"
+          tabindex="0"
+          :aria-expanded="openSection === 'utm'"
+          @click="toggleSection('utm')"
+          @keydown.enter.prevent="toggleSection('utm')"
+          @keydown.space.prevent="toggleSection('utm')"
+        >
+          <span>
+            UTM-Parameter<span v-if="utmSummary" class="accordion-summary"> {{ utmSummary }}</span>
+          </span>
+          <span class="accordion-chevron">{{ openSection === "utm" ? "⌃" : "⌄" }}</span>
+        </div>
+        <div v-if="openSection === 'utm'" class="accordion-body accordion-body--utm">
+          <div class="utm-input-grid">
+            <input
+              v-model="utmSource"
+              type="text"
+              class="utm-input"
+              placeholder="utm_source"
+              maxlength="200"
+            />
+            <input
+              v-model="utmMedium"
+              type="text"
+              class="utm-input"
+              placeholder="utm_medium"
+              maxlength="200"
+            />
+            <input
+              v-model="utmCampaign"
+              type="text"
+              class="utm-input"
+              placeholder="utm_campaign"
+              maxlength="200"
+            />
+          </div>
+          <p v-if="fieldErrors.utmError" class="field-error">{{ fieldErrors.utmError }}</p>
+          <div class="utm-preview">{{ utmPreview }}</div>
         </div>
       </div>
 
@@ -497,13 +606,48 @@ function handleSubmit(): void {
   gap: 8px;
 }
 
-/* Placeholder slots for the UTM (08-04 Task 3) and OG (next plan) section
-   bodies — shared padding token per the Layout Contract (08-UI-SPEC.md,
-   Surface A/B: `padding:4px 14px 14px`), full layout filled in by their
-   respective tasks/plans. */
+/* Shared padding token for the UTM/OG bodies (08-UI-SPEC.md Surface A/B
+   Layout Contract: `padding:4px 14px 14px`) — the OG body's own
+   display/gap rules are filled in by the next plan. */
 .accordion-body--utm,
 .accordion-body--og {
   padding: 4px 14px 14px;
+}
+
+/* Phase 8 Surface A: UTM-Parameter body (08-04 Task 3, 08-UI-SPEC.md
+   LOCKED tokens, Prototyp Z.702). */
+.accordion-body--utm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.utm-input-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.utm-input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: "Geist Mono", monospace;
+}
+
+.utm-preview {
+  font-size: 11.5px;
+  font-family: "Geist Mono", monospace;
+  background: var(--chip);
+  border-radius: 8px;
+  padding: 10px 12px;
+  word-break: break-all;
+  color: var(--mut);
+  line-height: 1.6;
 }
 
 .remove-pw-link {
