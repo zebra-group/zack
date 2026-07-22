@@ -155,7 +155,28 @@ describe("QrStudioPanel", () => {
     await input.trigger("change");
     await flushPromises();
 
-    expect(wrapper.text()).toContain("Datei zu groß (max. 2 MB).");
+    expect(wrapper.text()).toContain("Datei zu groß (max. 1,4 MB).");
+    expect(updateQrCode).not.toHaveBeenCalled();
+  });
+
+  /**
+   * WR-03 regression: the server caps `logoData` at 1,900,000 base64 chars
+   * (~1,425,000 raw bytes). A file in the old ~1.36-2.00 MiB gap passed the
+   * client check and then failed server-side with an untyped 400, which
+   * `mapQrFormError` funnels into the generic "Speichern fehlgeschlagen"
+   * toast — for a file the UI had just declared to be within limits. The
+   * client cap must therefore sit BELOW the server's, not above it.
+   */
+  it("rejects a logo file inside the old client/server gap (1.5 MiB) before any request is made", async () => {
+    const wrapper = mountPanel(makeQrCode());
+    const gapFile = new File([new Uint8Array(1_500_000)], "logo.png", { type: "image/png" });
+    const input = wrapper.find("input[type='file']");
+    Object.defineProperty(input.element, "files", { value: [gapFile], configurable: true });
+
+    await input.trigger("change");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Datei zu groß (max. 1,4 MB).");
     expect(updateQrCode).not.toHaveBeenCalled();
   });
 

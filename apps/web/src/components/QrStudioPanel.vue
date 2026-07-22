@@ -61,9 +61,21 @@ const BRAND_INITIAL = "K";
 
 const SAVE_FAILED_MESSAGE = "Speichern fehlgeschlagen. Bitte erneut versuchen.";
 const LOGO_FORMAT_ERROR = "Nur PNG oder SVG erlaubt.";
-const LOGO_SIZE_ERROR = "Datei zu groß (max. 2 MB).";
+const LOGO_SIZE_ERROR = "Datei zu groß (max. 1,4 MB).";
 const EXPORT_FAILED_MESSAGE = "Export fehlgeschlagen. Bitte erneut versuchen.";
-const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+/**
+ * Must stay BELOW the server's effective cap, never above it. The server
+ * caps the base64 `logoData` STRING at 1,900,000 chars
+ * (`LOGO_DATA_MAX_LENGTH`, apps/api/src/routes/qrCodes.ts), and base64
+ * inflates ~4/3 — so ~1,425,000 raw bytes is the real server ceiling. The
+ * previous 2 MiB client cap sat ABOVE it, leaving a ~1.36-2.00 MiB band in
+ * which the UI accepted a file and the server then rejected it with an
+ * untyped 400 ("Invalid QR data", no INVALID_LOGO code) that
+ * `mapQrFormError` funnels into the generic save-failure copy. Rounding
+ * down to 1,400,000 keeps this check strictly inside the server's limit, so
+ * an accepted file always fits.
+ */
+const MAX_LOGO_BYTES = 1_400_000;
 const RENDER_DEBOUNCE_MS = 300;
 
 const previewSrc = ref(qrRenderPngUrl(props.qr.id));
