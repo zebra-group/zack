@@ -78,6 +78,20 @@ const qrVerifyRateLimitConfig = {
   },
 };
 
+/**
+ * Shape gate for the `:code` route param, applied at the TOP of both
+ * handlers below — before any DB lookup and, crucially, before `code` can
+ * reach `issueUnlockCookie`'s `Path` attribute, where `cookie.serialize`
+ * throws a `TypeError` (an unhandled 500) for anything outside ` -:=-~`.
+ *
+ * `code` is always server-generated Base62 (`generateSlug`, lib/links.ts),
+ * so a well-formed request can never fail this check. Mirrors
+ * `customSlugSchema`'s discipline in lib/links.ts: validate the param's own
+ * shape rather than relying on a downstream `findUnique` miss to happen to
+ * short-circuit first.
+ */
+const QR_CODE_PARAM = /^[0-9A-Za-z]{1,32}$/;
+
 export function qrRedirectRoute(prisma: PrismaClient) {
   return async function registerQrRedirectRoute(app: FastifyInstance): Promise<void> {
     app.route({
@@ -91,6 +105,11 @@ export function qrRedirectRoute(prisma: PrismaClient) {
 
         const { code } = request.params as { code: string };
         const ctx = { ...brandCtx(), domain: request.hostname, slug: code };
+
+        // Shape gate first (see QR_CODE_PARAM) — same generic 404, no lookup.
+        if (!QR_CODE_PARAM.test(code)) {
+          return reply.code(404).type("text/html").send(renderNotFoundPage(ctx));
+        }
 
         // T-07-ENUM: unknown/orphaned/static code -> the SAME generic 404 as
         // an unknown slug (no existence oracle).
@@ -158,6 +177,14 @@ export function qrRedirectRoute(prisma: PrismaClient) {
         const password = typeof rawBody?.password === "string" ? rawBody.password : undefined;
 
         const ctx = { ...brandCtx(), domain: request.hostname, slug: code };
+
+        // Shape gate first (see QR_CODE_PARAM). This is the handler that
+        // interpolates `code` into the unlock cookie's Path below, so the
+        // guard is what makes that interpolation structurally safe rather
+        // than incidentally safe.
+        if (!QR_CODE_PARAM.test(code)) {
+          return reply.code(404).type("text/html").send(renderNotFoundPage(ctx));
+        }
 
         const qrCode = await prisma.qrCode.findUnique({ where: { code } });
         const link =
