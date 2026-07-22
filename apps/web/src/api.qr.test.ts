@@ -14,7 +14,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,
   createQrCode,
-  getQrCode,
   getQrRemapHistory,
   listQrCodes,
   mapQrFormError,
@@ -93,16 +92,6 @@ describe("api.ts QR client functions", () => {
     expect(result).toEqual(list);
   });
 
-  it("getQrCode GETs /api/qr-codes/:id", async () => {
-    const qr = makeQrCode();
-    fetchMock.mockResolvedValue(jsonResponse(qr));
-
-    const result = await getQrCode("qr1");
-
-    expect(fetchMock).toHaveBeenCalledWith("/api/qr-codes/qr1", { method: "GET" });
-    expect(result).toEqual(qr);
-  });
-
   it("updateQrCode PATCHes style fields only", async () => {
     const updated = makeQrCode({ color: "#1e3a5f" });
     fetchMock.mockResolvedValue(jsonResponse(updated));
@@ -152,7 +141,7 @@ describe("api.ts QR client functions", () => {
   it("a failed call throws ApiError carrying status + parsed code", async () => {
     fetchMock.mockResolvedValue(errorResponse(404, "NOT_FOUND"));
 
-    await expect(getQrCode("missing")).rejects.toMatchObject({
+    await expect(listQrCodes()).rejects.toMatchObject({
       name: "ApiError",
       status: 404,
       code: "NOT_FOUND",
