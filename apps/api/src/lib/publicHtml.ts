@@ -67,7 +67,21 @@ export interface ExpiredPageCtx extends BasePageCtx {
 
 export type NotFoundPageCtx = BasePageCtx;
 
-export type BotOgPageCtx = BasePageCtx;
+/**
+ * Extends `BasePageCtx` with three optional owner-authored fields
+ * (META-02, D-08-03) — the link owner's custom social-preview title,
+ * description, and image URL. Each is `string | null` text the owner
+ * typed into this link's own OG builder; none of them can carry the
+ * destination, so this file's NO-LEAK contract (see the module header) is
+ * unaffected — `renderBotOgPage` still never receives a `target`/
+ * `targetUrl` field. Fields left `null`/unset keep the existing generic
+ * brand fallback.
+ */
+export interface BotOgPageCtx extends BasePageCtx {
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  ogImageUrl?: string | null;
+}
 
 /** The full inline `<style>` body — tokens copied 1:1 from
  * `apps/web/src/styles/tokens.css` / 05-UI-SPEC.md's Color section, since
@@ -278,18 +292,59 @@ export function renderBotOgPage(ctx: BotOgPageCtx): string {
   // contract as the visitor pages' url-chip.
   const ogUrl = `https://${safeDomain}/${safeSlug}`;
 
+  // Per-field resolution against the existing generic fallbacks (D-08-03):
+  // a custom value is used only when it is a non-empty string; blank/null
+  // keeps today's brand-only copy so links without custom metadata render
+  // byte-identically to before this change.
+  const resolvedTitle = isSetOgValue(ctx.ogTitle) ? ctx.ogTitle : ctx.brand;
+  const resolvedDescription = isSetOgValue(ctx.ogDescription)
+    ? ctx.ogDescription
+    : `${ctx.brand} · self-hosted URL shortener`;
+  const fallbackImageUrl = `https://${ctx.domain}/favicon.ico`;
+  const resolvedImageUrl = isAbsoluteHttpUrl(ctx.ogImageUrl) ? ctx.ogImageUrl : fallbackImageUrl;
+
+  const safeTitle = escapeHtml(resolvedTitle);
+  const safeDescription = escapeHtml(resolvedDescription);
+  const safeImageUrl = escapeHtml(resolvedImageUrl);
+
   return `<!doctype html>
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${safeBrand}</title>
-  <meta property="og:title" content="${safeBrand}" />
-  <meta property="og:description" content="${safeBrand} · self-hosted URL shortener" />
-  <meta property="og:image" content="https://${safeDomain}/favicon.ico" />
+  <title>${safeTitle}</title>
+  <meta property="og:title" content="${safeTitle}" />
+  <meta property="og:description" content="${safeDescription}" />
+  <meta property="og:image" content="${safeImageUrl}" />
   <meta property="og:url" content="${ogUrl}" />
   <meta name="robots" content="noindex" />
 </head>
 <body></body>
 </html>`;
+}
+
+/** An owner-typed OG value counts as "set" only when it is a non-empty,
+ * non-whitespace-only string — `null`/undefined/blank fall back to the
+ * generic brand copy. */
+function isSetOgValue(value: string | null | undefined): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * Render-time guard (defence in depth over plan 08-01's write-time
+ * validation, T-08-OGIMG-SCHEME): only an absolute `http:`/`https:` URL is
+ * accepted for `og:image`. A value that predates validation, or that a
+ * future code path introduces without going through `lib/links.ts`'s
+ * write-time check, can therefore never reach the rendered attribute. The
+ * server never fetches this URL anywhere (D-08-04) — it is emitted as a
+ * plain attribute value only.
+ */
+function isAbsoluteHttpUrl(value: string | null | undefined): value is string {
+  if (!isSetOgValue(value)) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
