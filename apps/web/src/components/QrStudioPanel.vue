@@ -39,7 +39,7 @@
  * config endpoint (out of scope; no backend files may be touched here).
  */
 import { computed, reactive, ref, watch } from "vue";
-import type { QrCodeDTO } from "@kurzly/shared";
+import type { QrCodeDTO, UpdateQrCodeInput } from "@kurzly/shared";
 import { fetchQrRenderBlob, mapQrFormError, qrRenderPngUrl, updateQrCode } from "../api";
 
 type QrStudioPanelProps = {
@@ -155,14 +155,44 @@ watch(
   },
 );
 
+/**
+ * Monotonic token for style mutations. Every control change fires its own
+ * independent PATCH with no ordering guarantee, so two quick edits can race:
+ * if the FIRST response lands second, emitting it would push a DTO the user
+ * has already moved past into the parent's list, leaving the list (and the
+ * swatch selection) showing a value that is no longer persisted. Only the
+ * newest issued request may emit or revert.
+ */
+let mutationSeq = 0;
+
+/**
+ * Issues one style PATCH under the sequence guard above. Returns the server
+ * DTO, or `null` when a newer mutation superseded this one — in which case
+ * the caller must neither emit nor revert. A failure of a SUPERSEDED request
+ * is swallowed for the same reason: reverting to its stale `prev` would undo
+ * an edit the user made afterwards.
+ */
+async function persistStyle(patch: UpdateQrCodeInput): Promise<QrCodeDTO | null> {
+  const seq = ++mutationSeq;
+  let updated: QrCodeDTO;
+  try {
+    updated = await updateQrCode(props.qr.id, patch);
+  } catch (err) {
+    if (seq !== mutationSeq) return null;
+    throw err;
+  }
+  if (seq !== mutationSeq) return null;
+  emit("styled", updated);
+  scheduleRender();
+  return updated;
+}
+
 async function setColor(color: string): Promise<void> {
   if (local.color === color) return;
   const prev = local.color;
   local.color = color;
   try {
-    const updated = await updateQrCode(props.qr.id, { color });
-    emit("styled", updated);
-    scheduleRender();
+    await persistStyle({ color });
   } catch {
     local.color = prev;
     emit("toast", SAVE_FAILED_MESSAGE);
@@ -174,9 +204,7 @@ async function toggleRounded(): Promise<void> {
   const next = !prev;
   local.roundedModules = next;
   try {
-    const updated = await updateQrCode(props.qr.id, { roundedModules: next });
-    emit("styled", updated);
-    scheduleRender();
+    await persistStyle({ roundedModules: next });
   } catch {
     local.roundedModules = prev;
     emit("toast", SAVE_FAILED_MESSAGE);
@@ -188,9 +216,7 @@ async function toggleLogo(): Promise<void> {
   const next = !prev;
   local.logoEnabled = next;
   try {
-    const updated = await updateQrCode(props.qr.id, { logoEnabled: next });
-    emit("styled", updated);
-    scheduleRender();
+    await persistStyle({ logoEnabled: next });
   } catch {
     local.logoEnabled = prev;
     emit("toast", SAVE_FAILED_MESSAGE);
@@ -242,12 +268,11 @@ async function handleLogoFile(file: File): Promise<void> {
 
   try {
     // Upload auto-enables the toggle (07-UI-SPEC.md Copywriting Contract).
-    const updated = await updateQrCode(props.qr.id, { logoData: dataUrl, logoEnabled: true });
+    const updated = await persistStyle({ logoData: dataUrl, logoEnabled: true });
+    if (!updated) return; // superseded by a newer mutation
     local.logoEnabled = true;
     logoFileName.value = file.name;
     hasCustomLogo.value = true;
-    emit("styled", updated);
-    scheduleRender();
   } catch (err) {
     logoError.value = mapQrFormError(err).logoError ?? SAVE_FAILED_MESSAGE;
   }
@@ -267,12 +292,11 @@ async function removeLogo(): Promise<void> {
     // error-correction level H for a logo it no longer had, and the
     // decorative placeholder tile reappeared over a preview/export that
     // contains no logo at all.
-    const updated = await updateQrCode(props.qr.id, { logoData: null, logoEnabled: false });
+    const updated = await persistStyle({ logoData: null, logoEnabled: false });
+    if (!updated) return; // superseded by a newer mutation
     local.logoEnabled = false;
     logoFileName.value = null;
     hasCustomLogo.value = false;
-    emit("styled", updated);
-    scheduleRender();
   } catch {
     emit("toast", SAVE_FAILED_MESSAGE);
   }
