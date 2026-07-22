@@ -47,6 +47,22 @@ function hostnameFor(domainId: string): string {
   return domains.value.find((d) => d.id === domainId)?.hostname ?? "";
 }
 
+/**
+ * Phase 8 (08-06 Task 1, 08-UI-SPEC.md Surface C): whether a link carries
+ * any of the three UTM fields — drives the "UTM" attribute badge.
+ */
+function hasUtm(link: LinkDTO): boolean {
+  return !!(link.utmSource || link.utmMedium || link.utmCampaign);
+}
+
+/**
+ * Phase 8 (08-06 Task 1, 08-UI-SPEC.md Surface C): whether a link carries
+ * any of the three custom-OG fields — drives the "OG" attribute badge.
+ */
+function hasOg(link: LinkDTO): boolean {
+  return !!(link.ogTitle || link.ogDescription || link.ogImageUrl);
+}
+
 async function loadDomains(): Promise<void> {
   try {
     domains.value = await listDomains();
@@ -106,7 +122,12 @@ function selectDomain(domainId: string | null): void {
 function reportFormError(err: unknown): void {
   formError.value = err;
   const mapped = mapLinkFormError(err);
-  if (!mapped.targetUrlError && !mapped.slugError) {
+  // Phase 8 (08-06, Rule 1 fix): the original WR-09 check only looked at
+  // targetUrlError/slugError, so a mapped UTM/OG field error (e.g.
+  // OG_IMAGE_URL_INVALID) would render its inline message AND still fire
+  // the generic fallback toast — checking every mapped key closes that gap.
+  const hasFieldError = Object.values(mapped).some((v) => v !== undefined);
+  if (!hasFieldError) {
     showToast("Speichern fehlgeschlagen. Bitte erneut versuchen.");
   }
 }
@@ -133,6 +154,18 @@ async function handleCreateSubmit(payload: {
   forwardQuery?: boolean;
   /** Phase 6 (TRACK-01/D-15): omitted server-side defaults to `true`. */
   trackingEnabled?: boolean;
+  /**
+   * Phase 8 (08-06, D-08-05, META-01/02): the modal's `keepClearOrSet`
+   * never emits `null` in create mode (there is no "initial value" to
+   * clear), but `CreateLinkInput` has no `null` variant at all — collapse
+   * it to `undefined` at this call site regardless, per plan Task 1.
+   */
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  ogImageUrl?: string | null;
 }): Promise<void> {
   if (!payload.targetUrl.trim()) {
     showToast("Bitte Ziel-URL angeben.");
@@ -155,6 +188,12 @@ async function handleCreateSubmit(payload: {
       expiresAt: payload.expiresAt ?? undefined,
       forwardQuery: payload.forwardQuery,
       trackingEnabled: payload.trackingEnabled,
+      utmSource: payload.utmSource ?? undefined,
+      utmMedium: payload.utmMedium ?? undefined,
+      utmCampaign: payload.utmCampaign ?? undefined,
+      ogTitle: payload.ogTitle ?? undefined,
+      ogDescription: payload.ogDescription ?? undefined,
+      ogImageUrl: payload.ogImageUrl ?? undefined,
     });
     links.value.unshift(created);
     closeCreateModal();
@@ -185,6 +224,17 @@ async function handleEditSubmit(payload: {
   forwardQuery?: boolean;
   /** Phase 6 (TRACK-01/D-15): `undefined` keeps the current value. */
   trackingEnabled?: boolean;
+  /**
+   * Phase 8 (08-06, D-08-05, META-01/02): forwarded EXACTLY as received —
+   * `undefined` keeps, `null` is an explicit clear that must reach the
+   * API rather than being collapsed away (T-08-CLEAR-DROP).
+   */
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  ogImageUrl?: string | null;
 }): Promise<void> {
   const target = editTarget.value;
   if (!target) return;
@@ -201,6 +251,12 @@ async function handleEditSubmit(payload: {
       expiresAt: payload.expiresAt,
       forwardQuery: payload.forwardQuery,
       trackingEnabled: payload.trackingEnabled,
+      utmSource: payload.utmSource,
+      utmMedium: payload.utmMedium,
+      utmCampaign: payload.utmCampaign,
+      ogTitle: payload.ogTitle,
+      ogDescription: payload.ogDescription,
+      ogImageUrl: payload.ogImageUrl,
     });
     const idx = links.value.findIndex((l) => l.id === updated.id);
     if (idx !== -1) links.value[idx] = updated;
@@ -321,7 +377,9 @@ loadLinks();
       >
         <span class="cell-slug">
           <span class="cell-slug-text">/{{ link.slug }}</span>
-          <span v-if="!link.trackingEnabled" class="tracking-badge">Tracking aus</span>
+          <span v-if="hasUtm(link)" class="attr-badge">UTM</span>
+          <span v-if="hasOg(link)" class="attr-badge">OG</span>
+          <span v-if="!link.trackingEnabled" class="attr-badge">Tracking aus</span>
         </span>
         <span class="cell-domain">{{ hostnameFor(link.domainId) }}</span>
         <span class="cell-target">{{ link.targetUrl }}</span>
@@ -376,6 +434,12 @@ loadLinks();
     :initial-expires-at="editTarget.expiresAt ? editTarget.expiresAt.slice(0, 10) : null"
     :initial-forward-query="editTarget.forwardQuery"
     :initial-tracking-enabled="editTarget.trackingEnabled"
+    :initial-utm-source="editTarget.utmSource ?? undefined"
+    :initial-utm-medium="editTarget.utmMedium ?? undefined"
+    :initial-utm-campaign="editTarget.utmCampaign ?? undefined"
+    :initial-og-title="editTarget.ogTitle ?? undefined"
+    :initial-og-description="editTarget.ogDescription ?? undefined"
+    :initial-og-image-url="editTarget.ogImageUrl ?? undefined"
     :error="formError"
     @close="closeEditModal"
     @submit="handleEditSubmit"
@@ -563,8 +627,12 @@ loadLinks();
 }
 
 /* Phase 6 (06-UI-SPEC.md § C2, D-15) — neutral attribute badge, wraps onto
-   a second line within the Kurzlink cell rather than truncating. */
-.tracking-badge {
+   a second line within the Kurzlink cell rather than truncating. Phase 8
+   (08-06, 08-UI-SPEC.md Surface C): generalized from the single-badge
+   `.tracking-badge` name to the shared `.attr-badge` — the UTM and OG
+   badges reuse this exact rule, not a duplicate. Locked order in the
+   markup: UTM -> OG -> Tracking aus. */
+.attr-badge {
   font-size: 10.5px;
   padding: 2px 7px;
   border-radius: 999px;
