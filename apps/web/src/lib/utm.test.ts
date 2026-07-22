@@ -43,16 +43,32 @@ describe("buildUtmPreview", () => {
 
   it("still renders the three in canonical order when the target already defines utm_campaign (cross-check with applyUtmParams)", () => {
     // Hand-worked against apps/api/src/lib/redirectEngine.ts#applyUtmParams:
-    // delete the three canonical keys first (removes the pre-existing
-    // utm_campaign), THEN re-set source/medium/campaign in that order — a
-    // bare `set` alone would have left utm_campaign pinned in its original
-    // position instead of moving to the end.
+    // each PRESENT builder key is delete-then-set in source/medium/campaign
+    // order. utm_campaign IS present here, so its pre-existing value is
+    // deleted and re-appended last — a bare `set` alone would have left
+    // utm_campaign pinned in its original position instead of moving to the
+    // end.
     expect(
       buildUtmPreview(
         "https://example.com/x?utm_campaign=old",
         utm({ utmSource: "src", utmMedium: "med", utmCampaign: "camp" }),
       ),
     ).toBe("https://example.com/x?utm_source=src&utm_medium=med&utm_campaign=camp");
+  });
+
+  it("preserves a target's manually-embedded utm_campaign when the builder only sets utm_source (WR-01)", () => {
+    // Only keys the builder actually sets are delete-then-set; an empty
+    // builder field must leave any target-embedded value of that key
+    // untouched, so the preview matches the server's narrowed applyUtmParams.
+    expect(
+      buildUtmPreview("https://shop.com/?utm_campaign=fall", utm({ utmSource: "newsletter" })),
+    ).toBe("https://shop.com/?utm_campaign=fall&utm_source=newsletter");
+  });
+
+  it("leaves an embedded utm_medium untouched when the builder sets only utm_campaign (WR-01)", () => {
+    expect(
+      buildUtmPreview("https://shop.com/?utm_medium=cpc", utm({ utmCampaign: "spring" })),
+    ).toBe("https://shop.com/?utm_medium=cpc&utm_campaign=spring");
   });
 
   it("percent-encodes a value containing a space or an ampersand, matching URLSearchParams's encoding", () => {
