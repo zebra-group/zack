@@ -1,7 +1,7 @@
 ---
 phase: 08
 slug: utm-builder-custom-og-metadata
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-07-22
@@ -390,6 +390,10 @@ hasOg(link)  := !!(link.ogTitle   || link.ogDescription || link.ogImageUrl)
 | Absenden | Ein einziger bestehender Submit — es gibt **keinen** separaten „UTM speichern"- oder „OG speichern"-Button. |
 | Nach Erfolg | Unverändertes bestehendes Verhalten (Modal schließt, Toast, Liste/Detail aktualisiert) — plus: die neuen Badges/Chips erscheinen ohne Reload, da sie aus dem zurückgegebenen `LinkDTO` abgeleitet werden. |
 
+**Fokuspunkt je Surface (Checker-Nachtrag):** In Surface A ist die Live-Vorschau der zusammengebauten URL der visuelle Anker — die drei Inputs sind die Steuerspalte, die zu ihr hinführt. In Surface B ist die 210px-Social-Card der Anker; die Input-Spalte links ist ihr untergeordnet. Wo Platz knapp wird, weicht die Input-Spalte, nie die Vorschau.
+
+**Bild-Request-Auslöser (Checker-Nachtrag, präzisiert UI-08-10):** Die Textvorschauen aktualisieren synchron pro Tastendruck. Das `<img src>` der Social-Card ist davon ausgenommen: es wird ausschließlich gebunden, wenn der eingegebene Wert als absolute `http:`/`https:`-URL parst, und dieses eine Binding wird um ~300 ms entprellt. Ohne diese Ausnahme würde jeder Tastendruck einen Browser-Request an jeden Teil-Host (`h`, `ht`, `https://ex`, …) auslösen. Solange der Wert nicht parst oder der Ladeversuch scheitert, bleibt die Schraffur stehen.
+
 **Accessibility (Mindestvertrag, konsistent zu Phase 5–7):** Beide neuen Sektions-Header sind per Tastatur erreichbar (`role="button"`, `tabindex="0"`, Enter/Space) und tragen `aria-expanded`. Der bestehende „Passwort & Ablauf"-Header wird im selben Zug angeglichen, da er durch UI-08-04 ohnehin dieselbe Komponente/Klasse nutzt. Die Live-Vorschauen sind rein dekorativ-informativ und benötigen keine Live-Region.
 
 ---
@@ -405,11 +409,11 @@ hasOg(link)  := !!(link.ogTitle   || link.ogDescription || link.ogImageUrl)
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS (kein `--accent` in dieser Phase, keine neue Farbe)
-- [ ] Dimension 4 Typography: PASS (unter Design-Fidelity-Waiver — keine neue Größe/kein neues Gewicht gegenüber Phase 2)
-- [ ] Dimension 5 Spacing: PASS (unter Design-Fidelity-Waiver — alle Werte 1:1 aus Prototyp Z.696–738)
-- [ ] Dimension 6 Registry Safety: PASS (not applicable — kein shadcn)
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS (FLAG behoben — Fokuspunkte und Bild-Request-Auslöser oben nachgetragen)
+- [x] Dimension 3 Color: PASS (kein `--accent` in dieser Phase, keine neue Farbe)
+- [x] Dimension 4 Typography: PASS (unter Design-Fidelity-Waiver — keine neue Größe/kein neues Gewicht gegenüber Phase 2)
+- [x] Dimension 5 Spacing: PASS (unter Design-Fidelity-Waiver — alle Werte 1:1 aus Prototyp Z.696–738)
+- [x] Dimension 6 Registry Safety: PASS (not applicable — kein shadcn)
 
-**Approval:** pending
+**Approval:** approved (gsd-ui-checker, 2026-07-22 — APPROVED; der eine FLAG auf Dimension 2 wurde durch die beiden Nachträge im Interaktions-Contract geschlossen)
