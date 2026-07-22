@@ -63,6 +63,15 @@ type LinkFormModalProps = {
   initialUtmSource?: string;
   initialUtmMedium?: string;
   initialUtmCampaign?: string;
+  /**
+   * Phase 8 custom OG trio (D-08-03/D-08-05, 08-05, META-02): pre-fills
+   * the Surface B inputs in edit mode. Same `undefined`-vs-empty-string
+   * distinction as the UTM trio above drives UI-08-05's keep-vs-clear
+   * submit logic below.
+   */
+  initialOgTitle?: string;
+  initialOgDescription?: string;
+  initialOgImageUrl?: string;
   /** Last submit error from the parent, mapped to inline field errors. */
   error?: unknown;
 };
@@ -85,6 +94,9 @@ const emit = defineEmits<{
       utmSource?: string | null;
       utmMedium?: string | null;
       utmCampaign?: string | null;
+      ogTitle?: string | null;
+      ogDescription?: string | null;
+      ogImageUrl?: string | null;
     },
   ];
 }>();
@@ -98,6 +110,13 @@ const domainId = ref(props.initialDomainId ?? props.domains[0]?.id ?? "");
 const utmSource = ref(props.initialUtmSource ?? "");
 const utmMedium = ref(props.initialUtmMedium ?? "");
 const utmCampaign = ref(props.initialUtmCampaign ?? "");
+
+// Phase 8 custom OG trio (08-05 Task 1, META-02) — pre-filled from the
+// initial-value props in edit mode, blank in create mode, mirroring the
+// UTM trio above.
+const ogTitle = ref(props.initialOgTitle ?? "");
+const ogDescription = ref(props.initialOgDescription ?? "");
+const ogImageUrl = ref(props.initialOgImageUrl ?? "");
 
 // Phase 8 (UI-08-01/04): the Phase-5 single-boolean accordion (`secOpen`)
 // generalizes into an exclusive three-section shell shared by the
@@ -165,6 +184,14 @@ const utmSetCount = computed(
 /** `· {n} gesetzt`, or empty when nothing is set — identical format to the Phase-5 accordionSummary above. */
 const utmSummary = computed(() => (utmSetCount.value > 0 ? `· ${utmSetCount.value} gesetzt` : ""));
 
+/** Number of the three OG fields that currently hold a non-empty value (Copywriting Contract's `n`). */
+const ogSetCount = computed(
+  () => [ogTitle.value, ogDescription.value, ogImageUrl.value].filter((v) => v.trim().length > 0).length,
+);
+
+/** `· {n} gesetzt`, or empty when nothing is set — identical format to utmSummary above. */
+const ogSummary = computed(() => (ogSetCount.value > 0 ? `· ${ogSetCount.value} gesetzt` : ""));
+
 /**
  * Surface A live preview (UI-08-10): recomputes on every keystroke of the
  * target URL or any of the three UTM fields — no debounce, no network
@@ -211,6 +238,9 @@ function handleSubmit(): void {
     utmSource: keepClearOrSet(utmSource.value, props.initialUtmSource),
     utmMedium: keepClearOrSet(utmMedium.value, props.initialUtmMedium),
     utmCampaign: keepClearOrSet(utmCampaign.value, props.initialUtmCampaign),
+    ogTitle: keepClearOrSet(ogTitle.value, props.initialOgTitle),
+    ogDescription: keepClearOrSet(ogDescription.value, props.initialOgDescription),
+    ogImageUrl: keepClearOrSet(ogImageUrl.value, props.initialOgImageUrl),
   });
 }
 </script>
@@ -310,6 +340,60 @@ function handleSubmit(): void {
           </div>
           <p v-if="fieldErrors.utmError" class="field-error">{{ fieldErrors.utmError }}</p>
           <div class="utm-preview">{{ utmPreview }}</div>
+        </div>
+      </div>
+
+      <!-- Phase 8 "Custom OG-Tags" accordion section (08-UI-SPEC.md Surface B,
+           META-02, UI-08-03/06). Sits between the UTM section and Passwort &
+           Ablauf on the shared accordion shell (openSection). -->
+      <div class="accordion-section">
+        <div
+          class="accordion-header accordion-header--og"
+          role="button"
+          tabindex="0"
+          :aria-expanded="openSection === 'og'"
+          @click="toggleSection('og')"
+          @keydown.enter.prevent="toggleSection('og')"
+          @keydown.space.prevent="toggleSection('og')"
+        >
+          <span>
+            Custom OG-Tags<span v-if="ogSummary" class="accordion-summary"> {{ ogSummary }}</span>
+          </span>
+          <span class="accordion-chevron">{{ openSection === "og" ? "⌃" : "⌄" }}</span>
+        </div>
+        <div v-if="openSection === 'og'" class="accordion-body accordion-body--og">
+          <div class="og-input-column">
+            <input
+              v-model="ogTitle"
+              type="text"
+              class="og-input"
+              placeholder="OG-Titel"
+              maxlength="200"
+            />
+            <p v-if="fieldErrors.ogTitleError" class="field-error">{{ fieldErrors.ogTitleError }}</p>
+            <input
+              v-model="ogDescription"
+              type="text"
+              class="og-input"
+              placeholder="OG-Beschreibung"
+              maxlength="500"
+            />
+            <p v-if="fieldErrors.ogDescriptionError" class="field-error">
+              {{ fieldErrors.ogDescriptionError }}
+            </p>
+            <input
+              v-model="ogImageUrl"
+              type="text"
+              class="og-input mono"
+              placeholder="Bild-URL"
+              maxlength="2048"
+            />
+            <p v-if="fieldErrors.ogImageUrlError" class="field-error">{{ fieldErrors.ogImageUrlError }}</p>
+            <p class="og-hint">
+              Social-Netzwerke zeigen typischerweise ca. 60 Zeichen Titel und ca. 155 Zeichen
+              Beschreibung.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -648,6 +732,45 @@ function handleSubmit(): void {
   word-break: break-all;
   color: var(--mut);
   line-height: 1.6;
+}
+
+/* Phase 8 Surface B: Custom OG-Tags body (08-05, 08-UI-SPEC.md LOCKED
+   tokens, Prototyp Z.719). The shared `padding:4px 14px 14px` for both
+   `--utm`/`--og` bodies is already declared above; this rule only adds
+   the two-column flex layout distinct to this section. */
+.accordion-body--og {
+  display: flex;
+  gap: 12px;
+}
+
+/* Left column: the three OG inputs + hint line (08-05 Task 1). */
+.og-input-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.og-input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12.5px;
+}
+
+/* Only the image-URL input is monospace (Prototyp Z.723) — title and
+   description stay in the default Geist family (Z.721/722). */
+.og-input.mono {
+  font-family: "Geist Mono", monospace;
+}
+
+.og-hint {
+  font-size: 11px;
+  color: var(--mut);
+  margin: 0;
 }
 
 .remove-pw-link {
