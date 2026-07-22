@@ -387,4 +387,163 @@ describe("LinkFormModal", () => {
     expect(wrapper.find(".footer-buttons").findAll("button")).toHaveLength(2);
     expect(wrapper.find(".tracking-toggle-group").exists()).toBe(true);
   });
+
+  // Phase 8 (08-04 Task 3, META-01, 08-UI-SPEC.md Surface A): the
+  // "UTM-Parameter" accordion section with its three inputs and live
+  // destination preview.
+  describe("UTM-Parameter section (Surface A)", () => {
+    it("renders above the Passwort & Ablauf section, closed by default, with no summary suffix when nothing is set", () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      const headers = wrapper.findAll(".accordion-header");
+      expect(headers[0]!.classes()).toContain("accordion-header--utm");
+      expect(headers[0]!.text()).toContain("UTM-Parameter");
+      expect(headers[0]!.text()).not.toContain("gesetzt");
+      expect(wrapper.find(".accordion-body--utm").exists()).toBe(false);
+
+      const secIndex = headers.findIndex((h) => h.classes().includes("accordion-header--sec"));
+      const utmIndex = headers.findIndex((h) => h.classes().includes("accordion-header--utm"));
+      expect(utmIndex).toBeLessThan(secIndex);
+    });
+
+    it("shows the live preview reflecting the typed target URL unchanged when no UTM value is set", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      await wrapper.find(".field-input.mono").setValue("https://example.com/x");
+
+      expect(wrapper.find(".utm-preview").text()).toBe("https://example.com/x");
+    });
+
+    it("updates the preview synchronously per keystroke in any of the three UTM inputs, with the header summary counting non-empty fields", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      await wrapper.find(".field-input.mono").setValue("https://example.com/x");
+
+      const inputs = wrapper.findAll(".utm-input");
+      await inputs[0]!.setValue("newsletter");
+      expect(wrapper.find(".utm-preview").text()).toBe("https://example.com/x?utm_source=newsletter");
+      expect(wrapper.find(".accordion-header--utm").text()).toContain("· 1 gesetzt");
+
+      await inputs[1]!.setValue("email");
+      await inputs[2]!.setValue("launch");
+      expect(wrapper.find(".utm-preview").text()).toBe(
+        "https://example.com/x?utm_source=newsletter&utm_medium=email&utm_campaign=launch",
+      );
+      expect(wrapper.find(".accordion-header--utm").text()).toContain("· 3 gesetzt");
+    });
+
+    it("keeps the preview live even while the section is closed and then reopened (no frozen snapshot)", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".field-input.mono").setValue("https://example.com/x");
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      await wrapper.find(".utm-input").setValue("newsletter");
+      await wrapper.find(".accordion-header--utm").trigger("click"); // close
+
+      await wrapper.find(".field-input.mono").setValue("https://example.com/y");
+      await wrapper.find(".accordion-header--utm").trigger("click"); // reopen
+
+      expect(wrapper.find(".utm-preview").text()).toBe(
+        "https://example.com/y?utm_source=newsletter",
+      );
+    });
+
+    it("in edit mode the three inputs are pre-filled from the passed-in initial values", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          domainHostname: "s.meinefirma.de",
+          initialTargetUrl: "https://example.com",
+          initialSlug: "abc123",
+          initialUtmSource: "newsletter",
+          initialUtmMedium: "email",
+          initialUtmCampaign: "launch",
+        },
+      });
+
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      const inputs = wrapper.findAll(".utm-input");
+      expect((inputs[0]!.element as HTMLInputElement).value).toBe("newsletter");
+      expect((inputs[1]!.element as HTMLInputElement).value).toBe("email");
+      expect((inputs[2]!.element as HTMLInputElement).value).toBe("launch");
+      expect(wrapper.find(".accordion-header--utm").text()).toContain("· 3 gesetzt");
+    });
+
+    it("submitting an untouched form omits the three UTM keys from the payload", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain({ id: "d2" })] },
+      });
+
+      await wrapper.find(".field-input.mono").setValue("https://example.com/x");
+      await wrapper.find(".btn-primary").trigger("click");
+
+      expect(wrapper.emitted("submit")![0]![0]).toMatchObject({
+        utmSource: undefined,
+        utmMedium: undefined,
+        utmCampaign: undefined,
+      });
+    });
+
+    it("submitting after clearing a pre-filled field sends that key as an explicit clear (null), and a typed value is sent as-is", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          domainHostname: "s.meinefirma.de",
+          initialTargetUrl: "https://example.com",
+          initialSlug: "abc123",
+          initialUtmSource: "newsletter",
+          initialUtmMedium: "email",
+        },
+      });
+
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      const inputs = wrapper.findAll(".utm-input");
+      await inputs[0]!.setValue(""); // clear the pre-filled source
+      await inputs[2]!.setValue("launch"); // set the never-populated campaign
+
+      await wrapper.find(".btn-primary").trigger("click");
+
+      expect(wrapper.emitted("submit")![0]![0]).toMatchObject({
+        utmSource: null,
+        utmMedium: "email",
+        utmCampaign: "launch",
+      });
+    });
+
+    it("renders the locked UTM-too-long inline error beneath the input grid, and nothing for an unrelated error", async () => {
+      const wrapperUtmError = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          error: new ApiError(400, "Bad Request", "UTM_VALUE_TOO_LONG"),
+        },
+      });
+      await wrapperUtmError.find(".accordion-header--utm").trigger("click");
+      expect(wrapperUtmError.find(".accordion-body--utm .field-error").text()).toBe(
+        "Maximal 200 Zeichen pro UTM-Wert.",
+      );
+
+      const wrapperOtherError = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          error: new ApiError(409, "Conflict", "SLUG_TAKEN"),
+        },
+      });
+      await wrapperOtherError.find(".accordion-header--utm").trigger("click");
+      expect(wrapperOtherError.find(".accordion-body--utm .field-error").exists()).toBe(false);
+    });
+  });
 });
