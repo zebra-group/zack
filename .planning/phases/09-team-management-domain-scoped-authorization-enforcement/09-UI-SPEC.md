@@ -1,7 +1,7 @@
 ---
 phase: 09
 slug: team-management-domain-scoped-authorization-enforcement
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-07-23
@@ -464,4 +464,4 @@ Overlay (rgba(0,0,0,.45); align-items:center) + Dialog (380px; panel;
 - [ ] Dimension 5 Spacing: PASS
 - [ ] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved (gsd-ui-checker, 2026-07-23 — APPROVED, all six dimensions PASS)
