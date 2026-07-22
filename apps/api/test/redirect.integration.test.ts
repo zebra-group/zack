@@ -391,6 +391,104 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
         assertNoLeak(response, CANARY_TARGET);
       }
     });
+
+    it("a bot receives the owner's custom OG title, description, and image for a normal link (META-02, D-08-03)", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("bot-custom-og.example.com");
+      await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://real-target.example.com/",
+        slug: "botcustom",
+        ogTitle: "Sommeraktion",
+        ogDescription: "Bis zu 50% sparen",
+        ogImageUrl: "https://cdn.example.com/og/sommer.png",
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/botcustom",
+        headers: { host: "bot-custom-og.example.com", "user-agent": BOT_UA },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers.location).toBeUndefined();
+      expect(response.body).toContain('og:title" content="Sommeraktion"');
+      expect(response.body).toContain('og:description" content="Bis zu 50% sparen"');
+      expect(response.body).toContain('og:image" content="https://cdn.example.com/og/sommer.png"');
+      assertNoLeak(response, "https://real-target.example.com/");
+    });
+
+    it("a bot on a link with only a custom title still gets the generic brand fallback for the untouched OG fields", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("bot-partial-og.example.com");
+      await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://real-target.example.com/",
+        slug: "botpartial",
+        ogTitle: "Nur Titel gesetzt",
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/botpartial",
+        headers: { host: "bot-partial-og.example.com", "user-agent": BOT_UA },
+      });
+
+      expect(response.body).toContain('og:title" content="Nur Titel gesetzt"');
+      expect(response.body).toContain("self-hosted URL shortener");
+    });
+
+    it("a bot on a PASSWORD-PROTECTED link with custom OG values still gets 200 with those values, never a redirect and never the password page (D-08-03 preserving D-06)", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("bot-og-protected.example.com");
+      await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: CANARY_TARGET,
+        slug: "botogprotected",
+        password: "correct-horse-battery",
+        ogTitle: "Geheime Aktion",
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/botogprotected",
+        headers: { host: "bot-og-protected.example.com", "user-agent": BOT_UA },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers.location).toBeUndefined();
+      expect(response.body).not.toContain("Dieser Link ist geschützt");
+      expect(response.body).toContain('og:title" content="Geheime Aktion"');
+      assertNoLeak(response, CANARY_TARGET);
+    });
+
+    it("a bot on an EXPIRED link with custom OG values still gets 200 with those values, never 410 and never a redirect", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("bot-og-expired.example.com");
+      await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: CANARY_TARGET,
+        slug: "botogexpired",
+        expiresAt: "2020-01-01",
+        ogTitle: "Abgelaufene Aktion",
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/botogexpired",
+        headers: { host: "bot-og-expired.example.com", "user-agent": BOT_UA },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers.location).toBeUndefined();
+      expect(response.body).not.toContain("Dieser Link ist abgelaufen");
+      expect(response.body).toContain('og:title" content="Abgelaufene Aktion"');
+      assertNoLeak(response, CANARY_TARGET);
+    });
   });
 
   describe("D-11: unknown/deleted slug -> identical generic 404", () => {
@@ -484,6 +582,185 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       });
 
       expect(response.headers.location).toBe("https://campaign.example.com/lp?utm_source=a");
+    });
+  });
+
+  describe("UTM application (D-08-02, META-01)", () => {
+    it("appends the owner's UTM parameters to a target with no existing query string", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("utm-basic.example.com");
+      await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://campaign.example.com/landing",
+        slug: "promo",
+        utmSource: "newsletter",
+        utmCampaign: "sommer",
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/promo",
+        headers: { host: "utm-basic.example.com", "user-agent": BROWSER_UA },
+      });
+
+      expect(response.statusCode).toBe(302);
+      const location = new URL(response.headers.location as string);
+      expect(location.searchParams.get("utm_source")).toBe("newsletter");
+      expect(location.searchParams.get("utm_campaign")).toBe("sommer");
+      expect(location.searchParams.has("utm_medium")).toBe(false);
+    });
+
+    it("appends the owner's UTM parameters onto a target that already has a query string", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("utm-existing-query.example.com");
+      await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://campaign.example.com/landing?ref=static",
+        slug: "promo",
+        utmSource: "newsletter",
+        utmMedium: "email",
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/promo",
+        headers: { host: "utm-existing-query.example.com", "user-agent": BROWSER_UA },
+      });
+
+      const location = new URL(response.headers.location as string);
+      expect(location.searchParams.get("ref")).toBe("static");
+      expect(location.searchParams.get("utm_source")).toBe("newsletter");
+      expect(location.searchParams.get("utm_medium")).toBe("email");
+    });
+
+    it("the owner's UTM parameter survives a visitor-supplied parameter of the same name when forwardQuery is on (D-08-02 ordering)", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("utm-hijack.example.com");
+      await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://campaign.example.com/landing",
+        slug: "promo",
+        utmSource: "newsletter",
+        forwardQuery: true,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/promo?utm_source=hijack",
+        headers: { host: "utm-hijack.example.com", "user-agent": BROWSER_UA },
+      });
+
+      const location = new URL(response.headers.location as string);
+      expect(location.searchParams.get("utm_source")).toBe("newsletter");
+    });
+
+    it("keeps both the owner's UTM parameters and an unrelated visitor-supplied parameter when forwardQuery is on", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("utm-plus-visitor.example.com");
+      await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://campaign.example.com/landing",
+        slug: "promo",
+        utmSource: "newsletter",
+        forwardQuery: true,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/promo?ref=x",
+        headers: { host: "utm-plus-visitor.example.com", "user-agent": BROWSER_UA },
+      });
+
+      const location = new URL(response.headers.location as string);
+      expect(location.searchParams.get("utm_source")).toBe("newsletter");
+      expect(location.searchParams.get("ref")).toBe("x");
+    });
+
+    it("a link with no UTM parameters still redirects to exactly the stored target (unchanged from Phase 5)", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("utm-none.example.com");
+      await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://campaign.example.com/landing",
+        slug: "promo",
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/promo",
+        headers: { host: "utm-none.example.com", "user-agent": BROWSER_UA },
+      });
+
+      expect(response.headers.location).toBe("https://campaign.example.com/landing");
+    });
+
+    it("expired and password-gated links never carry a Location header even when UTM parameters are set", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("utm-gated.example.com");
+      await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: CANARY_TARGET,
+        slug: "utm-expired",
+        expiresAt: "2020-01-01",
+        utmSource: "newsletter",
+      });
+      await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: CANARY_TARGET,
+        slug: "utm-protected",
+        password: "correct-horse-battery",
+        utmSource: "newsletter",
+      });
+
+      const expiredResponse = await app.inject({
+        method: "GET",
+        url: "/utm-expired",
+        headers: { host: "utm-gated.example.com", "user-agent": BROWSER_UA },
+      });
+      const protectedResponse = await app.inject({
+        method: "GET",
+        url: "/utm-protected",
+        headers: { host: "utm-gated.example.com", "user-agent": BROWSER_UA },
+      });
+
+      expect(expiredResponse.statusCode).toBe(410);
+      expect(expiredResponse.headers.location).toBeUndefined();
+      expect(protectedResponse.statusCode).toBe(200);
+      expect(protectedResponse.headers.location).toBeUndefined();
+      assertNoLeak(expiredResponse, CANARY_TARGET);
+      assertNoLeak(protectedResponse, CANARY_TARGET);
+    });
+
+    it("strips the QR scan marker before applying UTM parameters and forwarding to the target", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("utm-qr-marker.example.com");
+      const link = await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://campaign.example.com/landing",
+        slug: "promo",
+        utmSource: "flyer",
+        forwardQuery: true,
+      });
+      expect(link.ok).toBe(true);
+      if (!link.ok) return;
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/promo?qr=some-marker-id",
+        headers: { host: "utm-qr-marker.example.com", "user-agent": BROWSER_UA },
+      });
+
+      const location = new URL(response.headers.location as string);
+      expect(location.searchParams.get("utm_source")).toBe("flyer");
+      expect(location.searchParams.has("qr")).toBe(false);
     });
   });
 

@@ -27,6 +27,7 @@ import { prisma } from "./setupFileEach.js";
 
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36";
+const BOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
 
 let userSeq = 0;
 
@@ -404,6 +405,171 @@ describe("Dynamic-QR redirect handler (Phase 7, QR-02/03/07, 07-06)", () => {
 
       const refetchedQr = await prisma.qrCode.findUnique({ where: { id: qr.qrCode.id } });
       expect(refetchedQr!.lifetimeScans).toBe(1);
+    });
+  });
+
+  describe("UTM application on GET /q/:code (D-08-02, META-01)", () => {
+    it("appends the owner's UTM parameters to the resolved target", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("qr-utm.example.com");
+      const link = await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://destination.example.com/landing",
+        slug: "go",
+        utmSource: "newsletter",
+        utmCampaign: "sommer",
+      });
+      expect(link.ok).toBe(true);
+      if (!link.ok) return;
+
+      const qr = await createQrCode(prisma, {
+        userId: seed.userId,
+        variant: "dynamic",
+        linkId: link.link.id,
+        name: "UTM test QR",
+      });
+      expect(qr.ok).toBe(true);
+      if (!qr.ok) return;
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/q/${qr.qrCode.code}`,
+        headers: { host: "qr-utm.example.com", "user-agent": BROWSER_UA },
+      });
+
+      expect(response.statusCode).toBe(302);
+      const location = new URL(response.headers.location as string);
+      expect(location.searchParams.get("utm_source")).toBe("newsletter");
+      expect(location.searchParams.get("utm_campaign")).toBe("sommer");
+    });
+
+    it("the owner's UTM parameter survives a visitor-supplied parameter of the same name when forwardQuery is on (D-08-02 ordering)", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("qr-utm-hijack.example.com");
+      const link = await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://destination.example.com/landing",
+        slug: "go",
+        utmSource: "newsletter",
+        forwardQuery: true,
+      });
+      expect(link.ok).toBe(true);
+      if (!link.ok) return;
+
+      const qr = await createQrCode(prisma, {
+        userId: seed.userId,
+        variant: "dynamic",
+        linkId: link.link.id,
+        name: "UTM hijack test QR",
+      });
+      expect(qr.ok).toBe(true);
+      if (!qr.ok) return;
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/q/${qr.qrCode.code}?utm_source=hijack`,
+        headers: { host: "qr-utm-hijack.example.com", "user-agent": BROWSER_UA },
+      });
+
+      const location = new URL(response.headers.location as string);
+      expect(location.searchParams.get("utm_source")).toBe("newsletter");
+    });
+  });
+
+  describe("Bot/crawler branch on GET /q/:code (D-08-03, META-02)", () => {
+    it("a bot scanning a dynamic QR whose target Link has custom OG values gets a 200 with those values, never a redirect", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("qr-bot-og.example.com");
+      const link = await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://destination.example.com/landing",
+        slug: "go",
+        ogTitle: "Sommeraktion",
+      });
+      expect(link.ok).toBe(true);
+      if (!link.ok) return;
+
+      const qr = await createQrCode(prisma, {
+        userId: seed.userId,
+        variant: "dynamic",
+        linkId: link.link.id,
+        name: "Bot OG test QR",
+      });
+      expect(qr.ok).toBe(true);
+      if (!qr.ok) return;
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/q/${qr.qrCode.code}`,
+        headers: { host: "qr-bot-og.example.com", "user-agent": BOT_UA },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers.location).toBeUndefined();
+      expect(response.body).toContain('og:title" content="Sommeraktion"');
+    });
+
+    it("a bot scanning a dynamic QR whose target Link is protected/expired with custom OG values still gets 200, never a redirect", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("qr-bot-og-gated.example.com");
+      const protectedLink = await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://secret-target.example.com/",
+        slug: "gated-protected",
+        password: "correct-horse-battery",
+        ogTitle: "Geschuetzte Aktion",
+      });
+      const expiredLink = await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://secret-target.example.com/",
+        slug: "gated-expired",
+        expiresAt: "2020-01-01",
+        ogTitle: "Abgelaufene Aktion",
+      });
+      expect(protectedLink.ok).toBe(true);
+      expect(expiredLink.ok).toBe(true);
+      if (!protectedLink.ok || !expiredLink.ok) return;
+
+      const protectedQr = await createQrCode(prisma, {
+        userId: seed.userId,
+        variant: "dynamic",
+        linkId: protectedLink.link.id,
+        name: "Protected bot OG QR",
+      });
+      const expiredQr = await createQrCode(prisma, {
+        userId: seed.userId,
+        variant: "dynamic",
+        linkId: expiredLink.link.id,
+        name: "Expired bot OG QR",
+      });
+      expect(protectedQr.ok).toBe(true);
+      expect(expiredQr.ok).toBe(true);
+      if (!protectedQr.ok || !expiredQr.ok) return;
+
+      const protectedResponse = await app.inject({
+        method: "GET",
+        url: `/q/${protectedQr.qrCode.code}`,
+        headers: { host: "qr-bot-og-gated.example.com", "user-agent": BOT_UA },
+      });
+      const expiredResponse = await app.inject({
+        method: "GET",
+        url: `/q/${expiredQr.qrCode.code}`,
+        headers: { host: "qr-bot-og-gated.example.com", "user-agent": BOT_UA },
+      });
+
+      for (const response of [protectedResponse, expiredResponse]) {
+        expect(response.statusCode).toBe(200);
+        expect(response.headers.location).toBeUndefined();
+      }
+      expect(protectedResponse.body).toContain('og:title" content="Geschuetzte Aktion"');
+      expect(expiredResponse.body).toContain('og:title" content="Abgelaufene Aktion"');
+      expect(protectedResponse.body).not.toContain("https://secret-target.example.com/");
+      expect(expiredResponse.body).not.toContain("https://secret-target.example.com/");
     });
   });
 });
