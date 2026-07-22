@@ -223,4 +223,68 @@ describe("renderBotOgPage (REDIR-05, D-05/D-06)", () => {
     const html = renderBotOgPage({ ...baseCtx, target: LEAK_CANARY } as never);
     expect(html).not.toContain(LEAK_CANARY);
   });
+
+  describe("custom OG values (META-02, D-08-03)", () => {
+    it("with all three custom fields null, output is byte-identical to the generic brand-only page", () => {
+      const withNulls = renderBotOgPage({
+        ...baseCtx,
+        ogTitle: null,
+        ogDescription: null,
+        ogImageUrl: null,
+      });
+      const withoutFields = renderBotOgPage(baseCtx);
+      expect(withNulls).toBe(withoutFields);
+    });
+
+    it("ogTitle set: both the og:title meta content and the document title carry the owner's value; other fields keep brand fallbacks", () => {
+      const html = renderBotOgPage({ ...baseCtx, ogTitle: "Sommer-Sale 2026" });
+      expect(html).toContain('<meta property="og:title" content="Sommer-Sale 2026" />');
+      expect(html).toContain("<title>Sommer-Sale 2026</title>");
+      expect(html).toContain('<meta property="og:description" content="Kurzly · self-hosted URL shortener" />');
+      expect(html).toContain('<meta property="og:image" content="https://go.example.com/favicon.ico" />');
+    });
+
+    it("ogDescription set: og:description carries the owner's value", () => {
+      const html = renderBotOgPage({ ...baseCtx, ogDescription: "Bis zu 50% auf alles" });
+      expect(html).toContain('<meta property="og:description" content="Bis zu 50% auf alles" />');
+    });
+
+    it("ogImageUrl set to an absolute https URL: og:image carries exactly that URL", () => {
+      const html = renderBotOgPage({ ...baseCtx, ogImageUrl: "https://cdn.example.com/card.png" });
+      expect(html).toContain('<meta property="og:image" content="https://cdn.example.com/card.png" />');
+    });
+
+    it("entity-escapes a custom value containing a double quote, angle bracket, or ampersand", () => {
+      const html = renderBotOgPage({
+        ...baseCtx,
+        ogTitle: `Sale "Now" <live> & more`,
+      });
+      expect(html).toContain("&quot;");
+      expect(html).toContain("&lt;live&gt;");
+      expect(html).toContain("&amp;");
+      expect(html).not.toContain('"Now"');
+      expect(html).not.toContain("<live>");
+    });
+
+    it.each([
+      "javascript:alert(1)",
+      "data:image/png;base64,AAA",
+      "/relative.png",
+    ])("falls back to the brand image when ogImageUrl %s is not an absolute http/https URL", (badUrl) => {
+      const html = renderBotOgPage({ ...baseCtx, ogImageUrl: badUrl });
+      expect(html).toContain('<meta property="og:image" content="https://go.example.com/favicon.ico" />');
+      expect(html).not.toContain(badUrl);
+    });
+
+    it("still carries no targetUrl-shaped field on the context type, and no fixture output contains the destination", () => {
+      const html = renderBotOgPage({
+        ...baseCtx,
+        ogTitle: "Custom Title",
+        ogDescription: "Custom Description",
+        ogImageUrl: "https://cdn.example.com/card.png",
+        target: LEAK_CANARY,
+      } as never);
+      expect(html).not.toContain(LEAK_CANARY);
+    });
+  });
 });
