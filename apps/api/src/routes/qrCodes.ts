@@ -155,8 +155,19 @@ const updateQrCodeSchema = z.object({
   targetLinkId: z.string().min(1).optional(),
 });
 
-/** Strips an optional `data:<mime>;base64,` prefix before decoding (T-07-LOGO-MIME: the declared mime here is never trusted — `normalizeLogo`, lib/qr.ts, sniffs magic bytes instead). */
-const DATA_URI_PREFIX = /^data:[^;]+;base64,/;
+/**
+ * Strips an optional `data:<mime>[;<param>...];base64,` prefix before
+ * decoding (T-07-LOGO-MIME: the declared mime here is never trusted —
+ * `normalizeLogo`, lib/qr.ts, sniffs magic bytes instead).
+ *
+ * `[^,]*` — not `[^;]+` — because a data URI may carry additional
+ * parameters between the media type and the base64 marker (e.g.
+ * `data:image/svg+xml;charset=utf-8;base64,...`, a form Blob/FileReader
+ * legitimately produces). The stricter pattern failed to match those, so the
+ * prefix survived into `Buffer.from(..., "base64")` and corrupted the
+ * leading bytes, turning a valid upload into an INVALID_LOGO 400.
+ */
+const DATA_URI_PREFIX = /^data:[^,]*;base64,/;
 
 function decodeLogoData(logoData: string): Buffer {
   return Buffer.from(logoData.replace(DATA_URI_PREFIX, ""), "base64");
