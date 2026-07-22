@@ -235,6 +235,44 @@ describe("QrCodesView", () => {
     expect(wrapper.find(".toast").text()).toBe("Mein QR zeigt jetzt auf /zzz999");
   });
 
+  /**
+   * IN-08 regression: the synthetic post-remap history entry used
+   * `local-${Date.now()}` as its id, which is also the `:key` for the
+   * Verlauf `v-for`. Two remaps landing in the same millisecond produced
+   * duplicate keys — Vue warns and can mis-patch the list. Freezing
+   * `Date.now` reproduces that collision deterministically.
+   */
+  it("gives every synthetic remap-history entry a unique key even within one millisecond", async () => {
+    const links = [
+      makeLink({ id: "l1", slug: "abc123" }),
+      makeLink({ id: "l2", slug: "zzz999" }),
+      makeLink({ id: "l3", slug: "yyy888" }),
+    ];
+    const qrCodes = [makeQrCode({ id: "qr1", variant: "dynamic", linkId: "l1", name: "Mein QR" })];
+    listQrCodes.mockResolvedValue(qrCodes);
+    listLinks.mockResolvedValue(links);
+    vi.spyOn(Date, "now").mockReturnValue(1_770_000_000_000);
+
+    const { wrapper } = await mountQrCodesView();
+    await flushPromises();
+
+    const select = wrapper.find(".qr-card select");
+    remapQrCode.mockResolvedValue(makeQrCode({ id: "qr1", variant: "dynamic", linkId: "l2", name: "Mein QR" }));
+    await select.setValue("l2");
+    await flushPromises();
+
+    remapQrCode.mockResolvedValue(makeQrCode({ id: "qr1", variant: "dynamic", linkId: "l3", name: "Mein QR" }));
+    await select.setValue("l3");
+    await flushPromises();
+
+    await wrapper.find(".verlauf-expander").trigger("click");
+    await flushPromises();
+
+    const ids = wrapper.findAll(".verlauf-row").map((row) => row.attributes("data-entry-id"));
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+
   it("reverts the select and toasts failure when a remap fails", async () => {
     const links = [makeLink({ id: "l1", slug: "abc123" }), makeLink({ id: "l2", slug: "zzz999" })];
     const qrCodes = [makeQrCode({ id: "qr1", variant: "dynamic", linkId: "l1", name: "Mein QR" })];
