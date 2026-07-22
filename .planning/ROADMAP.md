@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Core Redirect Engine** - Every short-link visit resolves correctly, safely, and fast — expiration, password-gate, and bot/OG precedence enforced with zero premature leakage (completed 2026-07-12)
 - [x] **Phase 6: Internal Tracking & Analytics** - Privacy-first, per-link and global click analytics with a true zero-third-party, zero-rows-when-off guarantee (completed 2026-07-13)
 - [x] **Phase 7: QR Codes (Static + Dynamic, QR Studio)** - Static and dynamic QR codes with logo overlay, styling, remap history, and decode-verified scannability (completed 2026-07-21)
-- [ ] **Phase 8: UTM Builder + Custom OG Metadata** - Campaign-parameter builder and custom social-preview tags, entirely user-typed (no server-side fetch/SSRF surface)
+- [x] **Phase 8: UTM Builder + Custom OG Metadata** - Campaign-parameter builder and custom social-preview tags, entirely user-typed (no server-side fetch/SSRF surface) (completed 2026-07-22)
 - [ ] **Phase 9: Team Management & Domain-Scoped Authorization Enforcement** - Admins manage invites, roles, and domain assignments; Member access to Links/QR/Analytics is provably restricted server-side
 - [ ] **Phase 10: OIDC/SSO Integration** - Optional SSO login, additive on top of magic-link auth, with new SSO users safely defaulting to Member with zero domains
 
@@ -301,21 +301,21 @@ Plans:
 
 **Wave 1**
 
-- [ ] 08-01-PLAN.md — Six nullable Link columns + migration, validation and three-state threading through the single write path, Zod allowlist on the links HTTP surface
-- [ ] 08-02-PLAN.md — Pure helpers: owner-wins `applyUtmParams` in the redirect engine, custom OG values on the bot page
+- [x] 08-01-PLAN.md — Six nullable Link columns + migration, validation and three-state threading through the single write path, Zod allowlist on the links HTTP surface
+- [x] 08-02-PLAN.md — Pure helpers: owner-wins `applyUtmParams` in the redirect engine, custom OG values on the bot page
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 08-03-PLAN.md — Wire both redirect handlers: append owner UTM parameters, serve custom OG to bots for every link state
-- [ ] 08-04-PLAN.md — Exclusive three-section accordion + class sweep, `buildUtmPreview`, „UTM-Parameter" section with live destination preview (Surface A)
+- [x] 08-03-PLAN.md — Wire both redirect handlers: append owner UTM parameters, serve custom OG to bots for every link state
+- [x] 08-04-PLAN.md — Exclusive three-section accordion + class sweep, `buildUtmPreview`, „UTM-Parameter" section with live destination preview (Surface A)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 08-05-PLAN.md — „Custom OG-Tags" section with 210px social-card live preview and debounced, parse-gated image (Surface B)
+- [x] 08-05-PLAN.md — „Custom OG-Tags" section with 210px social-card live preview and debounced, parse-gated image (Surface B)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 08-06-PLAN.md — Inline error mapping + payload threading in both parent views, UTM/OG badges and chips (Surfaces C and D)
+- [x] 08-06-PLAN.md — Inline error mapping + payload threading in both parent views, UTM/OG badges and chips (Surfaces C and D)
 
 ### Phase 9: Team Management & Domain-Scoped Authorization Enforcement
 
@@ -330,8 +330,30 @@ Plans:
   3. A Member sees and can edit only the domains (and their Links/QR codes/Analytics) assigned to them in the dashboard.
   4. A Member's direct API request for a Link, QR code, or Analytics resource belonging to a domain they are NOT assigned to is rejected (403/404) server-side — even when guessing a valid resource ID — proven by an automated denial-test suite covering every link/QR/analytics endpoint.
 
-**Plans**: TBD
+**Plans**: 7 plans
 **UI hint**: yes
+
+**Wave 1**
+
+- [ ] 09-01-PLAN.md — AccountRole enum + User.accountRole column + migration, better-auth session field, account-admin seed, isAccountAdmin, SessionUser.accountRole (D-09-01)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 09-02-PLAN.md — Account-admin bypass inside requireDomainAccess/scopedDomainIds + member-unchanged regression (D-09-02, TEAM-06)
+- [ ] 09-03-PLAN.md — Team DTOs + lib/team.ts + admin-gated GET /api/team + POST invite (emailVerified-derived status, magic-link reuse, pending→active round-trip) (TEAM-01/02)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 09-04-PLAN.md — Team mutations: assign domains, change role (promote clears atomically), remove (content preserved), lockout guards (TEAM-03/04/05, D-09-05/06/07)
+- [ ] 09-05-PLAN.md — Exhaustive TEAM-06 domain-scoped denial suite + admin-bypass positive half (D-09-08)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 09-06-PLAN.md — Admin-only Team nav + requiresAdmin guard + listTeamMembers client + read-only TeamView table (UI-09-01/02/08/09, TEAM-02/06)
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 09-07-PLAN.md — Team mutation UI: InviteMemberModal, immediate role change (optimistic/revert), AssignDomainsModal, remove flow + lockout (TEAM-01/03/04/05, UI-09-03..12)
 
 ### Phase 10: OIDC/SSO Integration
 
@@ -362,8 +384,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Core Redirect Engine | 6/6 | Complete    | 2026-07-12 |
 | 6. Internal Tracking & Analytics | 8/8 | Complete    | 2026-07-13 |
 | 7. QR Codes (Static + Dynamic, QR Studio) | 9/9 | Complete    | 2026-07-21 |
-| 8. UTM Builder + Custom OG Metadata | 0/TBD | Not started | - |
-| 9. Team Management & Domain-Scoped Authorization Enforcement | 0/TBD | Not started | - |
+| 8. UTM Builder + Custom OG Metadata | 6/6 | Complete    | 2026-07-22 |
+| 9. Team Management & Domain-Scoped Authorization Enforcement | 0/7 | Not started | - |
 | 10. OIDC/SSO Integration | 0/TBD | Not started | - |
 
 ---
