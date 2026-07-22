@@ -546,4 +546,219 @@ describe("LinkFormModal", () => {
       expect(wrapperOtherError.find(".accordion-body--utm .field-error").exists()).toBe(false);
     });
   });
+
+  // Phase 8 (08-05 Task 1, META-02, 08-UI-SPEC.md Surface B): the
+  // "Custom OG-Tags" accordion section's input column, hint line and
+  // payload threading. The right-hand social-card preview (Task 2) is
+  // covered in its own describe block below.
+  describe("Custom OG-Tags section (Surface B) — input column", () => {
+    it("renders between the UTM section and Passwort & Ablauf, closed by default, with no summary suffix when nothing is set", () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      const headers = wrapper.findAll(".accordion-header");
+      const utmIndex = headers.findIndex((h) => h.classes().includes("accordion-header--utm"));
+      const ogIndex = headers.findIndex((h) => h.classes().includes("accordion-header--og"));
+      const secIndex = headers.findIndex((h) => h.classes().includes("accordion-header--sec"));
+      expect(utmIndex).toBeLessThan(ogIndex);
+      expect(ogIndex).toBeLessThan(secIndex);
+
+      const ogHeader = wrapper.find(".accordion-header--og");
+      expect(ogHeader.text()).toContain("Custom OG-Tags");
+      expect(ogHeader.text()).not.toContain("gesetzt");
+      expect(wrapper.find(".accordion-body--og").exists()).toBe(false);
+    });
+
+    it("the header summary counts non-empty OG fields as they are typed", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      const inputs = wrapper.findAll(".og-input");
+      await inputs[0]!.setValue("A title");
+      expect(wrapper.find(".accordion-header--og").text()).toContain("· 1 gesetzt");
+
+      await inputs[1]!.setValue("A description");
+      await inputs[2]!.setValue("https://example.com/img.png");
+      expect(wrapper.find(".accordion-header--og").text()).toContain("· 3 gesetzt");
+    });
+
+    it("opening the OG section closes an open UTM section, and vice versa (UI-08-01 exclusivity)", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      expect(wrapper.find(".accordion-body--utm").exists()).toBe(true);
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      expect(wrapper.find(".accordion-body--utm").exists()).toBe(false);
+      expect(wrapper.find(".accordion-body--og").exists()).toBe(true);
+
+      await wrapper.find(".accordion-header--utm").trigger("click");
+      expect(wrapper.find(".accordion-body--og").exists()).toBe(false);
+      expect(wrapper.find(".accordion-body--utm").exists()).toBe(true);
+    });
+
+    it("renders the three inputs with locked placeholders, maxlengths and per-field font family", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      const inputs = wrapper.findAll(".og-input");
+      expect(inputs).toHaveLength(3);
+
+      expect(inputs[0]!.attributes("placeholder")).toBe("OG-Titel");
+      expect(inputs[0]!.attributes("maxlength")).toBe("200");
+      expect(inputs[0]!.classes()).not.toContain("mono");
+
+      expect(inputs[1]!.attributes("placeholder")).toBe("OG-Beschreibung");
+      expect(inputs[1]!.attributes("maxlength")).toBe("500");
+      expect(inputs[1]!.classes()).not.toContain("mono");
+
+      expect(inputs[2]!.attributes("placeholder")).toBe("Bild-URL");
+      expect(inputs[2]!.attributes("maxlength")).toBe("2048");
+      expect(inputs[2]!.classes()).toContain("mono");
+    });
+
+    it("renders the static hint line beneath the three inputs — no per-field character counter", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain()] },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      expect(wrapper.find(".og-hint").text()).toBe(
+        "Social-Netzwerke zeigen typischerweise ca. 60 Zeichen Titel und ca. 155 Zeichen Beschreibung.",
+      );
+    });
+
+    it("in edit mode the three inputs are pre-filled from the passed-in initial values", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          domainHostname: "s.meinefirma.de",
+          initialTargetUrl: "https://example.com",
+          initialSlug: "abc123",
+          initialOgTitle: "Kampagnen-Titel",
+          initialOgDescription: "Kampagnen-Beschreibung",
+          initialOgImageUrl: "https://example.com/og.png",
+        },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      const inputs = wrapper.findAll(".og-input");
+      expect((inputs[0]!.element as HTMLInputElement).value).toBe("Kampagnen-Titel");
+      expect((inputs[1]!.element as HTMLInputElement).value).toBe("Kampagnen-Beschreibung");
+      expect((inputs[2]!.element as HTMLInputElement).value).toBe("https://example.com/og.png");
+      expect(wrapper.find(".accordion-header--og").text()).toContain("· 3 gesetzt");
+    });
+
+    it("submitting an untouched form omits the three OG keys from the payload", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: { mode: "create", domains: [makeDomain({ id: "d2" })] },
+      });
+
+      await wrapper.find(".field-input.mono").setValue("https://example.com/x");
+      await wrapper.find(".btn-primary").trigger("click");
+
+      expect(wrapper.emitted("submit")![0]![0]).toMatchObject({
+        ogTitle: undefined,
+        ogDescription: undefined,
+        ogImageUrl: undefined,
+      });
+    });
+
+    it("submitting after clearing a pre-filled field sends that key as an explicit clear (null), and a typed value is sent as-is", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          domainHostname: "s.meinefirma.de",
+          initialTargetUrl: "https://example.com",
+          initialSlug: "abc123",
+          initialOgTitle: "Kampagnen-Titel",
+          initialOgDescription: "Kampagnen-Beschreibung",
+        },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+      const inputs = wrapper.findAll(".og-input");
+      await inputs[0]!.setValue(""); // clear the pre-filled title
+      await inputs[2]!.setValue("https://example.com/og.png"); // set the never-populated image url
+
+      await wrapper.find(".btn-primary").trigger("click");
+
+      expect(wrapper.emitted("submit")![0]![0]).toMatchObject({
+        ogTitle: null,
+        ogDescription: "Kampagnen-Beschreibung",
+        ogImageUrl: "https://example.com/og.png",
+      });
+    });
+
+    it("renders the locked OG-image-URL-invalid error beneath only the image-URL input", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          error: new ApiError(400, "Bad Request", "OG_IMAGE_URL_INVALID"),
+        },
+      });
+      await wrapper.find(".accordion-header--og").trigger("click");
+
+      const errors = wrapper.findAll(".accordion-body--og .field-error");
+      expect(errors).toHaveLength(1);
+      expect(errors[0]!.text()).toBe(
+        "Bitte eine vollständige Bild-URL mit http:// oder https:// angeben.",
+      );
+    });
+
+    it("renders each locked too-long error beneath its own input", async () => {
+      const wrapperTitle = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          error: new ApiError(400, "Bad Request", "OG_TITLE_TOO_LONG"),
+        },
+      });
+      await wrapperTitle.find(".accordion-header--og").trigger("click");
+      expect(wrapperTitle.findAll(".accordion-body--og .field-error")).toHaveLength(1);
+      expect(wrapperTitle.find(".accordion-body--og .field-error").text()).toBe("Maximal 200 Zeichen.");
+
+      const wrapperDesc = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          error: new ApiError(400, "Bad Request", "OG_DESCRIPTION_TOO_LONG"),
+        },
+      });
+      await wrapperDesc.find(".accordion-header--og").trigger("click");
+      expect(wrapperDesc.find(".accordion-body--og .field-error").text()).toBe("Maximal 500 Zeichen.");
+
+      const wrapperImg = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          error: new ApiError(400, "Bad Request", "OG_IMAGE_URL_TOO_LONG"),
+        },
+      });
+      await wrapperImg.find(".accordion-header--og").trigger("click");
+      expect(wrapperImg.find(".accordion-body--og .field-error").text()).toBe("Maximal 2048 Zeichen.");
+    });
+
+    it("renders no OG field error for an unrelated error code", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          error: new ApiError(409, "Conflict", "SLUG_TAKEN"),
+        },
+      });
+      await wrapper.find(".accordion-header--og").trigger("click");
+      expect(wrapper.find(".accordion-body--og .field-error").exists()).toBe(false);
+    });
+  });
 });
