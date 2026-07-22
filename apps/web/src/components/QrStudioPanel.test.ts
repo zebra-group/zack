@@ -231,6 +231,52 @@ describe("QrStudioPanel", () => {
     expect(wrapper.find(".logo-toggle").classes()).toContain("active");
   });
 
+  /**
+   * IN-04 regression: `scheduleRender`'s 300ms timer was never cleared — not
+   * by the QR-switch watch, and not on unmount (there was no `onUnmounted`
+   * hook at all). A pending timer therefore fired against whatever QR was
+   * selected by then, or against refs of an already-unmounted component.
+   */
+  it("clears a pending render debounce when the selected QR changes", async () => {
+    updateQrCode.mockResolvedValue(makeQrCode({ color: "#1e3a5f" }));
+    const wrapper = mountPanel(makeQrCode());
+
+    await wrapper.findAll(".color-swatch")[1]!.trigger("click");
+    await flushPromises();
+
+    // Switch QR while the render debounce is still pending.
+    await wrapper.setProps({ qr: makeQrCode({ id: "qr2" }) });
+    await waitOutDebounce();
+
+    // The stale timer must not have re-rendered on top of qr2's own snap-to
+    // URL (which carries no cache-buster).
+    expect(wrapper.find("img.preview-image").attributes("src")).toBe("/api/qr-codes/qr2/render.png");
+  });
+
+  it("clears a pending render debounce on unmount", async () => {
+    let imagesCreated = 0;
+    class CountingImage extends FakeImage {
+      constructor() {
+        super();
+        imagesCreated += 1;
+      }
+    }
+    vi.stubGlobal("Image", CountingImage);
+
+    updateQrCode.mockResolvedValue(makeQrCode({ color: "#1e3a5f" }));
+    const wrapper = mountPanel(makeQrCode());
+
+    await wrapper.findAll(".color-swatch")[1]!.trigger("click");
+    await flushPromises();
+
+    wrapper.unmount();
+    await waitOutDebounce();
+
+    // refreshPreview is the only `new Image()` site — it must never run
+    // after the component is gone.
+    expect(imagesCreated).toBe(0);
+  });
+
   it("shows the BRAND_NAME-initial placeholder overlay once the logo toggle is on with no upload", async () => {
     updateQrCode.mockResolvedValue(makeQrCode({ logoEnabled: true }));
     const wrapper = mountPanel(makeQrCode());

@@ -38,7 +38,7 @@
  * convention with a hardcoded initial instead of adding a new public
  * config endpoint (out of scope; no backend files may be touched here).
  */
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onUnmounted, reactive, ref, watch } from "vue";
 import type { QrCodeDTO, UpdateQrCodeInput } from "@kurzly/shared";
 import { fetchQrRenderBlob, mapQrFormError, qrRenderPngUrl, updateQrCode } from "../api";
 
@@ -136,9 +136,24 @@ function refreshPreview(): void {
 
 /** T-07-DOS-RENDER mitigation: every control change schedules this instead of calling refreshPreview directly. */
 function scheduleRender(): void {
-  if (renderDebounceTimer) clearTimeout(renderDebounceTimer);
+  cancelScheduledRender();
   renderDebounceTimer = setTimeout(refreshPreview, RENDER_DEBOUNCE_MS);
 }
+
+/**
+ * Drops any pending debounce. Required on BOTH a QR switch and unmount: a
+ * surviving timer would otherwise fire `refreshPreview` against whichever QR
+ * happens to be selected by then (overwriting the snap-to render below), or
+ * write to the refs of an already-unmounted component.
+ */
+function cancelScheduledRender(): void {
+  if (renderDebounceTimer) {
+    clearTimeout(renderDebounceTimer);
+    renderDebounceTimer = null;
+  }
+}
+
+onUnmounted(cancelScheduledRender);
 
 // Selecting a different QR card resets this panel's session-local upload
 // state (see header comment) and snaps the preview straight to the
@@ -147,6 +162,7 @@ function scheduleRender(): void {
 watch(
   () => props.qr.id,
   () => {
+    cancelScheduledRender();
     logoFileName.value = null;
     hasCustomLogo.value = false;
     logoError.value = null;
