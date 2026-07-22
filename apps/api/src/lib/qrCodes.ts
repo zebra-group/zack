@@ -1,16 +1,19 @@
 /**
  * QrCode core (D-01-equivalent single-write-path enforcement, QR-02/03/04).
  *
- * `validateQrCodeInput` is the SOLE authorization + validation gate for
- * every QrCode content/target write in the codebase: it resolves the
- * QrCode's bound/target Link and calls `requireDomainAccess(prisma,
- * userId, link.domainId, "member")` — reused verbatim from
- * apps/api/src/lib/authorization.ts, zero new authorization code. A QrCode
- * has no `domainId` column of its own (see schema.prisma's QrCode model
- * comment) — its authorization boundary is always its bound/target Link's
- * `domainId`. It performs ZERO database writes for the create path other
- * than resolving a collision-free `code` candidate (a read-only lookup,
- * mirroring `resolveSlug`'s own pure-check shape in lib/links.ts).
+ * `resolveLinkDomainAccess` is the SOLE authorization gate for every QrCode
+ * content/target write in the codebase: it resolves the QrCode's
+ * bound/target Link and calls `requireDomainAccess(prisma, userId,
+ * link.domainId, "member")` — reused verbatim from
+ * apps/api/src/lib/authorization.ts, zero new authorization code. Every
+ * operation below goes through it: `createQrCode` (via the
+ * `validateQrCodeInput` wrapper), `updateQrCode`, `remapQrCode` (on BOTH
+ * sides of a re-point) and `getQrRemapHistory`. A QrCode has no `domainId`
+ * column of its own (see schema.prisma's QrCode model comment) — its
+ * authorization boundary is always its bound/target Link's `domainId`. It
+ * performs ZERO database writes for the create path other than resolving a
+ * collision-free `code` candidate (a read-only lookup, mirroring
+ * `resolveSlug`'s own pure-check shape in lib/links.ts).
  *
  * `createQrCode` is the ONLY `prisma.qrCode.create` call site in the
  * entire codebase (mirrors `createLink`'s D-01 guarantee). `updateQrCode`
@@ -85,7 +88,7 @@ export type ValidateQrCodeInputParams = {
   roundedModules?: boolean;
 };
 
-export type ValidatedQrCode = {
+type ValidatedQrCode = {
   variant: QrCodeVariant;
   linkId: string;
   name: string;
@@ -93,17 +96,24 @@ export type ValidatedQrCode = {
   roundedModules: boolean;
 };
 
-export type ValidationResult =
+type ValidationResult =
   | { ok: true; data: ValidatedQrCode }
   | { ok: false; error: QrCodeErrorCode };
 
 /**
- * The pure validation core — ZERO database writes beyond the read-only
- * domain-access check above. Every QrCode create path calls this and
- * nothing else for authorization; do not duplicate `requireDomainAccess`
- * calls elsewhere.
+ * The pure validation core for the CREATE path — ZERO database writes beyond
+ * the read-only `resolveLinkDomainAccess` check above.
+ *
+ * Deliberately module-private: `createQrCode` is its only caller, and the
+ * shared authorization gate every other operation reuses is
+ * `resolveLinkDomainAccess`, not this wrapper. Exporting it implied a
+ * codebase-wide contract ("call this before any QrCode write") that
+ * `updateQrCode`/`remapQrCode`/`getQrRemapHistory` do not and should not
+ * follow — they have no create-shaped input to default. Do not duplicate
+ * `requireDomainAccess` calls elsewhere; route them through
+ * `resolveLinkDomainAccess` instead.
  */
-export async function validateQrCodeInput(
+async function validateQrCodeInput(
   prisma: PrismaClient,
   input: ValidateQrCodeInputParams,
 ): Promise<ValidationResult> {

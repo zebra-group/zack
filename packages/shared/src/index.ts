@@ -267,7 +267,7 @@ export type QrCodeDTO = {
 
 /**
  * `POST /api/qr-codes` request body shape (07-05) — the SAME shape
- * `validateQrCodeInput`/`createQrCode` (apps/api/src/lib/qrCodes.ts, D-01
+ * `createQrCode` (apps/api/src/lib/qrCodes.ts, D-01
  * equivalent for QR) accepts sans `userId` (resolved server-side from the
  * session, never client-supplied). `code`/`lifetimeScans` are NEVER
  * present here — they are server-owned (T-07-MASS), mirroring
