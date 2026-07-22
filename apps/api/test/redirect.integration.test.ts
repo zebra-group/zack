@@ -762,6 +762,38 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       expect(location.searchParams.get("utm_source")).toBe("flyer");
       expect(location.searchParams.has("qr")).toBe(false);
     });
+
+    it("applies the owner's UTM parameters on the post-verify redirect of a password-protected link (CR-01)", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("utm-verify.example.com");
+      const created = await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://campaign.example.com/landing",
+        slug: "secret-utm",
+        password: "correct-horse-battery",
+        utmSource: "newsletter",
+        utmMedium: "email",
+        utmCampaign: "fall",
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) return;
+
+      const verifyResponse = await app.inject({
+        method: "POST",
+        url: "/secret-utm/verify",
+        headers: { host: "utm-verify.example.com", "user-agent": BROWSER_UA },
+        payload: { password: "correct-horse-battery" },
+      });
+
+      expect(verifyResponse.statusCode).toBe(302);
+      const location = new URL(verifyResponse.headers.location as string);
+      expect(location.searchParams.get("utm_source")).toBe("newsletter");
+      expect(location.searchParams.get("utm_medium")).toBe("email");
+      expect(location.searchParams.get("utm_campaign")).toBe("fall");
+      // Canonical source -> medium -> campaign ordering (D-08-02).
+      expect(location.search).toBe("?utm_source=newsletter&utm_medium=email&utm_campaign=fall");
+    });
   });
 
   describe("Rate limit (D-15): POST /:slug/verify is keyed per (IP, host, slug)", () => {

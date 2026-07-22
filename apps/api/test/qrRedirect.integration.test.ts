@@ -406,6 +406,48 @@ describe("Dynamic-QR redirect handler (Phase 7, QR-02/03/07, 07-06)", () => {
       const refetchedQr = await prisma.qrCode.findUnique({ where: { id: qr.qrCode.id } });
       expect(refetchedQr!.lifetimeScans).toBe(1);
     });
+
+    it("applies the owner's UTM parameters on the post-verify redirect of a password-protected dynamic QR (CR-01)", async () => {
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("qr-verify-utm.example.com");
+      const link = await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://destination.example.com/landing",
+        slug: "secret-utm",
+        password: "correct-horse-battery",
+        utmSource: "newsletter",
+        utmMedium: "email",
+        utmCampaign: "fall",
+      });
+      expect(link.ok).toBe(true);
+      if (!link.ok) return;
+
+      const qr = await createQrCode(prisma, {
+        userId: seed.userId,
+        variant: "dynamic",
+        linkId: link.link.id,
+        name: "Verify-UTM test QR",
+      });
+      expect(qr.ok).toBe(true);
+      if (!qr.ok) return;
+
+      const verifyResponse = await app.inject({
+        method: "POST",
+        url: `/q/${qr.qrCode.code}/verify`,
+        headers: { host: "qr-verify-utm.example.com", "user-agent": BROWSER_UA },
+        payload: { password: "correct-horse-battery" },
+      });
+
+      expect(verifyResponse.statusCode).toBe(302);
+      const location = new URL(verifyResponse.headers.location as string);
+      expect(location.searchParams.get("utm_source")).toBe("newsletter");
+      expect(location.searchParams.get("utm_medium")).toBe("email");
+      expect(location.searchParams.get("utm_campaign")).toBe("fall");
+      // Canonical source -> medium -> campaign ordering (D-08-02), no drift
+      // from routes/redirect.ts's POST /:slug/verify.
+      expect(location.search).toBe("?utm_source=newsletter&utm_medium=email&utm_campaign=fall");
+    });
   });
 
   describe("UTM application on GET /q/:code (D-08-02, META-01)", () => {
