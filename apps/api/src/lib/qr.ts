@@ -117,6 +117,13 @@ function assertValidColor(color: string): string {
 
 function resolveModuleStyle(style: RenderStyle): ModuleStyle {
   return {
+    // Deliberately redundant with `buildModuleSvg`'s own identical check.
+    // That one is the AUTHORITATIVE guard — it sits at the `fill="..."`
+    // interpolation site and is what actually closes the vector for direct
+    // callers of the exported `buildModuleSvg`. This call exists only to
+    // fail earlier, with a stack pointing at the render entry point the
+    // caller actually invoked, not because `buildModuleSvg` cannot be
+    // trusted to reject the value on its own.
     color: assertValidColor(style.color ?? DEFAULT_COLOR),
     rounded: style.rounded ?? false,
     moduleSizePx: style.moduleSizePx ?? DEFAULT_MODULE_SIZE_PX,
