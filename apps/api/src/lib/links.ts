@@ -85,6 +85,74 @@ function deriveExpiresAt(expiresAt: string | null | undefined): Date | null | un
 }
 
 /**
+ * D-08-05 storage limits for the six UTM/OG fields — named constants (not
+ * inline magic numbers) so `routes/links.ts`'s Zod allowlist and every test
+ * that exercises them reference one source of truth.
+ */
+export const UTM_VALUE_MAX_LENGTH = 200;
+export const OG_TITLE_MAX_LENGTH = 200;
+export const OG_DESCRIPTION_MAX_LENGTH = 500;
+export const OG_IMAGE_URL_MAX_LENGTH = 2048;
+
+/**
+ * Three-state derivation for the six UTM/OG fields (D-08-05), modelled on
+ * `deriveExpiresAt`'s shape: `undefined` (omitted) keeps/no-change,
+ * explicit `null` clears, an empty/whitespace-only string ALSO clears
+ * (deliberately unlike `password`, where a blank string means "keep" —
+ * these six fields have no equivalent "accidentally submitted blank"
+ * concern), and any other string is trimmed and returned as-is. Does NOT
+ * percent-encode or HTML-escape anything — percent-encoding happens only
+ * when the redirect target is assembled (08-02's redirectEngine.ts) and
+ * HTML escaping happens only when the bot OG page is rendered (08-02's
+ * publicHtml.ts).
+ */
+function deriveMetaField(raw: string | null | undefined): string | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  const trimmed = raw.trim();
+  return trimmed.length === 0 ? null : trimmed;
+}
+
+type MetaFieldResult =
+  | { ok: true; value: string | null | undefined }
+  | { ok: false; error: LinkErrorCode };
+
+/** Applies `deriveMetaField` then enforces `maxLength`, reporting `tooLongError` on overflow. */
+function validateMetaField(
+  raw: string | null | undefined,
+  maxLength: number,
+  tooLongError: LinkErrorCode,
+): MetaFieldResult {
+  const value = deriveMetaField(raw);
+  if (typeof value === "string" && value.length > maxLength) {
+    return { ok: false, error: tooLongError };
+  }
+  return { ok: true, value };
+}
+
+/**
+ * Zod v4 top-level `z.url()` idiom (same WHATWG-parser-backed mechanism
+ * `targetUrlSchema` above uses) with an explicit http(s)-only protocol
+ * allowlist (D-08-04) — `javascript:`/`data:`/relative values are rejected.
+ * The server never fetches this URL; shape validation only.
+ */
+const ogImageUrlSchema = z.url({ protocol: /^https?$/ });
+
+/**
+ * `validateMetaField` first (length check BEFORE shape check, so an
+ * over-long value reports `OG_IMAGE_URL_TOO_LONG` rather than
+ * `OG_IMAGE_URL_INVALID`), then the http(s)-only shape check.
+ */
+function validateOgImageUrl(raw: string | null | undefined): MetaFieldResult {
+  const lengthResult = validateMetaField(raw, OG_IMAGE_URL_MAX_LENGTH, "OG_IMAGE_URL_TOO_LONG");
+  if (!lengthResult.ok) return lengthResult;
+  if (typeof lengthResult.value === "string" && !ogImageUrlSchema.safeParse(lengthResult.value).success) {
+    return { ok: false, error: "OG_IMAGE_URL_INVALID" };
+  }
+  return lengthResult;
+}
+
+/**
  * Base62 alphabet (D-02) — mixed-case digits, no ambiguous-character
  * exclusion (per RESEARCH's Base62 generator example): a 7-char id over
  * this 62-symbol alphabet gives ~2.2 x 10^12 possible slugs per domain,
@@ -154,7 +222,17 @@ export type LinkErrorCode =
   | "SLUG_RESERVED"
   | "SLUG_INVALID_SHAPE"
   | "SLUG_GENERATION_EXHAUSTED"
-  | "DOMAIN_NOT_ACTIVE";
+  | "DOMAIN_NOT_ACTIVE"
+  /** Phase 8 (D-08-05): any of utmSource/utmMedium/utmCampaign exceeds `UTM_VALUE_MAX_LENGTH`. */
+  | "UTM_VALUE_TOO_LONG"
+  /** Phase 8 (D-08-05): ogTitle exceeds `OG_TITLE_MAX_LENGTH`. */
+  | "OG_TITLE_TOO_LONG"
+  /** Phase 8 (D-08-05): ogDescription exceeds `OG_DESCRIPTION_MAX_LENGTH`. */
+  | "OG_DESCRIPTION_TOO_LONG"
+  /** Phase 8 (D-08-05): ogImageUrl exceeds `OG_IMAGE_URL_MAX_LENGTH`. */
+  | "OG_IMAGE_URL_TOO_LONG"
+  /** Phase 8 (D-08-04): ogImageUrl is not an absolute http(s) URL. */
+  | "OG_IMAGE_URL_INVALID";
 
 /** Custom-slug shape (RESEARCH Open Question 2/A4): 2-32 chars, `[a-zA-Z0-9_-]`. */
 const customSlugSchema = z
@@ -260,6 +338,18 @@ export type ValidatedLink = {
    * needed (unlike password/expiresAt) — there is no "clear" semantic.
    */
   trackingEnabled?: boolean;
+  /** D-08-01/D-08-05 — `undefined` no-change, `null`/blank clears, string sets (trimmed, raw, not percent-encoded). */
+  utmSource?: string | null;
+  /** D-08-01/D-08-05 — see `utmSource`. */
+  utmMedium?: string | null;
+  /** D-08-01/D-08-05 — see `utmSource`. */
+  utmCampaign?: string | null;
+  /** D-08-03/D-08-05 — `undefined` no-change, `null`/blank clears, string sets (trimmed). */
+  ogTitle?: string | null;
+  /** D-08-03/D-08-05 — see `ogTitle`. */
+  ogDescription?: string | null;
+  /** D-08-04/D-08-05 — see `ogTitle`; additionally shape-validated to absolute http(s) only. */
+  ogImageUrl?: string | null;
 };
 export type ValidationResult =
   | { ok: true; data: ValidatedLink }
@@ -279,6 +369,18 @@ export type ValidateLinkInputParams = {
   forwardQuery?: boolean;
   /** Phase 6 (TRACK-01/D-15): omitted keeps current value on update / defaults true on create. */
   trackingEnabled?: boolean;
+  /** Phase 8 (D-08-01/D-08-05): keep/clear/set — see `deriveMetaField`'s doc comment. */
+  utmSource?: string | null;
+  /** Phase 8 (D-08-01/D-08-05): see `utmSource`. */
+  utmMedium?: string | null;
+  /** Phase 8 (D-08-01/D-08-05): see `utmSource`. */
+  utmCampaign?: string | null;
+  /** Phase 8 (D-08-03/D-08-05): keep/clear/set — see `deriveMetaField`'s doc comment. */
+  ogTitle?: string | null;
+  /** Phase 8 (D-08-03/D-08-05): see `ogTitle`. */
+  ogDescription?: string | null;
+  /** Phase 8 (D-08-04/D-08-05): see `ogTitle`; additionally shape-validated to absolute http(s) only. */
+  ogImageUrl?: string | null;
   /** Set by `updateLink` so a link's own current slug never false-collides with itself. */
   excludeLinkId?: string;
 };
@@ -321,6 +423,30 @@ export async function validateLinkInput(
   const passwordHash = await derivePasswordHash(input.password);
   const expiresAtDate = deriveExpiresAt(input.expiresAt);
 
+  // Phase 8 (D-08-01..05) — UTM trio + OG trio, validated after every
+  // pre-existing check above so an authorization/target/slug failure is
+  // always reported first (unchanged precedence for existing callers).
+  const utmSourceResult = validateMetaField(input.utmSource, UTM_VALUE_MAX_LENGTH, "UTM_VALUE_TOO_LONG");
+  if (!utmSourceResult.ok) return utmSourceResult;
+  const utmMediumResult = validateMetaField(input.utmMedium, UTM_VALUE_MAX_LENGTH, "UTM_VALUE_TOO_LONG");
+  if (!utmMediumResult.ok) return utmMediumResult;
+  const utmCampaignResult = validateMetaField(
+    input.utmCampaign,
+    UTM_VALUE_MAX_LENGTH,
+    "UTM_VALUE_TOO_LONG",
+  );
+  if (!utmCampaignResult.ok) return utmCampaignResult;
+  const ogTitleResult = validateMetaField(input.ogTitle, OG_TITLE_MAX_LENGTH, "OG_TITLE_TOO_LONG");
+  if (!ogTitleResult.ok) return ogTitleResult;
+  const ogDescriptionResult = validateMetaField(
+    input.ogDescription,
+    OG_DESCRIPTION_MAX_LENGTH,
+    "OG_DESCRIPTION_TOO_LONG",
+  );
+  if (!ogDescriptionResult.ok) return ogDescriptionResult;
+  const ogImageUrlResult = validateOgImageUrl(input.ogImageUrl);
+  if (!ogImageUrlResult.ok) return ogImageUrlResult;
+
   return {
     ok: true,
     data: {
@@ -332,6 +458,12 @@ export async function validateLinkInput(
       expiresAt: expiresAtDate,
       forwardQuery: input.forwardQuery,
       trackingEnabled: input.trackingEnabled,
+      utmSource: utmSourceResult.value,
+      utmMedium: utmMediumResult.value,
+      utmCampaign: utmCampaignResult.value,
+      ogTitle: ogTitleResult.value,
+      ogDescription: ogDescriptionResult.value,
+      ogImageUrl: ogImageUrlResult.value,
     },
   };
 }
@@ -403,6 +535,12 @@ export async function updateLink(
         expiresAt: validated.data.expiresAt,
         forwardQuery: validated.data.forwardQuery,
         trackingEnabled: validated.data.trackingEnabled,
+        utmSource: validated.data.utmSource,
+        utmMedium: validated.data.utmMedium,
+        utmCampaign: validated.data.utmCampaign,
+        ogTitle: validated.data.ogTitle,
+        ogDescription: validated.data.ogDescription,
+        ogImageUrl: validated.data.ogImageUrl,
       },
     });
     return { ok: true, link };
@@ -575,6 +713,18 @@ export function mapErrorToSkipReason(code: LinkErrorCode): LinkSkipReason {
     // only that it can't).
     case "DOMAIN_NOT_ACTIVE":
       return "domain_unauthorized";
+    // Phase 8 (D-08-05): CSV import rows only ever carry ziel_url/slug/domain
+    // (`EXPECTED_CSV_COLUMNS`) — `createLink`/`previewLink` are never called
+    // from `runImport` with any UTM/OG field set, so these five codes can
+    // never actually be produced here. Kept explicit (not folded into the
+    // `default`) so the mapping stays total and a future CSV column addition
+    // can't silently fall through.
+    case "UTM_VALUE_TOO_LONG":
+    case "OG_TITLE_TOO_LONG":
+    case "OG_DESCRIPTION_TOO_LONG":
+    case "OG_IMAGE_URL_TOO_LONG":
+    case "OG_IMAGE_URL_INVALID":
+      throw new Error(`Unreachable: CSV import cannot produce UTM/OG error code ${code}`);
     default: {
       const exhaustive: never = code;
       return exhaustive;
