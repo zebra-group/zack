@@ -844,6 +844,37 @@ describe("LinkFormModal", () => {
       expect(wrapper.find(".og-card-domain").text()).toBe("s.meinefirma.de");
     });
 
+    // Phase 8 (08-06, D8 fix carried from 08-05's Decisions Made): the
+    // watch driving the debounced image source must run on mount too, not
+    // only on a subsequent change — otherwise opening the OG section in
+    // EDIT mode on a link that already has an image URL shows the hatched
+    // placeholder until the user touches the field, even though the value
+    // is a perfectly valid absolute http(s) URL already.
+    it("edit mode with a pre-filled absolute http(s) image URL renders the image on open, after the same debounce — no edit required first", async () => {
+      const wrapper = mount(LinkFormModal, {
+        props: {
+          mode: "edit",
+          domains: [],
+          domainHostname: "s.meinefirma.de",
+          initialTargetUrl: "https://example.com",
+          initialSlug: "abc123",
+          initialOgImageUrl: "https://example.com/og.png",
+        },
+      });
+
+      await wrapper.find(".accordion-header--og").trigger("click");
+
+      // Not yet — debounce has not elapsed (identical timing contract to a
+      // freshly typed value, not an instant render).
+      expect(wrapper.find(".og-card-img").exists()).toBe(false);
+
+      vi.advanceTimersByTime(300);
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".og-card-img").attributes("src")).toBe("https://example.com/og.png");
+      expect(wrapper.find(".og-card-image-label").exists()).toBe(false);
+    });
+
     it("typing a partial value like 'h' or 'https:/' triggers no image element even after the debounce elapses", async () => {
       const wrapper = mount(LinkFormModal, {
         props: { mode: "create", domains: [makeDomain()] },
