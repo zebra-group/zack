@@ -5,6 +5,12 @@ export default defineConfig({
     environment: "node",
     include: ["test/**/*.test.ts", "src/**/*.test.ts"],
     passWithNoTests: true,
+    // Vitest's 5s default is too tight for this suite: the first test in each
+    // file pays for the Fastify app build plus the first real round-trip to the
+    // testcontainers Postgres, and under parallel worker contention that alone
+    // exceeded 5s — producing timeout failures that looked like logic errors
+    // but passed when the file was run on its own.
+    testTimeout: 30_000,
     // Real-Postgres TDD harness (D-09, RESEARCH Pattern 5): one shared
     // testcontainers Postgres started once via globalSetup, connection URI
     // handed to every test file via provide/inject. setupFileEach wraps
