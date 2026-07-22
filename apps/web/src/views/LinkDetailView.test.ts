@@ -87,6 +87,12 @@ function makeLink(overrides: Partial<LinkDTO> = {}): LinkDTO {
     forwardQuery: false,
     trackingEnabled: true,
     lifetimeClicks: 0,
+    utmSource: null,
+    utmMedium: null,
+    utmCampaign: null,
+    ogTitle: null,
+    ogDescription: null,
+    ogImageUrl: null,
     ...overrides,
   };
 }
