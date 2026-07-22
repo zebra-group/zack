@@ -51,6 +51,18 @@ export function resolveLinkState(
 }
 
 /**
+ * Query parameter a STATIC QR code's encoded short URL carries so its scans
+ * can be attributed back to the originating `QrCode` row (QR-07). A dynamic
+ * code needs no such marker — it owns the `/q/:code` route and is identified
+ * by the path itself — but a static code encodes the link's plain short URL
+ * and would otherwise be indistinguishable from any other visit.
+ *
+ * Kurzly-internal: `routes/redirect.ts` strips it before merging the incoming
+ * query onto the destination, so it never reaches the target.
+ */
+export const QR_SCAN_PARAM = "qr";
+
+/**
  * Merges `incomingSearch` (a raw `?a=b&c=d`-shaped query string, or `""`)
  * onto `targetUrl`'s existing search params — the TARGET wins on key
  * conflict (D-13): only keys the target does not already define are

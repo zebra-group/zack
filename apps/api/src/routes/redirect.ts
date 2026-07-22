@@ -45,7 +45,7 @@ import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest }
 import bcrypt from "bcryptjs";
 import type { Link, PrismaClient, ScanSource } from "../generated/prisma/client.js";
 import { resolveActiveDomainByHost } from "../lib/domainResolution.js";
-import { resolveLinkState, mergeQuery } from "../lib/redirectEngine.js";
+import { resolveLinkState, mergeQuery, QR_SCAN_PARAM } from "../lib/redirectEngine.js";
 import { isBotRequest } from "../lib/botDetection.js";
 import { hasValidUnlockCookie, issueUnlockCookie } from "../lib/unlockCookie.js";
 import {
@@ -127,6 +127,59 @@ export async function recordClickHook(ctx: {
 }
 
 /**
+ * The ONE `prisma.qrCode.update` call site outside `lib/qrCodes.ts` — a
+ * documented exception (see that module's header), not a second write path:
+ * it touches `lifetimeScans` and nothing else. Shared by both scan routes,
+ * `GET /q/:code` (dynamic) and `GET /:slug?qr=` (static). Wrapped in the same
+ * swallow-and-log discipline as `recordClickHook` (T-06-HOTPATH): a counter
+ * hiccup must never break or slow a redirect.
+ */
+export async function incrementLifetimeScans(
+  prisma: PrismaClient,
+  qrCodeId: string,
+  log: FastifyBaseLogger,
+): Promise<void> {
+  try {
+    await prisma.qrCode.update({
+      where: { id: qrCodeId },
+      data: { lifetimeScans: { increment: 1 } },
+    });
+  } catch (err) {
+    log?.warn({ err, qrCodeId }, "incrementLifetimeScans: counter write failed, swallowed");
+  }
+}
+
+/**
+ * Resolves the `?qr=` marker a static QR code's encoded URL carries (QR-07)
+ * to the `QrCode` row it names, or `null` when this is an ordinary visit.
+ *
+ * The marker is attacker-supplied, so it is never trusted as an identity: a
+ * row only counts when it is actually STATIC and actually bound to the link
+ * being visited. Without that check anyone could inflate an arbitrary code's
+ * counter by appending someone else's id to any short link.
+ */
+async function resolveScannedQrCodeId(
+  prisma: PrismaClient,
+  link: Link,
+  rawMarker: unknown,
+  log: FastifyBaseLogger,
+): Promise<string | null> {
+  if (typeof rawMarker !== "string" || rawMarker === "") return null;
+
+  try {
+    const qrCode = await prisma.qrCode.findUnique({
+      where: { id: rawMarker },
+      select: { id: true, variant: true, linkId: true },
+    });
+    if (!qrCode || qrCode.variant !== "static" || qrCode.linkId !== link.id) return null;
+    return qrCode.id;
+  } catch (err) {
+    log?.warn({ err, linkId: link.id }, "resolveScannedQrCodeId: lookup failed, swallowed");
+    return null;
+  }
+}
+
+/**
  * Adapts `VERIFY_RATE_LIMIT_PER_LINK`'s pure, Fastify-free `keyGenerator`
  * (typed against `RateLimitKeyRequest`, per 05-04's "stays directly
  * unit-testable with a stub" design) to the signature `@fastify/rate-limit`'s
@@ -198,6 +251,19 @@ export function redirectRoute(prisma: PrismaClient) {
         // unlock cookie. D-17 seam: Phase 6's tracking write (D-05:
         // request.ip is already trust-proxy-aware via app.ts's trustProxy
         // option — no new proxy config needed here).
+        //
+        // A static QR code's scan arrives here rather than on /q/:code, so it
+        // is identified by the marker its encoded URL carries (QR-07). Only a
+        // completed redirect counts — the gated branches above already
+        // returned, matching the dynamic handler's behaviour.
+        const incoming = new URL(request.url, "http://placeholder.invalid").searchParams;
+        const scannedQrCodeId = await resolveScannedQrCodeId(
+          prisma,
+          link,
+          incoming.get(QR_SCAN_PARAM),
+          request.log,
+        );
+
         await recordClickHook({
           prisma,
           link,
@@ -205,11 +271,19 @@ export function redirectRoute(prisma: PrismaClient) {
           userAgent: request.headers["user-agent"],
           referer: request.headers.referer,
           log: request.log,
-          source: "link",
+          source: scannedQrCodeId ? "qr" : "link",
         });
 
+        if (scannedQrCodeId) {
+          await incrementLifetimeScans(prisma, scannedQrCodeId, request.log);
+        }
+
+        // The marker is Kurzly-internal plumbing — strip it so `forwardQuery`
+        // never leaks it to the destination.
+        incoming.delete(QR_SCAN_PARAM);
+        const forwarded = incoming.toString();
         const target = link.forwardQuery
-          ? mergeQuery(link.targetUrl, new URL(request.url, "http://placeholder.invalid").search)
+          ? mergeQuery(link.targetUrl, forwarded ? `?${forwarded}` : "")
           : link.targetUrl;
         return reply.code(302).redirect(target);
       },

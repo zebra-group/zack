@@ -71,6 +71,7 @@ import { z } from "zod";
 import type { Domain, Link, PrismaClient, QrCode } from "../generated/prisma/client.js";
 import type { createAuth } from "../lib/auth.js";
 import { scopedDomainIds } from "../lib/authorization.js";
+import { QR_SCAN_PARAM } from "../lib/redirectEngine.js";
 import { InvalidColorError, InvalidLogoError, renderQrPng, renderQrSvg, type RenderStyle } from "../lib/qr.js";
 import {
   createQrCode,
@@ -214,9 +215,15 @@ function requireEnv(key: string): string {
  * existing short link", and ROADMAP Phase 7 success criterion 1. Encoding
  * `Link.targetUrl` instead would send the scanner straight to the
  * destination: `resolveLinkState`'s password gate and expiry gate would
- * never run, the click hook would never fire (so the code's scan count
- * would stay 0 forever), and editing the Link's target later would
- * silently invalidate every already-printed code.
+ * never run, the click hook would never fire, and editing the Link's target
+ * later would silently invalidate every already-printed code.
+ *
+ * That short URL carries a `?qr={id}` marker (QR-07). Unlike a dynamic code,
+ * a static one has no route of its own — its scans arrive at the shared `GET
+ * /:slug` handler, which would otherwise have no way to tell a scan from any
+ * other visit, leaving the scan count pinned at 0. `routes/redirect.ts`
+ * attributes the marker back to this row and strips it before any
+ * `forwardQuery` merge, so it never reaches the destination.
  *
  * A `dynamic` QR instead encodes THIS instance's own stable `/q/:code`
  * short URL — re-pointing it (`remapQrCode`) changes its CURRENT target
@@ -227,7 +234,7 @@ function resolveQrPayload(qrCode: QrCodeWithLink): string {
   if (qrCode.variant === "dynamic") {
     return `${requireEnv("BASE_URL")}/q/${qrCode.code}`;
   }
-  return `https://${qrCode.link.domain.hostname}/${qrCode.link.slug}`;
+  return `https://${qrCode.link.domain.hostname}/${qrCode.link.slug}?${QR_SCAN_PARAM}=${qrCode.id}`;
 }
 
 /** Builds the `lib/qr.ts` render style from a QrCode's CURRENTLY stored fields — never a client-supplied style at render time. */

@@ -61,30 +61,7 @@ import {
   renderBotOgPage,
 } from "../lib/publicHtml.js";
 import { REDIRECT_RATE_LIMIT, VERIFY_RATE_LIMIT_PER_LINK } from "../plugins/rateLimit.js";
-import { brandCtx, recordClickHook } from "./redirect.js";
-
-/**
- * The ONE `prisma.qrCode.update` call site outside `lib/qrCodes.ts` — see
- * this file's header comment and `lib/qrCodes.ts`'s own header for why this
- * is a documented exception, not a second write path. Wrapped in the same
- * swallow-and-log discipline as `recordClickHook` (T-06-HOTPATH precedent
- * applied here too): a counter-write hiccup must never break or slow the
- * redirect.
- */
-async function incrementLifetimeScans(
-  prisma: PrismaClient,
-  qrCodeId: string,
-  log: FastifyBaseLogger,
-): Promise<void> {
-  try {
-    await prisma.qrCode.update({
-      where: { id: qrCodeId },
-      data: { lifetimeScans: { increment: 1 } },
-    });
-  } catch (err) {
-    log?.warn({ err, qrCodeId }, "incrementLifetimeScans: counter write failed, swallowed");
-  }
-}
+import { brandCtx, incrementLifetimeScans, recordClickHook } from "./redirect.js";
 
 /**
  * Adapts `VERIFY_RATE_LIMIT_PER_LINK`'s max/timeWindow posture (same
