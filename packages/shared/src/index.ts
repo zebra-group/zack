@@ -471,3 +471,24 @@ export type QrRemapHistoryEntryDTO = {
   toLinkId: string;
   createdAt: string;
 };
+
+// Phase 10 (OIDC/SSO, D-10-02/UI-10-02)
+
+/**
+ * `GET /api/sso/status` response (10-03) — mirrors
+ * `apps/api/src/lib/ssoConfig.ts`'s `readSsoConfig()`/`maskClientId()`/
+ * `ssoCallbackPath()`. Per D-10-02 the admin "Authentifizierung" OIDC card
+ * is a status + setup-guidance surface (not a live credential-entry form):
+ * OIDC is configured entirely via ENV, and this DTO deliberately carries NO
+ * client-secret field — leaking the secret to the browser is a TypeScript
+ * compile error, not a runtime discipline (T-10-SECRET-SHAPE). `issuer` and
+ * `clientIdMasked` are `null` when `enabled` is `false`; `callbackPath` is
+ * ALWAYS present (UI-10-06) — even the disabled card shows the exact
+ * callback URL to register with an IdP ahead of enabling SSO.
+ */
+export type SsoStatusDTO = {
+  enabled: boolean;
+  issuer: string | null;
+  clientIdMasked: string | null;
+  callbackPath: string;
+};
