@@ -62,6 +62,10 @@ function statusForTeamError(error: TeamErrorCode): number {
       return 404;
     case "LAST_ADMIN":
       return 409;
+    case "CONFLICT":
+      // WR-02: a lockout guard hit transaction contention (P2028) — nothing
+      // changed and the request is safe to retry.
+      return 409;
     case "INVALID_DOMAIN":
       return 400;
     default: {
