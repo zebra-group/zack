@@ -16,8 +16,9 @@
  * the JSON boundary on this DTO (see packages/shared TeamMemberDTO).
  */
 import { computed, ref } from "vue";
-import type { AccountRole, TeamMemberDTO } from "@kurzly/shared";
-import { changeMemberRole, listTeamMembers, mapTeamError } from "../api";
+import type { AccountRole, DomainDTO, TeamMemberDTO } from "@kurzly/shared";
+import { changeMemberRole, inviteMember, listDomains, listTeamMembers, mapTeamError } from "../api";
+import InviteMemberModal from "../components/InviteMemberModal.vue";
 
 /** Adds a transient, row-local mutation error (UI-09-03/07's `.member-error-row`) — never persisted server-side. */
 interface MemberUI extends TeamMemberDTO {
@@ -107,12 +108,56 @@ function statusLabel(status: TeamMemberDTO["status"]): string {
   return status === "active" ? "Aktiv" : "Ausstehend";
 }
 
-/** Placeholder — real invite flow (InviteMemberModal) wired in 09-07. */
+/** Active domains only — the member-only toggle source for InviteMemberModal/AssignDomainsModal. */
+const activeDomains = ref<DomainDTO[]>([]);
+
+async function loadDomains(): Promise<void> {
+  try {
+    activeDomains.value = (await listDomains()).filter((d) => d.status === "active");
+  } catch {
+    // Non-fatal: the invite/assign modals simply show no toggle pills; the
+    // roster itself (loadMembers) already surfaces its own load failure.
+  }
+}
+
+const showInviteModal = ref(false);
+const inviteError = ref<string | null>(null);
+
 function openInvite(): void {
-  // no-op in this plan (09-06)
+  inviteError.value = null;
+  showInviteModal.value = true;
+}
+
+function closeInvite(): void {
+  showInviteModal.value = false;
+  inviteError.value = null;
+}
+
+/**
+ * TEAM-01/D-09-04: appends the returned member as a new row, or — for a
+ * re-invite of an existing address — replaces that row in place rather
+ * than duplicating it (the server's resend is keyed on the SAME user id).
+ */
+async function handleInviteSubmit(payload: {
+  email: string;
+  accountRole: AccountRole;
+  domainIds?: string[];
+}): Promise<void> {
+  try {
+    const member = await inviteMember(payload);
+    const idx = members.value.findIndex((m) => m.id === member.id);
+    if (idx >= 0) members.value[idx] = { ...member, error: null };
+    else members.value.push({ ...member, error: null });
+    showInviteModal.value = false;
+    inviteError.value = null;
+    showToast(`Magic Link an ${payload.email} gesendet`);
+  } catch (err) {
+    inviteError.value = mapTeamError(err);
+  }
 }
 
 loadMembers();
+loadDomains();
 </script>
 
 <template>
@@ -190,6 +235,14 @@ loadMembers();
       Links, QR-Codes &amp; Analytics der ihm zugewiesenen Domains.
     </div>
   </div>
+
+  <InviteMemberModal
+    v-if="showInviteModal"
+    :domains="activeDomains"
+    :error="inviteError"
+    @close="closeInvite"
+    @submit="handleInviteSubmit"
+  />
 
   <div v-if="toastMessage" class="toast">{{ toastMessage }}</div>
 </template>
