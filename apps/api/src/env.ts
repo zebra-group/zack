@@ -128,8 +128,53 @@ export type ParseEnvResult =
  */
 const OIDC_KEYS = ["OIDC_ISSUER_URL", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET"] as const;
 
+/**
+ * CR-01 fix: the OPTIONAL env vars (`.optional()` in `envSchema`, whether or
+ * not they carry a `.default()`). `import "dotenv/config"` turns a bare
+ * `KEY=` line in `.env` into the empty **string** `""`, not `undefined` — but
+ * `.optional()` only admits `undefined`, so `""` flows into the inner
+ * validator (`z.url()` / `z.string().min(1)` / `z.coerce.number().positive()`)
+ * and is rejected. That bricks the ENTIRE boot (magic-link included) for a
+ * self-hosted operator who copies `.env.example` verbatim without wanting SSO
+ * — contradicting the documented "leaving all three empty disables SSO"
+ * contract, and the same latent defect the older `GEOIP_DB_PATH` /
+ * `CLICK_RETENTION_DAYS` vars shipped with. Normalizing an empty/whitespace-
+ * only value on these keys to "unset" BEFORE validation makes `KEY=` behave
+ * as absent everywhere (matching `readSsoConfig`'s own `!issuer` semantics).
+ *
+ * REQUIRED keys are deliberately NOT in this list: an empty required var must
+ * still fail loudly through its own validator rather than being silently
+ * dropped to a different error.
+ */
+const OPTIONAL_ENV_KEYS = [
+  "SMTP_USER",
+  "SMTP_PASS",
+  "CNAME_TARGET",
+  "A_RECORD_IP",
+  "BRAND_NAME",
+  "BRAND_ACCENT",
+  "PASSWORD_HASH_COST",
+  "GEOIP_DB_PATH",
+  "CLICK_RETENTION_DAYS",
+  "OIDC_ISSUER_URL",
+  "OIDC_CLIENT_ID",
+  "OIDC_CLIENT_SECRET",
+] as const;
+
 export function parseEnv(source: NodeJS.ProcessEnv): ParseEnvResult {
-  const result = envSchema.safeParse(source);
+  // Normalize empty/whitespace-only OPTIONAL vars to "unset" (delete the key)
+  // so a verbatim `.env.example` copy — where dotenv yields `KEY=""` — reads
+  // as absent and either falls back to `.default()` or stays optional-off,
+  // instead of being rejected by the inner validator (CR-01).
+  const normalized: NodeJS.ProcessEnv = { ...source };
+  for (const key of OPTIONAL_ENV_KEYS) {
+    const value = normalized[key];
+    if (typeof value === "string" && value.trim() === "") {
+      delete normalized[key];
+    }
+  }
+
+  const result = envSchema.safeParse(normalized);
   if (!result.success) {
     return { success: false, issues: result.error.issues };
   }
