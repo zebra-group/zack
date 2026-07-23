@@ -232,6 +232,20 @@ async function countAdmins(client: PrismaClient | Prisma.TransactionClient): Pro
 }
 
 /**
+ * WR-02 — the `FOR UPDATE` lockout guards deliberately BLOCK a second
+ * concurrent demote/remove on the first transaction's lock. Under sustained
+ * contention a blocked transaction can exceed Prisma's interactive-transaction
+ * timeout and reject with `P2028` (transaction timeout / could-not-serialize).
+ * That fails SAFE — no admin was demoted/removed — but it is otherwise an
+ * unhandled path that a caller cannot distinguish from a real server fault.
+ * The guarded functions catch it and return the typed `CONFLICT` result the
+ * route maps to a retryable 409, rather than letting it escape as a raw 500.
+ */
+function isTransactionContention(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2028";
+}
+
+/**
  * TEAM-03 — replaces the target's `DomainMembership` set with EXACTLY
  * `domainIds` (always `role: "member"`), in one transaction so a partial
  * add/remove can never be observed. Passing `[]` clears every assignment.
@@ -307,20 +321,28 @@ export async function changeMemberRole(
       await tx.user.update({ where: { id: targetUserId }, data: { accountRole: "admin" } });
     });
   } else {
-    const guard = await prisma.$transaction(async (tx): Promise<RemoveMemberResult> => {
-      const current = await tx.user.findUniqueOrThrow({
-        where: { id: targetUserId },
-        select: { accountRole: true },
-      });
-      if (current.accountRole === "admin") {
-        const admins = await countAdmins(tx);
-        if (admins <= 1) {
-          return { ok: false, error: "LAST_ADMIN" };
+    let guard: RemoveMemberResult;
+    try {
+      guard = await prisma.$transaction(async (tx): Promise<RemoveMemberResult> => {
+        const current = await tx.user.findUniqueOrThrow({
+          where: { id: targetUserId },
+          select: { accountRole: true },
+        });
+        if (current.accountRole === "admin") {
+          const admins = await countAdmins(tx);
+          if (admins <= 1) {
+            return { ok: false, error: "LAST_ADMIN" };
+          }
         }
-      }
-      await tx.user.update({ where: { id: targetUserId }, data: { accountRole: "member" } });
-      return { ok: true };
-    });
+        await tx.user.update({ where: { id: targetUserId }, data: { accountRole: "member" } });
+        return { ok: true };
+      });
+    } catch (error) {
+      // WR-02: lock-contention timeout fails safe (no demote occurred) — map
+      // it to a retryable typed result instead of an unhandled 500.
+      if (isTransactionContention(error)) return { ok: false, error: "CONFLICT" };
+      throw error;
+    }
     if (!guard.ok) return guard;
   }
 
@@ -351,18 +373,25 @@ export async function removeMember(
   const target = await prisma.user.findUnique({ where: { id: targetUserId } });
   if (!target) return { ok: false, error: "NOT_FOUND" };
 
-  return prisma.$transaction(async (tx): Promise<RemoveMemberResult> => {
-    const current = await tx.user.findUniqueOrThrow({
-      where: { id: targetUserId },
-      select: { accountRole: true },
-    });
-    if (current.accountRole === "admin") {
-      const admins = await countAdmins(tx);
-      if (admins <= 1) {
-        return { ok: false, error: "LAST_ADMIN" };
+  try {
+    return await prisma.$transaction(async (tx): Promise<RemoveMemberResult> => {
+      const current = await tx.user.findUniqueOrThrow({
+        where: { id: targetUserId },
+        select: { accountRole: true },
+      });
+      if (current.accountRole === "admin") {
+        const admins = await countAdmins(tx);
+        if (admins <= 1) {
+          return { ok: false, error: "LAST_ADMIN" };
+        }
       }
-    }
-    await tx.user.delete({ where: { id: targetUserId } });
-    return { ok: true };
-  });
+      await tx.user.delete({ where: { id: targetUserId } });
+      return { ok: true };
+    });
+  } catch (error) {
+    // WR-02: lock-contention timeout fails safe (no removal occurred) — map
+    // it to a retryable typed result instead of an unhandled 500.
+    if (isTransactionContention(error)) return { ok: false, error: "CONFLICT" };
+    throw error;
+  }
 }

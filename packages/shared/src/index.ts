@@ -273,9 +273,12 @@ export type InviteMemberInput = {
  * `LAST_ADMIN` (D-09-07): the mutation would leave the installation with
  * zero `accountRole: "admin"` users — refused, nothing changed.
  * `INVALID_DOMAIN`: an assigned `domainId` does not reference an existing
- * Domain.
+ * Domain. `CONFLICT` (WR-02): a lockout-guard transaction could not complete
+ * under lock contention (Prisma `P2028` timeout) — the mutation was NOT
+ * applied and the request is safe to retry; mapped to HTTP 409 so a
+ * transient contention retry is never surfaced as a raw 500.
  */
-export type TeamErrorCode = "NOT_FOUND" | "LAST_ADMIN" | "INVALID_DOMAIN";
+export type TeamErrorCode = "NOT_FOUND" | "LAST_ADMIN" | "INVALID_DOMAIN" | "CONFLICT";
 
 /**
  * `PATCH /api/team/:id/role` request body (TEAM-04). Promoting to `"admin"`
