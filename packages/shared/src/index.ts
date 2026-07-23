@@ -265,6 +265,38 @@ export type InviteMemberInput = {
 };
 
 /**
+ * Typed mutation error codes (Phase 9 Plan 4, TEAM-03/04/05) shared between
+ * `apps/api`'s team mutation functions/routes (`lib/team.ts`,
+ * `routes/team.ts`) and the frontend's `ApiError.code`-driven inline
+ * messaging (UI-09-07) — one source of truth for both sides of the JSON
+ * boundary. `NOT_FOUND`: the `:id` does not reference an existing User.
+ * `LAST_ADMIN` (D-09-07): the mutation would leave the installation with
+ * zero `accountRole: "admin"` users — refused, nothing changed.
+ * `INVALID_DOMAIN`: an assigned `domainId` does not reference an existing
+ * Domain.
+ */
+export type TeamErrorCode = "NOT_FOUND" | "LAST_ADMIN" | "INVALID_DOMAIN";
+
+/**
+ * `PATCH /api/team/:id/role` request body (TEAM-04). Promoting to `"admin"`
+ * clears the target's domain assignments atomically (D-09-05); demoting to
+ * `"member"` is refused with `LAST_ADMIN` if the target is the sole admin
+ * (D-09-07).
+ */
+export type UpdateMemberRoleInput = {
+  accountRole: AccountRole;
+};
+
+/**
+ * `PUT /api/team/:id/domains` request body (TEAM-03) — replaces the
+ * target's domain-membership set with EXACTLY this list; `[]` clears every
+ * assignment.
+ */
+export type AssignDomainsInput = {
+  domainIds: string[];
+};
+
+/**
  * `GET /api/analytics` response (TRACK-05) — scoped to the caller's own
  * domains (`scopedDomainIds`), never the whole instance. Mirrors
  * `apps/api/src/lib/analytics.ts`'s `getGlobalAnalytics()`. `qrScans`
