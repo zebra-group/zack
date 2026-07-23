@@ -11,7 +11,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
 import { getGlobalAnalytics, getLinkAnalytics } from "../src/lib/analytics.js";
-import { seedInitialAdmin } from "../src/lib/admin-seed.js";
 import { sendMagicLinkEmail } from "../src/lib/mailer.js";
 import { prisma } from "./setupFileEach.js";
 
@@ -28,7 +27,22 @@ const OUTSIDER_EMAIL = "analytics-outsider@kurzly.test";
 // emails silently no-ops (D-01's neutral non-allowlisted response).
 beforeEach(async () => {
   vi.mocked(sendMagicLinkEmail).mockClear();
-  await seedInitialAdmin(prisma, OWNER_EMAIL);
+  // Deliberately a plain `prisma.user.upsert` (not `seedInitialAdmin`, which
+  // since Phase 9/D-09-01 always sets `accountRole: "admin"`) — this
+  // fixture tests per-domain scoping (TRACK-05's "scoped to the caller's
+  // own domains" proof), not the D-09-02 account-admin bypass, and must
+  // default to `accountRole: "member"` (schema default) so scopedDomainIds
+  // never returns the whole instance for it.
+  await prisma.user.upsert({
+    where: { email: OWNER_EMAIL },
+    update: { emailVerified: true },
+    create: {
+      id: "u_analytics_owner",
+      name: "Analytics Owner",
+      email: OWNER_EMAIL,
+      emailVerified: true,
+    },
+  });
   await prisma.user.upsert({
     where: { email: OUTSIDER_EMAIL },
     update: { emailVerified: true },

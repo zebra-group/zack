@@ -12,7 +12,6 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
-import { seedInitialAdmin } from "../src/lib/admin-seed.js";
 import { MAX_IMPORT_ROWS } from "../src/lib/links.js";
 import { sendMagicLinkEmail } from "../src/lib/mailer.js";
 import { prisma } from "./setupFileEach.js";
@@ -166,7 +165,22 @@ function buildOverLimitCsv(ownedHostname: string): string {
 describe("CSV bulk import (LINK-08, D-01/D-05)", () => {
   beforeEach(async () => {
     vi.mocked(sendMagicLinkEmail).mockClear();
-    await seedInitialAdmin(prisma, OWNER_EMAIL);
+    // Deliberately a plain `prisma.user.upsert` (not `seedInitialAdmin`,
+    // which since Phase 9/D-09-01 always sets `accountRole: "admin"`) — this
+    // fixture is testing per-domain owner/member scoping (D-01's
+    // domain_unauthorized skip reason), not the D-09-02 account-admin
+    // bypass, and must default to `accountRole: "member"` (schema default)
+    // so it stays denied on domains it holds no membership on.
+    await prisma.user.upsert({
+      where: { email: OWNER_EMAIL },
+      update: { emailVerified: true },
+      create: {
+        id: "u_import_owner",
+        name: "Import Owner",
+        email: OWNER_EMAIL,
+        emailVerified: true,
+      },
+    });
   });
 
   describe("POST /api/links/import/preview", () => {

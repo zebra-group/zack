@@ -13,7 +13,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
 import type { DnsResolver } from "../src/lib/dnsClient.js";
-import { seedInitialAdmin } from "../src/lib/admin-seed.js";
 import { sendMagicLinkEmail } from "../src/lib/mailer.js";
 import { prisma } from "./setupFileEach.js";
 
@@ -87,7 +86,22 @@ function fakeDnsResolver(cnameRecords: string[], aRecords: string[]): DnsResolve
 describe("Domain registration + list (DOMAIN-01, D-04, RESEARCH A1)", () => {
   beforeEach(async () => {
     vi.mocked(sendMagicLinkEmail).mockClear();
-    await seedInitialAdmin(prisma, ADMIN_EMAIL);
+    // Deliberately a plain `prisma.user.upsert` (not `seedInitialAdmin`,
+    // which since Phase 9/D-09-01 always sets `accountRole: "admin"`) —
+    // this fixture tests per-domain deny-by-default scoping (e.g. "unknown
+    // domain id -> 403"), not the D-09-02 account-admin bypass, and must
+    // default to `accountRole: "member"` (schema default) so it stays
+    // denied on domains it holds no membership on.
+    await prisma.user.upsert({
+      where: { email: ADMIN_EMAIL },
+      update: { emailVerified: true },
+      create: {
+        id: "u_domain_admin",
+        name: "Domain Admin Test User",
+        email: ADMIN_EMAIL,
+        emailVerified: true,
+      },
+    });
     // A second allowlisted user (Phase 2 admin-seed only allows one row via
     // env, but the User table itself doubles as the allowlist — RESEARCH
     // OQ-3 resolution) so GET-list scoping can be proven against a real
