@@ -222,6 +222,48 @@ export type LinkAnalyticsDTO = {
   topCountries: { country: string | null; count: number }[];
 };
 
+// Phase 9 (team management, D-09-03/D-09-04)
+
+/**
+ * Derived-only status (D-09-03) — `"active"` iff the User's `emailVerified`
+ * is `true`, `"pending"` otherwise. Computed ONCE, server-side, by
+ * `apps/api/src/lib/team.ts`'s `toTeamMemberDto` — the ONLY place this is
+ * derived. The frontend reads this field verbatim and never re-derives it
+ * from `emailVerified` (which never crosses the JSON boundary on this DTO).
+ */
+export type MemberStatus = "pending" | "active";
+
+/**
+ * `GET /api/team` list entry (TEAM-01/TEAM-02). Mirrors
+ * `apps/api/src/lib/team.ts`'s `toTeamMemberDto()` mapping. `domains` is
+ * always `[]` for an `accountRole: "admin"` member (D-09-02: an admin
+ * already reaches every domain, so no `DomainMembership` rows are ever
+ * created for one) — the UI renders the "alle Domains" pill for `admin`
+ * based on `accountRole`, not on this array being non-empty.
+ */
+export type TeamMemberDTO = {
+  id: string;
+  email: string;
+  name: string | null;
+  accountRole: AccountRole;
+  status: MemberStatus;
+  domains: { id: string; hostname: string }[];
+};
+
+/**
+ * `POST /api/team/invite` request body shape (TEAM-01, D-09-04). Reusing an
+ * already-invited/existing `email` is a no-op resend — it never changes
+ * `accountRole` and never mutates `domainIds` (see `lib/team.ts`'s
+ * `inviteMember` header comment). `domainIds` is only meaningful when
+ * `accountRole` is `"member"` — ignored for `"admin"` (D-09-02 makes
+ * per-domain assignment meaningless for an account admin).
+ */
+export type InviteMemberInput = {
+  email: string;
+  accountRole: AccountRole;
+  domainIds?: string[];
+};
+
 /**
  * `GET /api/analytics` response (TRACK-05) — scoped to the caller's own
  * domains (`scopedDomainIds`), never the whole instance. Mirrors
