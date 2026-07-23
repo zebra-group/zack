@@ -8,29 +8,31 @@ Kurzly ist ein self-hosted, quelloffener URL-Shortener (in der Klasse von bit.ly
 
 Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hosted, ohne Drittanbieter-Tracking. Wenn alles andere ausfällt, muss der Redirect-Handler (Domain → Slug → Ziel-URL) korrekt und schnell funktionieren.
 
+## Current State
+
+**Shipped: v1.0 MVP (2026-07-23)** — full v1 feature scope, all 53 requirements delivered and verified across 10 phases. ~37k LOC TypeScript/Vue across a pnpm monorepo (apps/api Fastify + apps/web Vue 3 + packages/shared). Test suite: 540 API tests (44 files, real-Postgres testcontainers harness) + 256 web tests (21 files), workspace `tsc --noEmit` clean. Docker/Compose-hostable, ENV-configured end to end.
+
 ## Requirements
 
 ### Validated
 
-(Noch keine — self-hosted MVP muss erst ausgeliefert werden, um zu validieren)
+- ✓ Docker-hostbar (on-premise) als Image/Compose-Setup — v1.0
+- ✓ Link-Kürzung mit eigenen Domains/Subdomains (`example.com/kurz` → Redirect) — v1.0
+- ✓ QR-Codes mit zentriertem Logo (PNG-/SVG-Export, EC-Level H bei Logo-Overlay, decode-round-trip getestet) — v1.0
+- ✓ Dynamische QR-Codes mit eigener Kurz-URL (`/q/xxxx`), Ziel umstellbar, Remapping-Historie — v1.0
+- ✓ UTM-Parameter-Builder (source/medium/campaign) mit Live-Vorschau — v1.0
+- ✓ Custom OG-Tags pro Link (Titel, Beschreibung, Bild-URL) mit Social-Card-Vorschau, SSRF-sicher (Server holt das Ziel nie) — v1.0
+- ✓ Passwortschutz pro Link (bcrypt, Ziel erst nach Prüfung ausgeliefert, no-leak) — v1.0
+- ✓ Expiration Date pro Link (abgelaufen → HTTP 410) — v1.0
+- ✓ Internes Klick-Tracking pro Link, an-/ausschaltbar (Klicks + Referrer + Länder, true zero-rows wenn aus, kein Drittanbieter) — v1.0
+- ✓ Benutzerverwaltung mit domain-scoped Rollen, serverseitig bei JEDER Operation autorisiert (bewiesen durch Denial-Suite) — v1.0
+- ✓ Magic-Link-Login (better-auth, invite-only, kein Passwort-Login) — v1.0
+- ✓ OIDC/SSO-Integration (optional, ENV-konfiguriert; SSO-Neuanmeldungen → least-privilege „Mitglied") — v1.0
+- ✓ Dashboard-UI pixelgenau nach Hi-Fi-Prototyp, Light + Dark — v1.0
 
 ### Active
 
-<!-- v1 = voller Funktionsumfang laut Spec (alle 12 Anforderungen des Projektinhabers) -->
-
-- [ ] Docker-hostbar (on-premise) als Image/Compose-Setup
-- [ ] Link-Kürzung mit eigenen Domains/Subdomains (`example.com/kurz` → Redirect auf Ziel-URL)
-- [ ] QR-Codes mit eigenem Logo in der Mitte (PNG- und SVG-Export, Fehlerkorrektur-Level H bei Logo-Overlay)
-- [ ] Dynamische QR-Codes mit eigener Kurz-URL (`/q/x7f2`), Ziel nachträglich umstellbar, Remapping-Historie
-- [ ] UTM-Parameter-Builder (source/medium/campaign) mit Live-Vorschau der finalen Ziel-URL
-- [ ] Custom OG-Tags pro Link (Titel, Beschreibung, Bild-URL) mit Social-Card-Vorschau
-- [ ] Passwortschutz pro Link (optional, serverseitig gehasht, Ziel erst nach Prüfung ausgeliefert)
-- [ ] Expiration Date pro Link (optional, abgelaufen → HTTP 410 Gone)
-- [ ] Internes Klick-Tracking pro Link, an-/ausschaltbar (Klickanzahl + Referrer + Länder, kein Drittanbieter)
-- [ ] Benutzerverwaltung mit domainspezifischen Rollen (Admin = alles, Mitglied = nur zugewiesene Domains)
-- [ ] Authentifizierung via better-auth mit Magic Link als Standard-Login (kein Passwort-Login)
-- [ ] OIDC / SSO-Integration (optional aktivierbar; SSO-Neuanmeldungen → Rolle „Mitglied")
-- [ ] Dashboard-UI (12 Screens) pixelgenau nach Hi-Fi-Prototyp (`Kurzly Prototyp.dc.html`), Light + Dark
+(Nächster Milestone noch nicht definiert — `/gsd-new-milestone` startet die Anforderungsdefinition. Kandidaten aus v1.0-Tech-Debt: QR-Löschpfad, DB-Unique-Index für statische QRs, `trackingEnabled`-Edit-Fix.)
 
 ### Out of Scope
 
@@ -64,12 +66,15 @@ Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hos
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| v1 = voller Funktionsumfang (alle 12 Anforderungen) | Spec ist vollständig und Feature-komplett gedacht; kein MVP-Beschnitt gewünscht | — Pending |
-| PostgreSQL + Prisma als Persistenz | Robust für Multi-User/Team, klarer Migrations-/Typ-Workflow; Spec ließ DB offen | — Pending |
-| SMTP (ENV-konfigurierbar) für Magic-Link-Mails | Maximal self-host-freundlich, provider-neutral | — Pending |
-| Produktname „Kurzly" beibehalten | Arbeitstitel akzeptiert; Brandname/Akzent bleiben konfigurierbar (Prototyp-Props) | — Pending |
-| better-auth als Auth-Layer (Magic Link Standard, OIDC optional) | Spec-vorgegeben | — Pending |
-| Test-Driven Development verpflichtend, volle Testautomatisierung | Vom Nutzer explizit gefordert — sauberer, lesbarer, wartbarer Code; Regressionsschutz | — Pending |
+| v1 = voller Funktionsumfang (alle Anforderungen) | Spec ist vollständig und Feature-komplett gedacht; kein MVP-Beschnitt gewünscht | ✓ Good — alle 53 Anforderungen in v1.0 ausgeliefert |
+| PostgreSQL + Prisma als Persistenz | Robust für Multi-User/Team, klarer Migrations-/Typ-Workflow | ✓ Good — Prisma 7 + adapter-pg, saubere additive Migrationen durchgehend |
+| SMTP (ENV-konfigurierbar) für Magic-Link-Mails | Maximal self-host-freundlich, provider-neutral | ✓ Good |
+| Produktname „Kurzly" beibehalten | Arbeitstitel akzeptiert; Brandname/Akzent konfigurierbar | ✓ Good |
+| better-auth als Auth-Layer (Magic Link Standard, OIDC optional) | Spec-vorgegeben | ✓ Good — magicLink() + genericOAuth (1.6.23 hat kein sso-Plugin) |
+| Test-Driven Development verpflichtend, volle Testautomatisierung | Vom Nutzer explizit gefordert — Regressionsschutz | ✓ Good — 796 Tests, real-Postgres-Harness, RED→GREEN durchgehend |
+| Domain-scoped Autorisierung in `requireDomainAccess`/`scopedDomainIds` zentralisiert (Phase 2), account-admin Bypass darin (Phase 9) | Jeder Link/QR/Analytics-Callsite erbt die Durchsetzung ohne Route-Edits; Denial-Suite beweist sie | ✓ Good |
+| Per-file cloned-DB Test-Isolation statt shared-DB BEGIN/ROLLBACK | Postgres kennt keine verschachtelten Transaktionen — interaktive `$transaction` committete den Test-Wrapper mit und leakte Zeilen | ✓ Good — in Phase 7 entdeckt & behoben |
+| OIDC ENV-konfiguriert, Admin-Karte read-only Status (D-10-02) | Konsistent mit ENV-everywhere/self-hosted; better-auth konfiguriert statisch beim Boot; Secret bleibt aus der App-DB | ⚠️ Revisit — weicht von wörtlicher Prototyp-Lesart ab; ggf. Folge-Phase für Dashboard-Eingabe |
 
 ## Evolution
 
@@ -89,4 +94,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-10 after initialization*
+*Last updated: 2026-07-23 after v1.0 milestone*
