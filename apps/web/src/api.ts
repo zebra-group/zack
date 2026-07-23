@@ -18,6 +18,7 @@ import type {
   QrCodeDTO,
   QrRemapHistoryEntryDTO,
   SessionUser,
+  TeamMemberDTO,
   UpdateLinkInput,
   UpdateQrCodeInput,
 } from "@kurzly/shared";
@@ -513,4 +514,20 @@ export function mapQrFormError(err: unknown): QrFormFieldErrors {
       if (err.status === 400) return { generalError: QR_SAVE_FAILED_MESSAGE };
       return {};
   }
+}
+
+/**
+ * Team management API client (Phase 9, TEAM-01/02, UI-09-*) — mirrors the
+ * same-origin `fetch` + `parseJsonOrThrow<T>` shape used by the
+ * domain/link/QR clients above. The server independently re-authorizes
+ * every call (admin-gated via `isAccountAdmin`, apps/api's `routes/team.ts`)
+ * — this client is convenience only, never the access boundary
+ * (T-09-UI-BOUNDARY). `listTeamMembers` is the sole read this plan (09-06)
+ * needs; the mutation clients (invite/role/domains/remove) land in 09-07.
+ */
+
+/** `GET /api/team` — admin-gated full member roster (TEAM-01/TEAM-02). */
+export async function listTeamMembers(): Promise<TeamMemberDTO[]> {
+  const response = await fetch("/api/team", { method: "GET" });
+  return parseJsonOrThrow<TeamMemberDTO[]>(response);
 }
