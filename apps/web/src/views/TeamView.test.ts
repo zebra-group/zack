@@ -8,22 +8,36 @@
  * (UI-09-05/12), and the ⋯-menu remove flow (UI-09-06/07). Mocks `../api`
  * (mirrors QrCodesView.test.ts's `vi.mock` pattern) — no real network
  * happens; `ApiError`/`mapTeamError` come through unmocked via `...actual`.
+ *
+ * 10-04 (UI-10-01..06) adds the "Authentifizierung" describe block at the
+ * bottom: the read-only Magic Link + OIDC/SSO cards driven by
+ * `getSsoStatus()`. `getSsoStatus` defaults to a resolved "disabled" DTO in
+ * `beforeEach` so the pre-existing 09-* describe blocks above (which never
+ * assert on the auth section) don't need touching.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { DomainDTO, TeamMemberDTO } from "@kurzly/shared";
+import type { DomainDTO, SsoStatusDTO, TeamMemberDTO } from "@kurzly/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TeamView from "./TeamView.vue";
 import { ApiError } from "../api";
 
-const { listTeamMembers, changeMemberRole, assignMemberDomains, removeMember, inviteMember, listDomains } =
-  vi.hoisted(() => ({
-    listTeamMembers: vi.fn(),
-    changeMemberRole: vi.fn(),
-    assignMemberDomains: vi.fn(),
-    removeMember: vi.fn(),
-    inviteMember: vi.fn(),
-    listDomains: vi.fn(),
-  }));
+const {
+  listTeamMembers,
+  changeMemberRole,
+  assignMemberDomains,
+  removeMember,
+  inviteMember,
+  listDomains,
+  getSsoStatus,
+} = vi.hoisted(() => ({
+  listTeamMembers: vi.fn(),
+  changeMemberRole: vi.fn(),
+  assignMemberDomains: vi.fn(),
+  removeMember: vi.fn(),
+  inviteMember: vi.fn(),
+  listDomains: vi.fn(),
+  getSsoStatus: vi.fn(),
+}));
 
 vi.mock("../api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api")>();
@@ -35,8 +49,19 @@ vi.mock("../api", async (importOriginal) => {
     removeMember,
     inviteMember,
     listDomains,
+    getSsoStatus,
   };
 });
+
+function makeSsoStatus(overrides: Partial<SsoStatusDTO> = {}): SsoStatusDTO {
+  return {
+    enabled: false,
+    issuer: null,
+    clientIdMasked: null,
+    callbackPath: "/api/auth/oauth2/callback/oidc",
+    ...overrides,
+  };
+}
 
 function makeDomain(overrides: Partial<DomainDTO> = {}): DomainDTO {
   return {
@@ -72,6 +97,8 @@ beforeEach(() => {
   inviteMember.mockReset();
   listDomains.mockReset();
   listDomains.mockResolvedValue([]);
+  getSsoStatus.mockReset();
+  getSsoStatus.mockResolvedValue(makeSsoStatus());
 });
 
 afterEach(() => {
@@ -510,5 +537,152 @@ describe("TeamView remove flow (09-07 Task 3, UI-09-06/07, TEAM-05)", () => {
 
     await item.trigger("click");
     expect(wrapper.find(".delete-dialog").exists()).toBe(false);
+  });
+});
+
+describe("TeamView Authentifizierung section (10-04, UI-10-01..06)", () => {
+  function stubClipboard(): { writeText: ReturnType<typeof vi.fn> } {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    return { writeText };
+  }
+
+  it("renders exactly two cards under an Authentifizierung heading, positioned between .team-table and .role-model-card (UI-10-01)", async () => {
+    listTeamMembers.mockResolvedValue([makeMember()]);
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Authentifizierung");
+    expect(wrapper.findAll(".magic-link-card")).toHaveLength(1);
+    expect(wrapper.findAll(".oidc-card")).toHaveLength(1);
+
+    const children = Array.from(wrapper.find(".screen-container").element.children);
+    const tableIdx = children.findIndex((el) => el.classList.contains("team-table"));
+    const authIdx = children.findIndex((el) => el.classList.contains("auth-section"));
+    const roleModelIdx = children.findIndex((el) => el.classList.contains("role-model-card"));
+
+    expect(tableIdx).toBeGreaterThanOrEqual(0);
+    expect(authIdx).toBeGreaterThan(tableIdx);
+    expect(roleModelIdx).toBeGreaterThan(authIdx);
+  });
+
+  it("Magic Link card shows the Standard badge, the code hint, and a working /login?preview=1 new-tab link (UI-10-09)", async () => {
+    listTeamMembers.mockResolvedValue([makeMember()]);
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const card = wrapper.find(".magic-link-card");
+    expect(card.text()).toContain("Magic Link");
+    expect(card.text()).toContain("Standard-Login. Anmeldung per E-Mail-Link, kein Passwort.");
+    expect(card.text()).toContain("Standard");
+    expect(card.text()).toContain("better-auth · magicLink()");
+
+    const link = card.find(".login-preview-link");
+    expect(link.exists()).toBe(true);
+    expect(link.attributes("href")).toBe("/login?preview=1");
+    expect(link.attributes("target")).toBe("_blank");
+    expect(link.attributes("rel")).toBe("noopener");
+    expect(link.text()).toContain("Login-Seite ansehen");
+  });
+
+  it("shows the neutral fallback and neither Aktiv nor Deaktiviert while ssoStatus is still loading (UI-10-02)", () => {
+    listTeamMembers.mockResolvedValue([makeMember()]);
+    getSsoStatus.mockReturnValue(new Promise(() => {})); // never resolves in this test
+
+    const wrapper = mount(TeamView);
+
+    const card = wrapper.find(".oidc-card");
+    expect(card.text()).toContain("SSO-Status konnte nicht geladen werden.");
+    expect(card.text()).not.toContain("Aktiv");
+    expect(card.text()).not.toContain("Deaktiviert");
+  });
+
+  it("renders the enabled OIDC state: Aktiv badge, issuer, masked client-id, copyable callback URL, role note (UI-10-04)", async () => {
+    listTeamMembers.mockResolvedValue([makeMember()]);
+    getSsoStatus.mockResolvedValue(
+      makeSsoStatus({
+        enabled: true,
+        issuer: "https://idp.example.com",
+        clientIdMasked: "ab12…yz89",
+        callbackPath: "/api/auth/oauth2/callback/oidc",
+      }),
+    );
+    const { writeText } = stubClipboard();
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const card = wrapper.find(".oidc-card");
+    expect(card.find(".status-badge.active").text()).toBe("Aktiv");
+    expect(card.text()).toContain("https://idp.example.com");
+    expect(card.text()).toContain("ab12…yz89");
+    expect(card.text()).toContain("/api/auth/oauth2/callback/oidc");
+    expect(card.text()).toContain("Neue Nutzer erhalten die Rolle Mitglied.");
+    expect(card.text()).not.toContain("Deaktiviert");
+
+    await card.find(".copy-button").trigger("click");
+    await flushPromises();
+    expect(writeText).toHaveBeenCalledWith("/api/auth/oauth2/callback/oidc");
+    expect(wrapper.text()).toContain("In Zwischenablage kopiert");
+  });
+
+  it("renders the disabled OIDC state: Deaktiviert badge, ENV-var setup block, and the callback URL to register (UI-10-04)", async () => {
+    listTeamMembers.mockResolvedValue([makeMember()]);
+    getSsoStatus.mockResolvedValue(
+      makeSsoStatus({ enabled: false, callbackPath: "/api/auth/oauth2/callback/oidc" }),
+    );
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const card = wrapper.find(".oidc-card");
+    const badge = card.find(".status-badge");
+    expect(badge.text()).toBe("Deaktiviert");
+    expect(badge.classes()).not.toContain("active");
+    expect(card.text()).toContain("Deaktiviert — nur Magic-Link-Login aktiv.");
+    expect(card.text()).toContain("OIDC_ISSUER_URL");
+    expect(card.text()).toContain("OIDC_CLIENT_ID");
+    expect(card.text()).toContain("OIDC_CLIENT_SECRET");
+    expect(card.text()).toContain("/api/auth/oauth2/callback/oidc");
+    expect(card.text()).not.toContain("Aktiv ");
+  });
+
+  it("never renders a client secret value or any credential input/toggle control in the OIDC card (D-10-02, UI-10-06)", async () => {
+    listTeamMembers.mockResolvedValue([makeMember()]);
+    getSsoStatus.mockResolvedValue(
+      makeSsoStatus({ enabled: true, issuer: "https://idp.example.com", clientIdMasked: "ab12…yz89" }),
+    );
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const card = wrapper.find(".oidc-card");
+    expect(card.findAll("input")).toHaveLength(0);
+    expect(card.findAll("select")).toHaveLength(0);
+    expect(card.html()).not.toContain("clientSecret");
+    expect(card.html()).not.toContain("client_secret");
+  });
+
+  it("copies the ENV-var setup block to the clipboard from the disabled state (UI-10-04)", async () => {
+    listTeamMembers.mockResolvedValue([makeMember()]);
+    getSsoStatus.mockResolvedValue(makeSsoStatus({ enabled: false }));
+    const { writeText } = stubClipboard();
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const card = wrapper.find(".oidc-card");
+    const copyButtons = card.findAll(".copy-button");
+    expect(copyButtons.length).toBeGreaterThanOrEqual(2);
+
+    await copyButtons[0]!.trigger("click");
+    await flushPromises();
+    expect(writeText).toHaveBeenCalled();
+    expect(wrapper.text()).toContain("In Zwischenablage kopiert");
   });
 });
