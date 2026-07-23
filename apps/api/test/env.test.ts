@@ -95,6 +95,65 @@ describe("parseEnv()", () => {
   });
 });
 
+describe("parseEnv() — OIDC/SSO all-three-or-none boot guard (D-10-07)", () => {
+  it("succeeds when none of the three OIDC vars are set (SSO off)", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv(VALID_SOURCE);
+
+    expect(result.success).toBe(true);
+  });
+
+  it("succeeds when all three OIDC vars are set, and the values are present on the parsed result", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      OIDC_ISSUER_URL: "https://idp.example.com",
+      OIDC_CLIENT_ID: "client-abc",
+      OIDC_CLIENT_SECRET: "secret-xyz",
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) throw new Error("expected success");
+    expect(result.data.OIDC_ISSUER_URL).toBe("https://idp.example.com");
+    expect(result.data.OIDC_CLIENT_ID).toBe("client-abc");
+    expect(result.data.OIDC_CLIENT_SECRET).toBe("secret-xyz");
+  });
+
+  it("fails with an issue naming the missing OIDC key(s) when only OIDC_ISSUER_URL is set", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      OIDC_ISSUER_URL: "https://idp.example.com",
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected failure");
+    const paths = result.issues.map((issue) => issue.path.join("."));
+    expect(paths).toContain("OIDC_CLIENT_ID");
+    expect(paths).toContain("OIDC_CLIENT_SECRET");
+  });
+
+  it("fails with an issue naming the missing OIDC key when two of three are set", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      OIDC_ISSUER_URL: "https://idp.example.com",
+      OIDC_CLIENT_ID: "client-abc",
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected failure");
+    const paths = result.issues.map((issue) => issue.path.join("."));
+    expect(paths).toContain("OIDC_CLIENT_SECRET");
+    expect(paths).not.toContain("OIDC_ISSUER_URL");
+    expect(paths).not.toContain("OIDC_CLIENT_ID");
+  });
+});
+
 describe("loadEnv() (fail-fast boot wrapper)", () => {
   let exitSpy: ReturnType<typeof vi.spyOn>;
   let errorSpy: ReturnType<typeof vi.spyOn>;
