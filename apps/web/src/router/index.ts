@@ -11,7 +11,6 @@ import { createRouter, createWebHistory } from "vue-router";
 import { useAuthSessionStore } from "../stores/authSession";
 import AnalyticsView from "../views/AnalyticsView.vue";
 import AuthErrorView from "../views/AuthErrorView.vue";
-import ComingSoonView from "../views/ComingSoonView.vue";
 import DashboardView from "../views/DashboardView.vue";
 import DomainsView from "../views/DomainsView.vue";
 import LinkDetailView from "../views/LinkDetailView.vue";
@@ -19,6 +18,7 @@ import LinksImportView from "../views/LinksImportView.vue";
 import LinksView from "../views/LinksView.vue";
 import LoginView from "../views/LoginView.vue";
 import QrCodesView from "../views/QrCodesView.vue";
+import TeamView from "../views/TeamView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -80,8 +80,11 @@ const router = createRouter({
     {
       path: "/team",
       name: "team",
-      component: ComingSoonView,
-      meta: { requiresAuth: true, label: "Team" },
+      component: TeamView,
+      // UI-09-01: requiresAdmin is enforced below in beforeEach, AFTER the
+      // existing requiresAuth check — UX convenience only (T-02-14), the
+      // server independently refuses non-admin /api/team access (D-09-02).
+      meta: { requiresAuth: true, requiresAdmin: true, label: "Team" },
     },
   ],
 });
@@ -114,6 +117,13 @@ router.beforeEach(async (to) => {
 
   if (!authSession.isAuthenticated) {
     return { name: "login" };
+  }
+
+  // UI-09-01: UX convenience only (T-02-14 precedent) — the server
+  // independently refuses every non-admin /api/team request regardless of
+  // what this client-side guard allows through (D-09-02).
+  if (to.meta.requiresAdmin && authSession.user?.accountRole !== "admin") {
+    return { name: "dashboard" };
   }
 
   return true;

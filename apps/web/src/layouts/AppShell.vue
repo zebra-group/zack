@@ -28,6 +28,16 @@ const navItems = [
   { label: "Team", to: { name: "team" } },
 ];
 
+/**
+ * UI-09-01: the "Team" entry is admin-only — a single filter over the same
+ * `navItems` array above (no second nav array). Purely a UX convenience
+ * (T-02-14 precedent) — the server independently refuses every
+ * non-admin `/api/team` request regardless (D-09-02).
+ */
+const visibleNavItems = computed(() =>
+  navItems.filter((item) => item.label !== "Team" || authSession.user?.accountRole === "admin"),
+);
+
 const isDark = computed(() => theme.theme === "dark");
 const themeLabel = computed(() => (isDark.value ? "Light Mode" : "Dark Mode"));
 
@@ -50,7 +60,7 @@ async function handleLogout(): Promise<void> {
 
       <nav class="nav-list">
         <RouterLink
-          v-for="item in navItems"
+          v-for="item in visibleNavItems"
           :key="item.label"
           :to="item.to"
           class="nav-item"
