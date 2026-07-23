@@ -105,6 +105,14 @@ export const envSchema = z.object({
   // absence must mean "retention pruning is off", not a silently-applied
   // window — a fresh instance must boot with zero tracking config.
   CLICK_RETENTION_DAYS: z.coerce.number().int().positive().optional(),
+  // OIDC/SSO (Phase 10, D-10-07) — optional with NO default: absence of
+  // all three means SSO is off, mirroring GEOIP_DB_PATH's absence=feature
+  // -off pattern above. All three must be present TOGETHER — enforced by
+  // the all-three-or-none guard in parseEnv() below (a partial set is a
+  // boot-time configuration error, never a half-enabled login path).
+  OIDC_ISSUER_URL: z.url().optional(),
+  OIDC_CLIENT_ID: z.string().min(1).optional(),
+  OIDC_CLIENT_SECRET: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -118,12 +126,35 @@ export type ParseEnvResult =
  * discriminated result instead of throwing, so callers (including tests)
  * can inspect the offending key(s) without unstructured errors.
  */
+const OIDC_KEYS = ["OIDC_ISSUER_URL", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET"] as const;
+
 export function parseEnv(source: NodeJS.ProcessEnv): ParseEnvResult {
   const result = envSchema.safeParse(source);
-  if (result.success) {
-    return { success: true, data: result.data };
+  if (!result.success) {
+    return { success: false, issues: result.error.issues };
   }
-  return { success: false, issues: result.error.issues };
+
+  // OIDC/SSO all-three-or-none boot guard (D-10-07, T-10-PARTIAL-CONFIG).
+  // `envSchema` keeps all three OIDC keys `.optional()` so it stays a plain
+  // ZodObject (test/env-example-drift.test.ts and test/env.test.ts both
+  // introspect `envSchema.shape` — wrapping it in `.refine()`/`.superRefine()`
+  // would make `.shape` undefined and break both). The cross-field
+  // all-three-or-none check therefore lives HERE, after the object-level
+  // safeParse succeeds, as a synthetic issue per missing key rather than a
+  // schema-level refinement.
+  const presentOidcKeys = OIDC_KEYS.filter((key) => Boolean(result.data[key]));
+  if (presentOidcKeys.length > 0 && presentOidcKeys.length < OIDC_KEYS.length) {
+    const missingOidcKeys = OIDC_KEYS.filter((key) => !result.data[key]);
+    const issues: z.core.$ZodIssue[] = missingOidcKeys.map((key) => ({
+      code: "custom",
+      path: [key],
+      message:
+        "SSO requires all three of OIDC_ISSUER_URL/OIDC_CLIENT_ID/OIDC_CLIENT_SECRET or none — a partial OIDC configuration is a boot-time error, not a half-enabled login path (D-10-07).",
+    }));
+    return { success: false, issues };
+  }
+
+  return { success: true, data: result.data };
 }
 
 /**
