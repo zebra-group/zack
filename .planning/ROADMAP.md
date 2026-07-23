@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Internal Tracking & Analytics** - Privacy-first, per-link and global click analytics with a true zero-third-party, zero-rows-when-off guarantee (completed 2026-07-13)
 - [x] **Phase 7: QR Codes (Static + Dynamic, QR Studio)** - Static and dynamic QR codes with logo overlay, styling, remap history, and decode-verified scannability (completed 2026-07-21)
 - [x] **Phase 8: UTM Builder + Custom OG Metadata** - Campaign-parameter builder and custom social-preview tags, entirely user-typed (no server-side fetch/SSRF surface) (completed 2026-07-22)
-- [ ] **Phase 9: Team Management & Domain-Scoped Authorization Enforcement** - Admins manage invites, roles, and domain assignments; Member access to Links/QR/Analytics is provably restricted server-side
+- [x] **Phase 9: Team Management & Domain-Scoped Authorization Enforcement** - Admins manage invites, roles, and domain assignments; Member access to Links/QR/Analytics is provably restricted server-side (completed 2026-07-23)
 - [ ] **Phase 10: OIDC/SSO Integration** - Optional SSO login, additive on top of magic-link auth, with new SSO users safely defaulting to Member with zero domains
 
 ## Phase Details
@@ -335,25 +335,25 @@ Plans:
 
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — AccountRole enum + User.accountRole column + migration, better-auth session field, account-admin seed, isAccountAdmin, SessionUser.accountRole (D-09-01)
+- [x] 09-01-PLAN.md — AccountRole enum + User.accountRole column + migration, better-auth session field, account-admin seed, isAccountAdmin, SessionUser.accountRole (D-09-01)
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 09-02-PLAN.md — Account-admin bypass inside requireDomainAccess/scopedDomainIds + member-unchanged regression (D-09-02, TEAM-06)
-- [ ] 09-03-PLAN.md — Team DTOs + lib/team.ts + admin-gated GET /api/team + POST invite (emailVerified-derived status, magic-link reuse, pending→active round-trip) (TEAM-01/02)
+- [x] 09-02-PLAN.md — Account-admin bypass inside requireDomainAccess/scopedDomainIds + member-unchanged regression (D-09-02, TEAM-06)
+- [x] 09-03-PLAN.md — Team DTOs + lib/team.ts + admin-gated GET /api/team + POST invite (emailVerified-derived status, magic-link reuse, pending→active round-trip) (TEAM-01/02)
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 09-04-PLAN.md — Team mutations: assign domains, change role (promote clears atomically), remove (content preserved), lockout guards (TEAM-03/04/05, D-09-05/06/07)
-- [ ] 09-05-PLAN.md — Exhaustive TEAM-06 domain-scoped denial suite + admin-bypass positive half (D-09-08)
+- [x] 09-04-PLAN.md — Team mutations: assign domains, change role (promote clears atomically), remove (content preserved), lockout guards (TEAM-03/04/05, D-09-05/06/07)
+- [x] 09-05-PLAN.md — Exhaustive TEAM-06 domain-scoped denial suite + admin-bypass positive half (D-09-08)
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 09-06-PLAN.md — Admin-only Team nav + requiresAdmin guard + listTeamMembers client + read-only TeamView table (UI-09-01/02/08/09, TEAM-02/06)
+- [x] 09-06-PLAN.md — Admin-only Team nav + requiresAdmin guard + listTeamMembers client + read-only TeamView table (UI-09-01/02/08/09, TEAM-02/06)
 
 **Wave 5** *(blocked on Wave 4)*
 
-- [ ] 09-07-PLAN.md — Team mutation UI: InviteMemberModal, immediate role change (optimistic/revert), AssignDomainsModal, remove flow + lockout (TEAM-01/03/04/05, UI-09-03..12)
+- [x] 09-07-PLAN.md — Team mutation UI: InviteMemberModal, immediate role change (optimistic/revert), AssignDomainsModal, remove flow + lockout (TEAM-01/03/04/05, UI-09-03..12)
 
 ### Phase 10: OIDC/SSO Integration
 
@@ -367,7 +367,14 @@ Plans:
   2. A user signs in through the configured OIDC provider once SSO is active, while magic-link login keeps working unchanged.
   3. A user newly created via SSO automatically receives the "Member" role with zero domain assignments — verified by an automated test — never inheriting Admin by default.
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — SSO ENV config (optional, all-three-or-none boot guard) + ssoConfig reader + SsoStatusDTO (AUTH-05, D-10-02/06/07)
+- [ ] 10-02-PLAN.md — Conditional genericOAuth in auth.ts + magic-link-unchanged & least-privilege safety tests (AUTH-06/07, D-10-01/03/04/05)
+- [ ] 10-03-PLAN.md — Read-only GET /api/sso/status endpoint (masked id, real callback, no secret) (AUTH-05, D-10-02/06)
+- [ ] 10-04-PLAN.md — TeamView "Authentifizierung" section + getSsoStatus client + /login preview guard (AUTH-05, UI-10-01..06/09)
+- [ ] 10-05-PLAN.md — LoginView conditional "Mit SSO anmelden" affordance (fail-closed, genericOAuth redirect) (AUTH-06, UI-10-07/08/10)
 
 ## Progress
 
@@ -385,8 +392,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Internal Tracking & Analytics | 8/8 | Complete    | 2026-07-13 |
 | 7. QR Codes (Static + Dynamic, QR Studio) | 9/9 | Complete    | 2026-07-21 |
 | 8. UTM Builder + Custom OG Metadata | 6/6 | Complete    | 2026-07-22 |
-| 9. Team Management & Domain-Scoped Authorization Enforcement | 0/7 | Not started | - |
-| 10. OIDC/SSO Integration | 0/TBD | Not started | - |
+| 9. Team Management & Domain-Scoped Authorization Enforcement | 7/7 | Complete    | 2026-07-23 |
+| 10. OIDC/SSO Integration | 0/5 | Not started | - |
 
 ---
 *Roadmap created: 2026-07-10*
