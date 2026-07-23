@@ -89,3 +89,33 @@ describe("inviteMember resend ignores domainIds without validating them (WR-03)"
     expect(result.member.domains).toEqual([]);
   });
 });
+
+/**
+ * A Prisma stub whose target lookup succeeds (an admin) but whose
+ * `$transaction` rejects with P2028 — the transaction-timeout/contention
+ * error the `SELECT ... FOR UPDATE` lockout guards can hit under sustained
+ * concurrency. This exercises ONLY the error-translation branch; the real
+ * concurrency guarantee is still covered by team-mutations.integration.test.ts.
+ */
+function contendingPrisma(): PrismaClient {
+  const p2028 = new Prisma.PrismaClientKnownRequestError(
+    "Transaction already closed: A query cannot be executed on an expired transaction.",
+    { code: "P2028", clientVersion: "test" },
+  );
+  return {
+    user: { findUnique: vi.fn().mockResolvedValue({ id: "admin-x", accountRole: "admin" }) },
+    $transaction: vi.fn().mockRejectedValue(p2028),
+  } as unknown as PrismaClient;
+}
+
+describe("lockout-guard transaction-contention mapping (WR-02)", () => {
+  it("changeMemberRole demote maps a P2028 contention error to a typed CONFLICT, not a throw", async () => {
+    const result = await changeMemberRole(contendingPrisma(), "admin-x", "member");
+    expect(result).toEqual({ ok: false, error: "CONFLICT" });
+  });
+
+  it("removeMember maps a P2028 contention error to a typed CONFLICT, not a throw", async () => {
+    const result = await removeMember(contendingPrisma(), "admin-x");
+    expect(result).toEqual({ ok: false, error: "CONFLICT" });
+  });
+});
