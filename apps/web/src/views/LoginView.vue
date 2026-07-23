@@ -8,7 +8,7 @@
  * Layout Contract" — do not consolidate spacing/typography (Design-Fidelity
  * Waiver, UI-03).
  */
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 
 type LoginState = "idle" | "sent";
 
@@ -16,6 +16,51 @@ const email = ref("");
 const state = ref<LoginState>("idle");
 const error = ref<string | null>(null);
 const loading = ref(false);
+
+// AUTH-06 / 10-UI-SPEC Surface B (UI-10-07..10): conditional "Mit SSO
+// anmelden" secondary action. Fail-closed by design (T-10-FAILOPEN) — stays
+// false unless the status fetch succeeds AND explicitly reports
+// enabled: true. No error is ever shown for a failed status read; magic-link
+// remains the only visible path.
+const ssoEnabled = ref(false);
+
+// The fixed genericOAuth provider id registered server-side
+// (apps/api/src/lib/ssoConfig.ts SSO_PROVIDER_ID) — both sides must always
+// agree so the sign-in call resolves to the configured provider.
+const SSO_PROVIDER_ID = "oidc";
+
+async function loadSsoStatus(): Promise<void> {
+  try {
+    const response = await fetch("/api/sso/status", { method: "GET" });
+    if (!response.ok) return;
+    const data = await response.json();
+    ssoEnabled.value = data?.enabled === true;
+  } catch {
+    // fail-closed (UI-10-08): leave ssoEnabled false, show no error.
+  }
+}
+
+onMounted(() => {
+  void loadSsoStatus();
+});
+
+async function signInWithSso(): Promise<void> {
+  try {
+    const response = await fetch("/api/auth/sign-in/oauth2", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ providerId: SSO_PROVIDER_ID, callbackURL: "/" }),
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (typeof data?.url === "string") {
+      window.location.assign(data.url);
+    }
+  } catch {
+    // No dead-click placeholder — a failed sign-in initiation simply leaves
+    // the user on the login screen where they can retry or use magic-link.
+  }
+}
 
 async function sendMagicLink(): Promise<void> {
   error.value = null;
@@ -93,6 +138,17 @@ function useAnotherEmail(): void {
           Magic Link senden
         </button>
         <p v-if="error" class="error-inline">{{ error }}</p>
+        <template v-if="ssoEnabled">
+          <div class="divider">
+            <div class="divider-line"></div>
+            <span>oder</span>
+            <div class="divider-line"></div>
+          </div>
+          <button type="button" class="sso-button" @click="signInWithSso">
+            <span class="sso-dot" aria-hidden="true"></span>
+            Mit SSO anmelden
+          </button>
+        </template>
       </template>
 
       <template v-else>
@@ -239,6 +295,53 @@ function useAnotherEmail(): void {
   font-size: 11.5px;
   color: #e5484d;
   margin: -6px 0 0;
+}
+
+/*
+ * AUTH-06 / 10-UI-SPEC Surface B (UI-10-07..10) — LOCKED prototype values
+ * (Z.478-480). Do not round/consolidate (Design-Fidelity Waiver, UI-03).
+ */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--mut);
+  font-size: 11px;
+}
+
+.divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.sso-button {
+  padding: 11px 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.sso-button:hover {
+  background: var(--hover);
+}
+
+/* Decorative only (aria-hidden) — the "Aktiv" meaning is carried by the
+   button's text label, not by color alone (T-10-COLOR-ONLY). */
+.sso-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
 }
 
 .sent-state {
