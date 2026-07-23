@@ -9,6 +9,7 @@
  * Waiver, UI-03).
  */
 import { onMounted, ref } from "vue";
+import { getSsoStatus } from "../api";
 
 type LoginState = "idle" | "sent";
 
@@ -31,10 +32,13 @@ const SSO_PROVIDER_ID = "oidc";
 
 async function loadSsoStatus(): Promise<void> {
   try {
-    const response = await fetch("/api/sso/status", { method: "GET" });
-    if (!response.ok) return;
-    const data = await response.json();
-    ssoEnabled.value = data?.enabled === true;
+    // IN-02: route through the typed `getSsoStatus()` client (same one
+    // TeamView uses) rather than a hand-rolled fetch + untyped `.json()`, so
+    // the endpoint URL and the SsoStatusDTO shape have a single consumer
+    // contract. A non-ok response throws `ApiError` — caught below and
+    // treated as fail-closed, exactly as before (UI-10-08).
+    const status = await getSsoStatus();
+    ssoEnabled.value = status.enabled === true;
   } catch {
     // fail-closed (UI-10-08): leave ssoEnabled false, show no error.
   }
