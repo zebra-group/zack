@@ -106,9 +106,12 @@ async function triggerMagicLinkSend(auth: Auth, email: string): Promise<void> {
  * Invite-or-resend (D-09-04). `domainIds` are only applied when
  * `accountRole` is `"member"` (D-09-02 makes per-domain assignment
  * meaningless for an account admin — silently ignored, never an error, for
- * an `"admin"` invite). An out-of-existence `domainId` is rejected with
- * `INVALID_DOMAIN` before any write, rather than surfacing as an unhandled
- * foreign-key violation.
+ * an `"admin"` invite) AND only on the NEW-user path. On a resend the
+ * existing row is returned untouched, so `domainIds` are neither applied nor
+ * validated there (WR-03) — per-domain assignment is the dedicated
+ * `PUT /:id/domains` endpoint's job. An out-of-existence `domainId` on the
+ * new-user path is rejected with `INVALID_DOMAIN` before any write, rather
+ * than surfacing as an unhandled foreign-key violation.
  */
 export async function inviteMember(
   prisma: PrismaClient,
@@ -116,16 +119,6 @@ export async function inviteMember(
   input: InviteMemberInput,
 ): Promise<InviteMemberResult> {
   const domainIds = input.accountRole === "member" ? (input.domainIds ?? []) : [];
-
-  if (domainIds.length > 0) {
-    const existingDomains = await prisma.domain.findMany({
-      where: { id: { in: domainIds } },
-      select: { id: true },
-    });
-    if (existingDomains.length !== new Set(domainIds).size) {
-      return { ok: false, error: "INVALID_DOMAIN" };
-    }
-  }
 
   const existingUser = await prisma.user.findUnique({
     where: { email: input.email },
@@ -136,8 +129,23 @@ export async function inviteMember(
   if (existingUser) {
     // D-09-04: a resend — no role change, no duplicate row, no membership
     // mutation (assigning domains to an existing member is TEAM-03's job).
+    // WR-03: `domainIds` are intentionally NOT validated here — validating an
+    // input this branch never applies was a footgun (a valid-but-unapplied,
+    // or invalid-and-rejected, id that the resend would ignore either way).
     user = existingUser;
   } else {
+    // WR-03: validate domain existence only on the path that actually applies
+    // them, so the request cost matches what the operation really does.
+    if (domainIds.length > 0) {
+      const existingDomains = await prisma.domain.findMany({
+        where: { id: { in: domainIds } },
+        select: { id: true },
+      });
+      if (existingDomains.length !== new Set(domainIds).size) {
+        return { ok: false, error: "INVALID_DOMAIN" };
+      }
+    }
+
     // WR-01: the User row and its membership rows are created atomically in
     // ONE `$transaction`, mirroring `assignMemberDomains`/`changeMemberRole`.
     // A failed membership write (e.g. the domain-existence TOCTOU) can no
