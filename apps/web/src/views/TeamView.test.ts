@@ -261,3 +261,102 @@ describe("TeamView role change (09-07 Task 1, UI-09-03/04/07)", () => {
     expect(memberSelect.attributes("disabled")).toBeUndefined();
   });
 });
+
+describe("TeamView invite flow (09-07 Task 2, §8/UI-09-11, D-09-04)", () => {
+  it("opens InviteMemberModal from the + Mitglied einladen button", async () => {
+    listTeamMembers.mockResolvedValue([makeMember()]);
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    expect(wrapper.find(".modal-dialog").exists()).toBe(false);
+    await wrapper.find(".invite-button").trigger("click");
+
+    expect(wrapper.find(".modal-dialog").exists()).toBe(true);
+    expect(wrapper.text()).toContain("Mitglied einladen");
+  });
+
+  it("invites a member, appends a new pending row without reload, toasts, and closes the modal", async () => {
+    listTeamMembers.mockResolvedValue([makeMember({ id: "u1", accountRole: "admin" })]);
+    listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+    inviteMember.mockResolvedValue({
+      id: "u2",
+      email: "neu@example.com",
+      name: null,
+      accountRole: "member",
+      status: "pending",
+      domains: [{ id: "d1", hostname: "s.meinefirma.de" }],
+    });
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    await wrapper.find(".invite-button").trigger("click");
+    await wrapper.find(".modal-dialog input").setValue("neu@example.com");
+    await wrapper.findAll(".domain-pill")[0]!.trigger("click");
+    await wrapper.find(".modal-dialog .btn-primary").trigger("click");
+    await flushPromises();
+
+    expect(inviteMember).toHaveBeenCalledWith({
+      email: "neu@example.com",
+      accountRole: "member",
+      domainIds: ["d1"],
+    });
+    expect(wrapper.findAll(".table-row")).toHaveLength(2);
+    expect(wrapper.text()).toContain("(Einladung offen)");
+    expect(wrapper.text()).toContain("Magic Link an neu@example.com gesendet");
+    expect(wrapper.find(".modal-dialog").exists()).toBe(false);
+  });
+
+  it("re-invites an existing address as a non-error resend, updating (not duplicating) the row", async () => {
+    listTeamMembers.mockResolvedValue([
+      makeMember({ id: "u1", accountRole: "admin" }),
+      makeMember({
+        id: "u2",
+        email: "pending@example.com",
+        name: null,
+        accountRole: "member",
+        status: "pending",
+        domains: [],
+      }),
+    ]);
+    listDomains.mockResolvedValue([]);
+    inviteMember.mockResolvedValue({
+      id: "u2",
+      email: "pending@example.com",
+      name: null,
+      accountRole: "member",
+      status: "pending",
+      domains: [],
+    });
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    await wrapper.find(".invite-button").trigger("click");
+    await wrapper.find(".modal-dialog input").setValue("pending@example.com");
+    await wrapper.find(".modal-dialog .btn-primary").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.findAll(".table-row")).toHaveLength(2);
+    expect(wrapper.text()).toContain("Magic Link an pending@example.com gesendet");
+  });
+
+  it("maps a rejected invite to the modal's inline error and keeps it open", async () => {
+    listTeamMembers.mockResolvedValue([makeMember({ id: "u1", accountRole: "admin" })]);
+    listDomains.mockResolvedValue([]);
+    inviteMember.mockRejectedValue(new ApiError(400, "Bad Request"));
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    await wrapper.find(".invite-button").trigger("click");
+    await wrapper.find(".modal-dialog input").setValue("neu@example.com");
+    await wrapper.find(".modal-dialog .btn-primary").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find(".modal-dialog").exists()).toBe(true);
+    expect(wrapper.find(".field-error").text()).toBe("Aktion fehlgeschlagen. Bitte erneut versuchen.");
+    expect(wrapper.findAll(".table-row")).toHaveLength(1);
+  });
+});
