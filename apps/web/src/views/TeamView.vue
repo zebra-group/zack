@@ -1,24 +1,30 @@
 <script setup lang="ts">
 /**
- * Team screen (09-UI-SPEC.md Layout Contract — Surface B, TEAM-01/02,
- * UI-09-08/09) — replaces ComingSoonView at route /team (admin-only,
- * UI-09-01). This plan (09-06) is the READ-ONLY slice: loads the full
- * member roster and renders it exactly per the locked contract — avatar +
- * name/email, role <select> (present, no @change wired), domain-access
- * pills, status badge, and the dashed role-model note card. The invite
- * button, role <select> onChange, "+ zuweisen"/domain-chip click, and the
- * ⋯ action menu render present but INERT — their mutation handlers and the
- * two modals (InviteMemberModal/AssignDomainsModal) land in 09-07.
+ * Team screen (09-UI-SPEC.md Layout Contract — Surface B, TEAM-01..05,
+ * UI-09-*) — replaces ComingSoonView at route /team (admin-only, UI-09-01).
+ * 09-06 built the READ-ONLY slice (roster load, avatar/name/email, status
+ * badge, role-model card). This plan (09-07) wires the mutation surface:
+ * the role <select> commits immediately (UI-09-03), a member->admin change
+ * swaps domain chips for the "alle Domains" pill in the same optimistic
+ * update and rolls BOTH back together on failure (UI-09-04), and a
+ * client-side `lastAdmin` computed proactively disables the sole admin's
+ * select with an explanatory `title` (UI-09-07) — the server (09-04) stays
+ * authoritative regardless.
  *
  * UI-09-08 (T-09-STATUS-REDERIVE): the status badge reads `member.status`
  * verbatim — never re-derives it from `emailVerified`, which never crosses
  * the JSON boundary on this DTO (see packages/shared TeamMemberDTO).
  */
 import { computed, ref } from "vue";
-import type { TeamMemberDTO } from "@kurzly/shared";
-import { listTeamMembers } from "../api";
+import type { AccountRole, TeamMemberDTO } from "@kurzly/shared";
+import { changeMemberRole, listTeamMembers, mapTeamError } from "../api";
 
-const members = ref<TeamMemberDTO[]>([]);
+/** Adds a transient, row-local mutation error (UI-09-03/07's `.member-error-row`) — never persisted server-side. */
+interface MemberUI extends TeamMemberDTO {
+  error?: string | null;
+}
+
+const members = ref<MemberUI[]>([]);
 const toastMessage = ref<string | null>(null);
 let toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -26,9 +32,17 @@ const memberCountLabel = computed(
   () => `${members.value.length} Mitglieder · Rollen & Domain-Zugriff`,
 );
 
+/** UI-09-07: the number of current admins in the loaded roster. */
+const adminCount = computed(() => members.value.filter((m) => m.accountRole === "admin").length);
+
+/** UI-09-07: proactive client-side guard — the sole remaining admin cannot demote/be-removed via the UI. */
+function lastAdmin(member: MemberUI): boolean {
+  return member.accountRole === "admin" && adminCount.value === 1;
+}
+
 async function loadMembers(): Promise<void> {
   try {
-    members.value = await listTeamMembers();
+    members.value = (await listTeamMembers()).map((m) => ({ ...m, error: null }));
   } catch {
     showToast("Team konnte nicht geladen werden.");
   }
@@ -40,6 +54,34 @@ function showToast(message: string): void {
   toastTimeout = setTimeout(() => {
     toastMessage.value = null;
   }, 1700);
+}
+
+/**
+ * UI-09-03/04/07: commits the role change immediately on `change`. A
+ * member->admin change swaps the domain chips for the "alle Domains" pill
+ * in the SAME optimistic update (UI-09-04); a rejection reverts BOTH the
+ * role and the domains together and renders a typed inline error via
+ * `mapTeamError` (LAST_ADMIN gets its own locked copy, everything else the
+ * generic fallback).
+ */
+async function handleRoleChange(member: MemberUI, event: Event): Promise<void> {
+  const newRole = (event.target as HTMLSelectElement).value as AccountRole;
+  const previousRole = member.accountRole;
+  const previousDomains = member.domains;
+
+  member.error = null;
+  member.accountRole = newRole;
+  if (newRole === "admin") member.domains = [];
+
+  try {
+    const updated = await changeMemberRole(member.id, newRole);
+    Object.assign(member, updated);
+    showToast("Rolle aktualisiert");
+  } catch (err) {
+    member.accountRole = previousRole;
+    member.domains = previousDomains;
+    member.error = mapTeamError(err);
+  }
 }
 
 /**
@@ -93,42 +135,52 @@ loadMembers();
         <span></span>
       </div>
 
-      <div v-for="member in members" :key="member.id" class="table-row">
-        <div class="user-cell">
-          <div class="avatar">{{ initials(member.name, member.email) }}</div>
-          <div class="user-info">
-            <div class="user-name">{{ displayName(member) }}</div>
-            <div class="user-email">{{ member.email }}</div>
+      <template v-for="member in members" :key="member.id">
+        <div class="table-row">
+          <div class="user-cell">
+            <div class="avatar">{{ initials(member.name, member.email) }}</div>
+            <div class="user-info">
+              <div class="user-name">{{ displayName(member) }}</div>
+              <div class="user-email">{{ member.email }}</div>
+            </div>
           </div>
-        </div>
 
-        <div class="role-cell">
-          <select class="role-select" :value="member.accountRole">
-            <option value="admin">Admin</option>
-            <option value="member">Mitglied</option>
-          </select>
-        </div>
+          <div class="role-cell">
+            <select
+              class="role-select"
+              :value="member.accountRole"
+              :disabled="lastAdmin(member)"
+              :title="lastAdmin(member) ? 'Der letzte Admin kann seine Rolle nicht ändern.' : undefined"
+              @change="handleRoleChange(member, $event)"
+            >
+              <option value="admin">Admin</option>
+              <option value="member">Mitglied</option>
+            </select>
+          </div>
 
-        <div class="domain-cell">
-          <span v-if="member.accountRole === 'admin'" class="all-domains-pill">
-            alle Domains
-          </span>
-          <template v-else>
-            <span v-for="domain in member.domains" :key="domain.id" class="domain-chip">
-              {{ domain.hostname }}
+          <div class="domain-cell">
+            <span v-if="member.accountRole === 'admin'" class="all-domains-pill">
+              alle Domains
             </span>
-            <span class="assign-pill">+ zuweisen</span>
-          </template>
+            <template v-else>
+              <span v-for="domain in member.domains" :key="domain.id" class="domain-chip">
+                {{ domain.hostname }}
+              </span>
+              <span class="assign-pill">+ zuweisen</span>
+            </template>
+          </div>
+
+          <div class="status-cell">
+            <span class="status-badge" :class="{ active: member.status === 'active' }">
+              {{ statusLabel(member.status) }}
+            </span>
+          </div>
+
+          <div class="menu-cell">⋯</div>
         </div>
 
-        <div class="status-cell">
-          <span class="status-badge" :class="{ active: member.status === 'active' }">
-            {{ statusLabel(member.status) }}
-          </span>
-        </div>
-
-        <div class="menu-cell">⋯</div>
-      </div>
+        <div v-if="member.error" class="member-error-row">{{ member.error }}</div>
+      </template>
     </div>
 
     <div class="role-model-card">
@@ -335,6 +387,14 @@ loadMembers();
 
 .menu-cell:hover {
   color: var(--text);
+}
+
+/* Inline row mutation error (UI-09-03/04/07) — style = DomainsView's
+   .verify-error-row (03-UI-SPEC.md). */
+.member-error-row {
+  padding: 0 16px 12px;
+  font-size: 11.5px;
+  color: #e5484d;
 }
 
 /* Role-model note card (LOCKED Z.453) */
