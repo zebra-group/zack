@@ -32,6 +32,24 @@ describe("Authorization core (D-02)", () => {
   }
 
   /**
+   * Account-admin variant of seedUser (D-09-02) — creates a User whose
+   * `accountRole` is `"admin"`, the sole condition `isAccountAdmin`
+   * (09-01) checks. Deliberately still a plain function (not a shared
+   * fixture file) to match this suite's existing seedUser/seedDomain style.
+   */
+  async function seedAdminUser() {
+    userSeq += 1;
+    return prisma.user.create({
+      data: {
+        id: `u_authz_admin_${userSeq}`,
+        name: `Authz Admin Test User ${userSeq}`,
+        email: `authz-admin-${userSeq}@test.kurzly`,
+        accountRole: "admin",
+      },
+    });
+  }
+
+  /**
    * Phase 3 extended `Domain` with required `hostname`/`type`/
    * `verificationTarget` fields (RESEARCH Pitfall 2) — this suite only
    * exercises `requireDomainAccess`/`scopedDomainIds` against
@@ -154,6 +172,69 @@ describe("Authorization core (D-02)", () => {
       const ids = await scopedDomainIds(prisma, user.id);
 
       expect(ids).toEqual([]);
+    });
+  });
+
+  describe("account-admin bypass (D-09-02)", () => {
+    it("requireDomainAccess resolves for an account-admin on a domain they hold NO membership on, at minRole 'admin'", async () => {
+      const admin = await seedAdminUser();
+      const domain = await seedDomain();
+      // Deliberately no DomainMembership row for this admin/domain pair.
+
+      await expect(
+        requireDomainAccess(prisma, admin.id, domain.id, "admin"),
+      ).resolves.toBeUndefined();
+    });
+
+    it("requireDomainAccess resolves for an account-admin on a domain they hold NO membership on, at minRole 'member'", async () => {
+      const admin = await seedAdminUser();
+      const domain = await seedDomain();
+
+      await expect(
+        requireDomainAccess(prisma, admin.id, domain.id, "member"),
+      ).resolves.toBeUndefined();
+    });
+
+    it("member-unchanged regression: still throws ForbiddenError for a plain member on a domain they hold no membership on", async () => {
+      const member = await seedUser();
+      const domain = await seedDomain();
+      // Deliberately no DomainMembership row — this member's accountRole
+      // defaults to "member", so the D-09-02 bypass must NOT engage.
+
+      await expect(
+        requireDomainAccess(prisma, member.id, domain.id, "member"),
+      ).rejects.toThrow(ForbiddenError);
+    });
+
+    it("scopedDomainIds returns EVERY domain id for an account-admin, including domains they hold no membership on", async () => {
+      const admin = await seedAdminUser();
+      const memberDomain = await seedDomain();
+      const unassignedDomain = await seedDomain();
+      await prisma.domainMembership.create({
+        data: { userId: admin.id, domainId: memberDomain.id, role: "member" },
+      });
+      // unassignedDomain deliberately has no membership row for this admin.
+
+      const ids = await scopedDomainIds(prisma, admin.id);
+
+      expect(ids).toEqual(
+        expect.arrayContaining([memberDomain.id, unassignedDomain.id]),
+      );
+    });
+
+    it("member-unchanged regression: scopedDomainIds still returns EXACTLY a member's own memberships, never all domains", async () => {
+      const member = await seedUser();
+      const ownDomain = await seedDomain();
+      const otherDomain = await seedDomain();
+      await prisma.domainMembership.create({
+        data: { userId: member.id, domainId: ownDomain.id, role: "member" },
+      });
+      // otherDomain deliberately has no membership row for this member.
+
+      const ids = await scopedDomainIds(prisma, member.id);
+
+      expect(ids).toEqual([ownDomain.id]);
+      expect(ids).not.toContain(otherDomain.id);
     });
   });
 });
