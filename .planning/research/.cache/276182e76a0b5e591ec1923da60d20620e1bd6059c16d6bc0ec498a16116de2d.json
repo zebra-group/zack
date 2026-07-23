@@ -1,0 +1,1 @@
+{"content":"Postgres compose healthcheck: test [CMD-SHELL, pg_isready -U <user>], interval 5-10s, timeout 5s, retries 5, start_period 10-30s; app service uses depends_on: db: condition: service_healthy to block start until DB ready.","source":"web","provider":"websearch","confidence":"MEDIUM","fetched_at":"2026-07-10T19:31:19.636Z","ttl":86400000,"kind":"web"}
