@@ -154,6 +154,92 @@ describe("parseEnv() — OIDC/SSO all-three-or-none boot guard (D-10-07)", () =>
   });
 });
 
+describe("parseEnv() — empty/whitespace optional vars normalize to unset (CR-01)", () => {
+  it("boots with SSO OFF when all three OIDC vars are present but empty (verbatim .env.example copy)", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    // Reproduces the documented copy-.env.example-verbatim workflow: dotenv
+    // turns `OIDC_ISSUER_URL=` into `""` (not undefined), and `.optional()`
+    // only admits undefined — so the empty strings must be normalized to
+    // "not set" BEFORE Zod runs, or the whole boot (magic-link included)
+    // fails on a var the operator never intended to configure.
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      OIDC_ISSUER_URL: "",
+      OIDC_CLIENT_ID: "",
+      OIDC_CLIENT_SECRET: "",
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) throw new Error("expected success");
+    expect(result.data.OIDC_ISSUER_URL).toBeUndefined();
+    expect(result.data.OIDC_CLIENT_ID).toBeUndefined();
+    expect(result.data.OIDC_CLIENT_SECRET).toBeUndefined();
+  });
+
+  it("treats whitespace-only optional OIDC vars as unset (SSO off)", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      OIDC_ISSUER_URL: "   ",
+      OIDC_CLIENT_ID: "\t",
+      OIDC_CLIENT_SECRET: " ",
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) throw new Error("expected success");
+    expect(result.data.OIDC_ISSUER_URL).toBeUndefined();
+  });
+
+  it("still enforces all-three-or-none when one OIDC var is empty and the other two are set (partial config)", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    // An empty issuer normalizes to unset, leaving id+secret set — this is a
+    // PARTIAL config and must remain the clear all-three-or-none boot error,
+    // not a silently half-enabled SSO path.
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      OIDC_ISSUER_URL: "",
+      OIDC_CLIENT_ID: "client-abc",
+      OIDC_CLIENT_SECRET: "secret-xyz",
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected failure");
+    const paths = result.issues.map((issue) => issue.path.join("."));
+    expect(paths).toContain("OIDC_ISSUER_URL");
+    expect(paths).not.toContain("OIDC_CLIENT_ID");
+    expect(paths).not.toContain("OIDC_CLIENT_SECRET");
+  });
+
+  it("normalizes the same latent defect for GEOIP_DB_PATH and CLICK_RETENTION_DAYS (empty = feature off)", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      GEOIP_DB_PATH: "",
+      CLICK_RETENTION_DAYS: "",
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) throw new Error("expected success");
+    expect(result.data.GEOIP_DB_PATH).toBeUndefined();
+    expect(result.data.CLICK_RETENTION_DAYS).toBeUndefined();
+  });
+
+  it("does NOT weaken a REQUIRED var — an empty DATABASE_URL still fails loudly", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({ ...VALID_SOURCE, DATABASE_URL: "" });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected failure");
+    const paths = result.issues.map((issue) => issue.path.join("."));
+    expect(paths).toContain("DATABASE_URL");
+  });
+});
+
 describe("loadEnv() (fail-fast boot wrapper)", () => {
   let exitSpy: ReturnType<typeof vi.spyOn>;
   let errorSpy: ReturnType<typeof vi.spyOn>;
