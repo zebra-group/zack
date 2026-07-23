@@ -258,7 +258,15 @@ describe("LoginView", () => {
         "/api/auth/sign-in/oauth2",
         expect.objectContaining({
           method: "POST",
-          body: JSON.stringify({ providerId: "oidc", callbackURL: "/" }),
+          // WR-02: `errorCallbackURL` must be sent (mirroring the magic-link
+          // CR-02 fix) so an OAuth callback failure (IdP denies, state
+          // mismatch, discovery/token error) routes to the dedicated
+          // /auth/error screen instead of silently bouncing back to "/".
+          body: JSON.stringify({
+            providerId: "oidc",
+            callbackURL: "/",
+            errorCallbackURL: "/auth/error",
+          }),
         }),
       );
       expect(assignMock).toHaveBeenCalledWith(authorizeUrl);
