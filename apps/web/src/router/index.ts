@@ -107,7 +107,17 @@ router.beforeEach(async (to) => {
   // authenticated user has no reason to see the login form. Not a security
   // boundary (T-02-14, same as the guard below): this is a UX redirect
   // only, the session cookie/API access is unaffected either way.
-  if (to.name === "login" && authSession.isAuthenticated) {
+  //
+  // UI-10-09 escape hatch (T-02-14): `?preview=1` suppresses ONLY this
+  // redirect, letting TeamView's "Login-Seite ansehen →" button actually
+  // render the login form for an already-authenticated admin instead of
+  // bouncing them straight back to the dashboard. This is still a UX
+  // boundary only — the public login form and its magic-link send action
+  // expose nothing an authenticated admin couldn't already see, and the
+  // session/API access is unaffected either way (T-10-PREVIEW-GUARD).
+  // Every other authenticated-user->/login case (no preview param) keeps
+  // the default redirect unchanged.
+  if (to.name === "login" && authSession.isAuthenticated && to.query.preview !== "1") {
     return { name: "dashboard" };
   }
 
