@@ -24,9 +24,27 @@ export type CanaryResult = {
 export const ROLE_HIERARCHY = { member: 0, admin: 1, owner: 2 } as const;
 export type Role = keyof typeof ROLE_HIERARCHY;
 
+// Phase 9 (team management & domain-scoped authorization, D-09-01)
+
+/**
+ * Global account role — what a user IS on this installation, distinct from
+ * the per-domain `Role` above (what a user may do WITHIN one domain).
+ * Mirrors `apps/api/prisma/schema.prisma`'s `AccountRole` enum and
+ * `apps/api/src/lib/accountRole.ts`'s `isAccountAdmin`. Admin = everything;
+ * Member = only assigned domains (Links/QR/Analytics).
+ */
+export const ACCOUNT_ROLES = ["admin", "member"] as const;
+export type AccountRole = (typeof ACCOUNT_ROLES)[number];
+
 export type SessionUser = {
   id: string;
   email: string;
+  /**
+   * UI-09-02 data contract — always present because the server always
+   * provides it (better-auth's `user.additionalFields.accountRole`, wired
+   * in `apps/api/src/lib/auth.ts`). Never client-settable.
+   */
+  accountRole: AccountRole;
 };
 
 export type DomainMembership = {

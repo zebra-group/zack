@@ -37,6 +37,14 @@ model User {
   email         String
   emailVerified Boolean            @default(false)
   image         String?
+  /// Global account role (Phase 9, D-09-01) — what this user IS on this
+  /// installation, distinct from the per-domain `Role` enum below (what a
+  /// user may do WITHIN one domain, via `DomainMembership`). Admin =
+  /// everything on this installation; Member = only assigned domains
+  /// (Links/QR/Analytics). Additive/defaulted so every pre-existing row
+  /// backfills to the least-privileged "member" (T-09-MIGR-BACKFILL) — no
+  /// existing user is silently elevated by this migration.
+  accountRole   AccountRole        @default(member)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
   sessions      Session[]
@@ -131,6 +139,20 @@ enum DomainStatus {
   pending
   active
   failed
+}
+
+/// Global account role (Phase 9, D-09-01) — a native Postgres enum (not a
+/// plain TEXT column) so an invalid/typo'd value can never be persisted,
+/// mirroring the `Role` enum's own defense-in-depth precedent immediately
+/// below. Distinct from `Role`: this is the installation-wide role
+/// (`User.accountRole`), never the per-domain one (`DomainMembership.role`).
+/// The one shared authorization primitive that reads this is
+/// `isAccountAdmin` (apps/api/src/lib/accountRole.ts) — both the
+/// authorization-helper admin bypass (09-02) and the team routes (09-03/
+/// 09-04) import it rather than re-deriving the check ad hoc.
+enum AccountRole {
+  admin
+  member
 }
 
 /// Domain-scoped role hierarchy (D-02, CR-01 fix). A native Postgres enum
