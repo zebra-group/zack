@@ -35,7 +35,14 @@
  * admin from a first invite except that no new row/membership is created.
  */
 import { randomUUID } from "node:crypto";
-import type { InviteMemberInput, TeamMemberDTO } from "@kurzly/shared";
+import type {
+  AssignDomainsInput,
+  InviteMemberInput,
+  TeamErrorCode,
+  TeamMemberDTO,
+  UpdateMemberRoleInput,
+} from "@kurzly/shared";
+import { Prisma } from "../generated/prisma/client.js";
 import type { Domain, DomainMembership, PrismaClient, User } from "../generated/prisma/client.js";
 import type { createAuth } from "./auth.js";
 
@@ -162,4 +169,183 @@ export async function inviteMember(
   await triggerMagicLinkSend(auth, input.email);
 
   return { ok: true, member: toTeamMemberDto(user) };
+}
+
+/*
+ * ---------------------------------------------------------------------
+ * Mutations (Phase 9 Plan 4, TEAM-03/TEAM-04/TEAM-05, D-09-05/06/07) —
+ * assign domains, change role (promote-clears), remove. Every function
+ * below returns a typed discriminated-union result and never throws for
+ * an expected outcome (unknown target -> NOT_FOUND, lockout -> LAST_ADMIN,
+ * bad domain id -> INVALID_DOMAIN) — mirrors `inviteMember`'s own
+ * typed-result convention above.
+ * ---------------------------------------------------------------------
+ */
+
+export type TeamMutationResult =
+  | { ok: true; member: TeamMemberDTO }
+  | { ok: false; error: TeamErrorCode };
+
+/** `removeMember`'s result carries no DTO — the row is gone. */
+export type RemoveMemberResult = { ok: true } | { ok: false; error: TeamErrorCode };
+
+/**
+ * D-09-07 concurrency safety (T-09-LOCKOUT, high severity — mitigate):
+ * locks every `accountRole="admin"` row (`SELECT ... FOR UPDATE`) before
+ * counting. A plain `count()` re-asserted inside a `prisma.$transaction` is
+ * NOT sufficient to prevent two concurrent demote/remove requests from both
+ * observing the same pre-mutation count under Postgres' default READ
+ * COMMITTED isolation — each transaction's own SELECT only ever sees the
+ * last COMMITTED state, never another transaction's in-flight write, so two
+ * admins concurrently demoting/removing two DIFFERENT admin rows would both
+ * see count===2 and both proceed, leaving zero admins. `FOR UPDATE` closes
+ * this: Postgres blocks the second transaction's lock acquisition until the
+ * first COMMITS, so the second re-reads the POST-mutation admin set and
+ * correctly observes count===1. Usable with either the base client (no
+ * durable lock outside an explicit transaction) or a transaction client
+ * (the intended, guarded usage — see `changeMemberRole`/`removeMember`
+ * below). The promote-to-admin path (D-09-05) never reduces the admin
+ * count, so it does not need this guard.
+ */
+async function countAdmins(client: PrismaClient | Prisma.TransactionClient): Promise<number> {
+  const rows = await client.$queryRaw<{ id: string }[]>(
+    Prisma.sql`SELECT id FROM "user" WHERE "accountRole" = ${"admin"}::"AccountRole" FOR UPDATE`,
+  );
+  return rows.length;
+}
+
+/**
+ * TEAM-03 — replaces the target's `DomainMembership` set with EXACTLY
+ * `domainIds` (always `role: "member"`), in one transaction so a partial
+ * add/remove can never be observed. Passing `[]` clears every assignment.
+ * An unknown `domainId` is rejected with `INVALID_DOMAIN` before any write
+ * (mirrors `inviteMember`'s own pre-write domain-existence guard above).
+ */
+export async function assignMemberDomains(
+  prisma: PrismaClient,
+  targetUserId: string,
+  domainIds: AssignDomainsInput["domainIds"],
+): Promise<TeamMutationResult> {
+  const target = await prisma.user.findUnique({ where: { id: targetUserId } });
+  if (!target) return { ok: false, error: "NOT_FOUND" };
+
+  if (domainIds.length > 0) {
+    const existingDomains = await prisma.domain.findMany({
+      where: { id: { in: domainIds } },
+      select: { id: true },
+    });
+    if (existingDomains.length !== new Set(domainIds).size) {
+      return { ok: false, error: "INVALID_DOMAIN" };
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.domainMembership.deleteMany({ where: { userId: targetUserId } });
+    if (domainIds.length > 0) {
+      await tx.domainMembership.createMany({
+        data: domainIds.map((domainId) => ({
+          userId: targetUserId,
+          domainId,
+          role: "member" as const,
+        })),
+      });
+    }
+  });
+
+  const updated = await prisma.user.findUniqueOrThrow({
+    where: { id: targetUserId },
+    include: MEMBERSHIPS_INCLUDE,
+  });
+  return { ok: true, member: toTeamMemberDto(updated) };
+}
+
+/**
+ * TEAM-04 — changes the target's `accountRole`.
+ *
+ * Promoting to `"admin"` (D-09-05): the target's entire `DomainMembership`
+ * set is deleted AND `accountRole` is set to `"admin"` inside ONE
+ * `prisma.$transaction`, so no partial "admin still scoped to a domain"
+ * state can ever be observed — an admin already reaches every domain
+ * (D-09-02), so a leftover membership row would be meaningless AND stale.
+ *
+ * Demoting to `"member"` (D-09-07): leaves the target with NO domain
+ * assignments (the safe direction — a demotion never silently hands out
+ * access) and is guarded against removing the last admin. The guard and
+ * the update run inside ONE `prisma.$transaction`, re-reading the target's
+ * CURRENT role and `countAdmins(tx)` (FOR UPDATE-locked) inside it — never
+ * trusting the role read before the transaction started — so a concurrent
+ * second demote cannot slip past a stale check.
+ */
+export async function changeMemberRole(
+  prisma: PrismaClient,
+  targetUserId: string,
+  newRole: UpdateMemberRoleInput["accountRole"],
+): Promise<TeamMutationResult> {
+  const target = await prisma.user.findUnique({ where: { id: targetUserId } });
+  if (!target) return { ok: false, error: "NOT_FOUND" };
+
+  if (newRole === "admin") {
+    await prisma.$transaction(async (tx) => {
+      await tx.domainMembership.deleteMany({ where: { userId: targetUserId } });
+      await tx.user.update({ where: { id: targetUserId }, data: { accountRole: "admin" } });
+    });
+  } else {
+    const guard = await prisma.$transaction(async (tx): Promise<RemoveMemberResult> => {
+      const current = await tx.user.findUniqueOrThrow({
+        where: { id: targetUserId },
+        select: { accountRole: true },
+      });
+      if (current.accountRole === "admin") {
+        const admins = await countAdmins(tx);
+        if (admins <= 1) {
+          return { ok: false, error: "LAST_ADMIN" };
+        }
+      }
+      await tx.user.update({ where: { id: targetUserId }, data: { accountRole: "member" } });
+      return { ok: true };
+    });
+    if (!guard.ok) return guard;
+  }
+
+  const updated = await prisma.user.findUniqueOrThrow({
+    where: { id: targetUserId },
+    include: MEMBERSHIPS_INCLUDE,
+  });
+  return { ok: true, member: toTeamMemberDto(updated) };
+}
+
+/**
+ * TEAM-05 — deletes the target `User` row. D-09-06: relies ENTIRELY on the
+ * schema's own constraints for cleanup — `Link.creator` is
+ * `onDelete: SetNull` (a removed user's Links/QR codes survive with
+ * `createdBy: null`) and `DomainMembership` is `onDelete: Cascade` (their
+ * access rows vanish) — no manual cleanup query is ever issued here.
+ *
+ * D-09-07: guarded exactly like `changeMemberRole`'s demote branch — the
+ * target's CURRENT role and `countAdmins(tx)` are re-read inside the SAME
+ * transaction as the delete, so this also covers "remove your own account
+ * while sole admin" (the caller IS the target in that case; the route
+ * layer does not special-case it, the guard already does).
+ */
+export async function removeMember(
+  prisma: PrismaClient,
+  targetUserId: string,
+): Promise<RemoveMemberResult> {
+  const target = await prisma.user.findUnique({ where: { id: targetUserId } });
+  if (!target) return { ok: false, error: "NOT_FOUND" };
+
+  return prisma.$transaction(async (tx): Promise<RemoveMemberResult> => {
+    const current = await tx.user.findUniqueOrThrow({
+      where: { id: targetUserId },
+      select: { accountRole: true },
+    });
+    if (current.accountRole === "admin") {
+      const admins = await countAdmins(tx);
+      if (admins <= 1) {
+        return { ok: false, error: "LAST_ADMIN" };
+      }
+    }
+    await tx.user.delete({ where: { id: targetUserId } });
+    return { ok: true };
+  });
 }
