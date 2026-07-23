@@ -259,3 +259,290 @@ describe("lib/team.ts mutations (TEAM-03/04/05, D-09-05/06/07)", () => {
     });
   });
 });
+
+/** Joins one or more raw `Set-Cookie` headers into a single `Cookie` header value. */
+function toCookieHeader(setCookie: string | string[] | undefined): string {
+  if (!setCookie) return "";
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+  return cookies.map((cookie) => cookie.split(";")[0]).join("; ");
+}
+
+/** Extracts the `token` query param from a captured magic-link verify URL. */
+function extractToken(magicLinkUrl: string): string {
+  const token = new URL(magicLinkUrl).searchParams.get("token");
+  if (!token) {
+    throw new Error(`No token found in magic-link URL: ${magicLinkUrl}`);
+  }
+  return token;
+}
+
+/** Requests a magic link for `email` and returns the captured verify URL. */
+async function requestMagicLinkUrl(
+  app: Awaited<ReturnType<typeof buildApp>>,
+  email: string,
+): Promise<string> {
+  await app.inject({
+    method: "POST",
+    url: "/api/auth/sign-in/magic-link",
+    payload: { email, callbackURL: "/", errorCallbackURL: "/auth/error" },
+  });
+  const call = vi.mocked(sendMagicLinkEmail).mock.calls.at(-1);
+  const url = call?.[0]?.url;
+  if (!url) {
+    throw new Error(`sendMagicLinkEmail was not called for ${email}`);
+  }
+  return url;
+}
+
+/** Signs `email` in via the full magic-link round trip and returns a Cookie header. */
+async function signInAs(app: Awaited<ReturnType<typeof buildApp>>, email: string): Promise<string> {
+  const magicLinkUrl = await requestMagicLinkUrl(app, email);
+  const token = extractToken(magicLinkUrl);
+  const verifyRes = await app.inject({
+    method: "GET",
+    url: `/api/auth/magic-link/verify?token=${encodeURIComponent(token)}`,
+  });
+  return toCookieHeader(verifyRes.headers["set-cookie"]);
+}
+
+const ROUTE_ADMIN_EMAIL = "route-admin@kurzly.test";
+const ROUTE_MEMBER_EMAIL = "route-member@kurzly.test";
+
+describe("Team mutation routes (TEAM-03/04/05, D-09-05/06/07)", () => {
+  beforeEach(async () => {
+    vi.mocked(sendMagicLinkEmail).mockClear();
+    await seedInitialAdmin(prisma, ROUTE_ADMIN_EMAIL);
+    await prisma.user.upsert({
+      where: { email: ROUTE_MEMBER_EMAIL },
+      update: { emailVerified: true, accountRole: "member" },
+      create: {
+        id: "u_route_member",
+        name: "Route Member",
+        email: ROUTE_MEMBER_EMAIL,
+        emailVerified: true,
+        accountRole: "member",
+      },
+    });
+  });
+
+  describe("PATCH /api/team/:id/role", () => {
+    it("promotes a member as admin, clearing the target's domains", async () => {
+      const app = await buildApp({ prisma });
+      const cookie = await signInAs(app, ROUTE_ADMIN_EMAIL);
+
+      const domain = await seedDomain("route-role-domain.test");
+      await prisma.domainMembership.create({
+        data: { userId: "u_route_member", domainId: domain, role: "member" },
+      });
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: "/api/team/u_route_member/role",
+        headers: { cookie },
+        payload: { accountRole: "admin" },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const member = res.json();
+      expect(member.accountRole).toBe("admin");
+      expect(member.domains).toEqual([]);
+
+      await app.close();
+    });
+
+    it("returns 409 LAST_ADMIN and changes nothing when demoting the sole admin", async () => {
+      const app = await buildApp({ prisma });
+      const cookie = await signInAs(app, ROUTE_ADMIN_EMAIL);
+      const admin = await prisma.user.findUniqueOrThrow({ where: { email: ROUTE_ADMIN_EMAIL } });
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/team/${admin.id}/role`,
+        headers: { cookie },
+        payload: { accountRole: "member" },
+      });
+
+      expect(res.statusCode).toBe(409);
+      expect(res.json()).toEqual({ error: "LAST_ADMIN" });
+
+      const stillAdmin = await prisma.user.findUniqueOrThrow({ where: { id: admin.id } });
+      expect(stillAdmin.accountRole).toBe("admin");
+
+      await app.close();
+    });
+
+    it("returns 403 for a non-admin member caller", async () => {
+      const app = await buildApp({ prisma });
+      const cookie = await signInAs(app, ROUTE_MEMBER_EMAIL);
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: "/api/team/u_route_member/role",
+        headers: { cookie },
+        payload: { accountRole: "admin" },
+      });
+
+      expect(res.statusCode).toBe(403);
+      await app.close();
+    });
+
+    it("returns 404 for an unknown target id", async () => {
+      const app = await buildApp({ prisma });
+      const cookie = await signInAs(app, ROUTE_ADMIN_EMAIL);
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/team/${UNKNOWN_ID}/role`,
+        headers: { cookie },
+        payload: { accountRole: "admin" },
+      });
+
+      expect(res.statusCode).toBe(404);
+      await app.close();
+    });
+
+    it("returns 401 with no session", async () => {
+      const app = await buildApp({ prisma });
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: "/api/team/u_route_member/role",
+        payload: { accountRole: "admin" },
+      });
+
+      expect(res.statusCode).toBe(401);
+      await app.close();
+    });
+  });
+
+  describe("PUT /api/team/:id/domains", () => {
+    it("assigns exactly the given domains as admin", async () => {
+      const app = await buildApp({ prisma });
+      const cookie = await signInAs(app, ROUTE_ADMIN_EMAIL);
+      const domain = await seedDomain("route-domains-assign.test");
+
+      const res = await app.inject({
+        method: "PUT",
+        url: "/api/team/u_route_member/domains",
+        headers: { cookie },
+        payload: { domainIds: [domain] },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().domains).toEqual([{ id: domain, hostname: "route-domains-assign.test" }]);
+
+      await app.close();
+    });
+
+    it("returns 400 INVALID_DOMAIN for an unknown domain id", async () => {
+      const app = await buildApp({ prisma });
+      const cookie = await signInAs(app, ROUTE_ADMIN_EMAIL);
+
+      const res = await app.inject({
+        method: "PUT",
+        url: "/api/team/u_route_member/domains",
+        headers: { cookie },
+        payload: { domainIds: ["not-a-real-domain-id"] },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toEqual({ error: "INVALID_DOMAIN" });
+
+      await app.close();
+    });
+
+    it("returns 403 for a non-admin member caller", async () => {
+      const app = await buildApp({ prisma });
+      const cookie = await signInAs(app, ROUTE_MEMBER_EMAIL);
+
+      const res = await app.inject({
+        method: "PUT",
+        url: "/api/team/u_route_member/domains",
+        headers: { cookie },
+        payload: { domainIds: [] },
+      });
+
+      expect(res.statusCode).toBe(403);
+      await app.close();
+    });
+  });
+
+  describe("DELETE /api/team/:id", () => {
+    it("removes a user as admin (204)", async () => {
+      const app = await buildApp({ prisma });
+      const cookie = await signInAs(app, ROUTE_ADMIN_EMAIL);
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: "/api/team/u_route_member",
+        headers: { cookie },
+      });
+
+      expect(res.statusCode).toBe(204);
+      const gone = await prisma.user.findUnique({ where: { id: "u_route_member" } });
+      expect(gone).toBeNull();
+
+      await app.close();
+    });
+
+    it("returns 409 LAST_ADMIN and deletes nothing when removing the sole admin", async () => {
+      const app = await buildApp({ prisma });
+      const cookie = await signInAs(app, ROUTE_ADMIN_EMAIL);
+      const admin = await prisma.user.findUniqueOrThrow({ where: { email: ROUTE_ADMIN_EMAIL } });
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/team/${admin.id}`,
+        headers: { cookie },
+      });
+
+      expect(res.statusCode).toBe(409);
+      expect(res.json()).toEqual({ error: "LAST_ADMIN" });
+
+      const stillThere = await prisma.user.findUnique({ where: { id: admin.id } });
+      expect(stillThere).not.toBeNull();
+
+      await app.close();
+    });
+
+    it("returns 403 for a non-admin member caller", async () => {
+      const app = await buildApp({ prisma });
+      const cookie = await signInAs(app, ROUTE_MEMBER_EMAIL);
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: "/api/team/u_route_member",
+        headers: { cookie },
+      });
+
+      expect(res.statusCode).toBe(403);
+      await app.close();
+    });
+
+    it("returns 404 for an unknown target id", async () => {
+      const app = await buildApp({ prisma });
+      const cookie = await signInAs(app, ROUTE_ADMIN_EMAIL);
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/team/${UNKNOWN_ID}`,
+        headers: { cookie },
+      });
+
+      expect(res.statusCode).toBe(404);
+      await app.close();
+    });
+
+    it("returns 401 with no session", async () => {
+      const app = await buildApp({ prisma });
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: "/api/team/u_route_member",
+      });
+
+      expect(res.statusCode).toBe(401);
+      await app.close();
+    });
+  });
+});
