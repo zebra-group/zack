@@ -152,6 +152,22 @@ export function createAuth(prisma: PrismaClient) {
       // magic-link-only install exposes no /api/auth/oauth2/* endpoints
       // (AUTH-06). No mapProfileToUser — see this file's header comment
       // (D-10-04): claim-to-privilege mapping is an explicit non-goal.
+      //
+      // WR-01 (10-REVIEW) ratified — NOT a defect. Unlike magic-link
+      // (invite-only, `disableSignUp: true` + the `isEmailAllowed` gate
+      // above, D-01), SSO deliberately has NO signup gate / allowlist:
+      // auto-provisioning a NEWLY-authenticated IdP user is REQUIRED by the
+      // spec (AUTH-07 / ROADMAP success criterion 3 — "a user newly created
+      // via SSO automatically receives the Member role"). The invite-only
+      // invariant (D-01) applies to magic-link, which has no external
+      // identity authority; SSO intentionally delegates admission control to
+      // the operator's own configured IdP. The risk is bounded by the
+      // least-privilege default: a self-provisioned SSO user lands on
+      // `accountRole: "member"` (the DB column default, non-settable via
+      // `input: false` above — the IdP cannot inject a role claim) with ZERO
+      // DomainMembership rows, so they can see/do nothing until an admin
+      // assigns domains. Adding a `disableImplicitSignUp` gate here would
+      // BREAK success criterion 3 — do not add one.
       ...(sso
         ? [
             genericOAuth({
