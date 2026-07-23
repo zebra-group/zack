@@ -39,6 +39,10 @@
  *      registered directly on `app`, immediately after analyticsRoute, for
  *      the same shadowing reason as above; every write delegates to
  *      lib/qrCodes.ts, every render to lib/qr.ts).
+ *   9d. `GET/POST /api/team*` (Phase 9, TEAM-01/TEAM-02 — registered
+ *      directly on `app`, immediately after qrCodesRoute, for the same
+ *      shadowing reason as above; every write delegates to lib/team.ts's
+ *      inviteMember; both endpoints are account-admin-gated).
  *   10. `GET /health`.
  *   11. `redirectRoute(prisma)` (Phase 5, REDIR-01..05 — replaces the Phase
  *      1 stub; `GET /:slug` + `POST /:slug/verify`, the precedence engine).
@@ -73,6 +77,7 @@ import { linksRoute } from "./routes/links.js";
 import { qrCodesRoute } from "./routes/qrCodes.js";
 import { qrRedirectRoute } from "./routes/qrRedirect.js";
 import { redirectRoute } from "./routes/redirect.js";
+import { teamRoute } from "./routes/team.js";
 import { tlsCheckRoute } from "./routes/tlsCheck.js";
 import { registerCors } from "./plugins/cors.js";
 import { registerHelmet } from "./plugins/helmet.js";
@@ -176,6 +181,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   // it must never be shadowed by the /:slug redirect route or the SPA
   // fallback.
   await app.register(qrCodesRoute(prisma, auth));
+  // Phase 9 (TEAM-01/TEAM-02): registered directly on `app`, immediately
+  // AFTER qrCodesRoute and BEFORE healthRoute/redirectRoute/registerStatic
+  // (Pitfall 5) — its urls already include the /api/team segment, so it
+  // must never be shadowed by the /:slug redirect route or the SPA
+  // fallback. Every write delegates to lib/team.ts's inviteMember.
+  await app.register(teamRoute(prisma, auth));
   await app.register(healthRoute);
   // Phase 5 (REDIR-01..05): the real precedence engine replaces the Phase 1
   // stub — stays in the SAME slot (AFTER linksRoute, BEFORE
