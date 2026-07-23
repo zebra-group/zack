@@ -40,14 +40,43 @@
  * has already validated the full environment; re-validating here would
  * crash any test that imports this module without the full ENV surface
  * set (see `vitest.config.ts`).
+ *
+ * Phase 10 (AUTH-05/06/07, D-10-01/03/04/05): `genericOAuth` (from
+ * `better-auth/plugins` — the installed 1.6.23 does not ship an `sso`
+ * plugin, D-10-01) is pushed onto `plugins` ONLY when `readSsoConfig()`
+ * (`lib/ssoConfig.ts`, 10-01) returns non-null, i.e. only when
+ * `OIDC_ISSUER_URL`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` are all set
+ * (D-10-03). On a magic-link-only install the `plugins` array is
+ * `[magicLink()]` exactly as before this phase — no `/api/auth/oauth2/*`
+ * or `/api/auth/sign-in/oauth2` endpoints exist at all, so
+ * "magic-link keeps working unchanged" (AUTH-06) is a structural property,
+ * not something enforced by extra code. `discoveryUrl` is the ONLY
+ * endpoint source configured (`ssoDiscoveryUrl(sso.issuer)`) — no
+ * `authorizationUrl`/`tokenUrl`/`userInfoUrl` overrides — so the operator
+ * supplies just the issuer and better-auth discovers the
+ * authorization/token/userinfo endpoints itself (D-10-01's issuer-only
+ * ergonomics). Deliberately NO `mapProfileToUser` (or any option that
+ * writes `accountRole`/domain access): mapping IdP claims to privilege is
+ * an explicit non-goal (D-10-04) — combined with `user.additionalFields
+ * .accountRole`'s existing `input: false` below (which better-auth's own
+ * `parseAdditionalUserInputFromProviderProfile` also honors for OAuth
+ * profile fields, verified this session against the installed 1.6.23
+ * source), a provisioned SSO user can never carry `accountRole` in from
+ * the IdP — it always lands on the DB column default, `member`, with zero
+ * `DomainMembership` rows. Confirmed against the installed 1.6.23 source
+ * that `genericOAuth` needs no new `Account` columns (D-10-05) — it
+ * writes only the fields the `Account` model already has (`providerId`,
+ * `accountId`, `accessToken`, `refreshToken`, `idToken`, `scope`), so no
+ * migration was needed for this plan.
  */
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { magicLink } from "better-auth/plugins";
+import { genericOAuth, magicLink } from "better-auth/plugins";
 import { prisma as defaultPrisma } from "../db.js";
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { isEmailAllowed } from "./allowlist.js";
 import { sendMagicLinkEmail } from "./mailer.js";
+import { readSsoConfig, ssoDiscoveryUrl, SSO_PROVIDER_ID } from "./ssoConfig.js";
 
 function requireEnv(key: string): string {
   const value = process.env[key];
@@ -58,6 +87,13 @@ function requireEnv(key: string): string {
 }
 
 export function createAuth(prisma: PrismaClient) {
+  // D-10-03: read once per instance construction; registers genericOAuth
+  // ONLY when all three OIDC env vars are present (readSsoConfig's
+  // all-three-or-none contract, D-10-07). Absent -> `sso` is null -> the
+  // plugins array below stays exactly `[magicLink()]`, unchanged from
+  // pre-Phase-10 behavior.
+  const sso = readSsoConfig();
+
   return betterAuth({
     baseURL: requireEnv("BASE_URL"),
     secret: requireEnv("BETTER_AUTH_SECRET"),
@@ -112,6 +148,24 @@ export function createAuth(prisma: PrismaClient) {
           });
         },
       }),
+      // D-10-03: registered only when OIDC is configured, so a
+      // magic-link-only install exposes no /api/auth/oauth2/* endpoints
+      // (AUTH-06). No mapProfileToUser — see this file's header comment
+      // (D-10-04): claim-to-privilege mapping is an explicit non-goal.
+      ...(sso
+        ? [
+            genericOAuth({
+              config: [
+                {
+                  providerId: SSO_PROVIDER_ID,
+                  discoveryUrl: ssoDiscoveryUrl(sso.issuer),
+                  clientId: sso.clientId,
+                  clientSecret: sso.clientSecret,
+                },
+              ],
+            }),
+          ]
+        : []),
     ],
   });
 }
