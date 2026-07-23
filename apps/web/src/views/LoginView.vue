@@ -49,7 +49,17 @@ async function signInWithSso(): Promise<void> {
     const response = await fetch("/api/auth/sign-in/oauth2", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ providerId: SSO_PROVIDER_ID, callbackURL: "/" }),
+      // WR-02 fix (mirrors the magic-link CR-02 fix below): without
+      // `errorCallbackURL`, better-auth routes a FAILED OAuth callback (IdP
+      // denies, state mismatch, discovery/token error) back to `callbackURL`
+      // ("/"), where the router guard silently bounces to /login and the
+      // dedicated no-leak /auth/error screen is never reached. Sending both
+      // routes a failed sign-in to the visible error page.
+      body: JSON.stringify({
+        providerId: SSO_PROVIDER_ID,
+        callbackURL: "/",
+        errorCallbackURL: "/auth/error",
+      }),
     });
     if (!response.ok) return;
     const data = await response.json();
