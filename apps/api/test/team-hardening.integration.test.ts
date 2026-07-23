@@ -10,6 +10,7 @@
  * weakening the real `FOR UPDATE` concurrency guarantee exercised by
  * `team-mutations.integration.test.ts`.
  */
+import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { Prisma } from "../src/generated/prisma/client.js";
 import type { PrismaClient } from "../src/generated/prisma/client.js";
@@ -63,5 +64,28 @@ describe("inviteMember atomicity (WR-01)", () => {
 
     const rows = await prisma.user.findMany({ where: { email } });
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe("inviteMember resend ignores domainIds without validating them (WR-03)", () => {
+  it("re-inviting an existing member resends even with an unknown domainId (no INVALID_DOMAIN)", async () => {
+    const email = "wr03-resend@kurzly.test";
+    await prisma.user.create({
+      data: { id: randomUUID(), name: "wr03", email, emailVerified: false, accountRole: "member" },
+    });
+
+    // Per D-09-04 a re-invite is a resend only — domain assignment is the
+    // dedicated PUT /:id/domains endpoint's job. So `domainIds` on a resend
+    // must be ignored WITHOUT being validated: an unknown id must not surface
+    // as INVALID_DOMAIN for an operation that would never apply it anyway.
+    const result = await inviteMember(prisma, fakeAuth, {
+      email,
+      accountRole: "member",
+      domainIds: ["not-a-real-domain-id"],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.member.domains).toEqual([]);
   });
 });
