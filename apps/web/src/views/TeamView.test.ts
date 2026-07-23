@@ -360,3 +360,155 @@ describe("TeamView invite flow (09-07 Task 2, §8/UI-09-11, D-09-04)", () => {
     expect(wrapper.findAll(".table-row")).toHaveLength(1);
   });
 });
+
+describe("TeamView assign-domains flow (09-07 Task 3, UI-09-05/12, TEAM-03)", () => {
+  it("opens AssignDomainsModal pre-filled from the '+ zuweisen' pill and updates chips on save", async () => {
+    listTeamMembers.mockResolvedValue([
+      makeMember({ id: "u1", accountRole: "admin" }),
+      makeMember({
+        id: "u2",
+        email: "mo@example.com",
+        accountRole: "member",
+        domains: [{ id: "d1", hostname: "s.meinefirma.de" }],
+      }),
+    ]);
+    listDomains.mockResolvedValue([
+      makeDomain({ id: "d1", hostname: "s.meinefirma.de" }),
+      makeDomain({ id: "d2", hostname: "s2.meinefirma.de" }),
+    ]);
+    assignMemberDomains.mockResolvedValue({
+      id: "u2",
+      email: "mo@example.com",
+      name: "Mo Mitglied",
+      accountRole: "member",
+      status: "active",
+      domains: [{ id: "d2", hostname: "s2.meinefirma.de" }],
+    });
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const memberRow = wrapper.findAll(".table-row")[1]!;
+    await memberRow.find(".assign-pill").trigger("click");
+
+    expect(wrapper.text()).toContain("Domains zuweisen");
+    const pills = wrapper.findAll(".domain-pill");
+    expect(pills[0]!.classes()).toContain("selected");
+    expect(pills[1]!.classes()).not.toContain("selected");
+
+    await pills[0]!.trigger("click");
+    await pills[1]!.trigger("click");
+    await wrapper.find(".modal-dialog .btn-primary").trigger("click");
+    await flushPromises();
+
+    expect(assignMemberDomains).toHaveBeenCalledWith("u2", ["d2"]);
+    expect(wrapper.find(".modal-dialog").exists()).toBe(false);
+    expect(wrapper.text()).toContain("Domain-Zugriff aktualisiert");
+    expect(memberRow.text()).toContain("s2.meinefirma.de");
+    expect(memberRow.text()).not.toContain("s.meinefirma.de");
+  });
+
+  it("also opens AssignDomainsModal from clicking an existing domain chip", async () => {
+    listTeamMembers.mockResolvedValue([
+      makeMember({ id: "u1", accountRole: "admin" }),
+      makeMember({
+        id: "u2",
+        email: "mo@example.com",
+        accountRole: "member",
+        domains: [{ id: "d1", hostname: "s.meinefirma.de" }],
+      }),
+    ]);
+    listDomains.mockResolvedValue([makeDomain({ id: "d1", hostname: "s.meinefirma.de" })]);
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    await wrapper.findAll(".table-row")[1]!.find(".domain-chip").trigger("click");
+
+    expect(wrapper.text()).toContain("Domains zuweisen");
+  });
+
+  it("never offers a clickable domain assignment for an admin row (UI-09-12)", async () => {
+    listTeamMembers.mockResolvedValue([makeMember({ id: "u1", accountRole: "admin" })]);
+    listDomains.mockResolvedValue([]);
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const adminRow = wrapper.findAll(".table-row")[0]!;
+    expect(adminRow.find(".all-domains-pill").attributes("role")).toBeUndefined();
+    expect(adminRow.find(".all-domains-pill").attributes("tabindex")).toBeUndefined();
+  });
+});
+
+describe("TeamView remove flow (09-07 Task 3, UI-09-06/07, TEAM-05)", () => {
+  it("removes a member via the ⋯ menu's shared delete dialog and toasts success", async () => {
+    listTeamMembers.mockResolvedValue([
+      makeMember({ id: "u1", accountRole: "admin" }),
+      makeMember({ id: "u2", email: "mo@example.com", accountRole: "member", domains: [] }),
+    ]);
+    listDomains.mockResolvedValue([]);
+    removeMember.mockResolvedValue(undefined);
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const memberRow = wrapper.findAll(".table-row")[1]!;
+    await memberRow.find(".menu-cell").trigger("click");
+    await wrapper.find(".action-menu-item").trigger("click");
+
+    expect(wrapper.text()).toContain("Mitglied entfernen?");
+    expect(wrapper.text()).toContain("mo@example.com verliert den Zugriff auf Kurzly");
+
+    await wrapper.find(".delete-confirm-button").trigger("click");
+    await flushPromises();
+
+    expect(removeMember).toHaveBeenCalledWith("u2");
+    expect(wrapper.findAll(".table-row")).toHaveLength(1);
+    expect(wrapper.text()).toContain("mo@example.com entfernt");
+    expect(wrapper.find(".delete-dialog").exists()).toBe(false);
+  });
+
+  it("shows a .dialog-error with the locked LAST_ADMIN copy and keeps the dialog open on lockout", async () => {
+    listTeamMembers.mockResolvedValue([
+      makeMember({ id: "u1", accountRole: "admin" }),
+      makeMember({ id: "u2", email: "second-admin@example.com", accountRole: "admin" }),
+    ]);
+    listDomains.mockResolvedValue([]);
+    removeMember.mockRejectedValue(new ApiError(409, "Conflict", "LAST_ADMIN"));
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const secondAdminRow = wrapper.findAll(".table-row")[1]!;
+    await secondAdminRow.find(".menu-cell").trigger("click");
+    await wrapper.find(".action-menu-item").trigger("click");
+    await wrapper.find(".delete-confirm-button").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find(".delete-dialog").exists()).toBe(true);
+    expect(wrapper.find(".dialog-error").text()).toBe("Es muss mindestens ein Admin bestehen bleiben.");
+    expect(wrapper.findAll(".table-row")).toHaveLength(2);
+  });
+
+  it("disables the sole admin's 'Mitglied entfernen' entry with an explanatory title", async () => {
+    listTeamMembers.mockResolvedValue([
+      makeMember({ id: "u1", accountRole: "admin" }),
+      makeMember({ id: "u2", email: "mo@example.com", accountRole: "member", domains: [] }),
+    ]);
+    listDomains.mockResolvedValue([]);
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const adminRow = wrapper.findAll(".table-row")[0]!;
+    await adminRow.find(".menu-cell").trigger("click");
+    const item = wrapper.find(".action-menu-item");
+
+    expect(item.classes()).toContain("disabled");
+    expect(item.attributes("title")).toBeTruthy();
+
+    await item.trigger("click");
+    expect(wrapper.find(".delete-dialog").exists()).toBe(false);
+  });
+});
