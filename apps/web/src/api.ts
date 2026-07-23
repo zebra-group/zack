@@ -6,6 +6,8 @@
  * instance via @fastify/static.
  */
 import type {
+  AccountRole,
+  AssignDomainsInput,
   AuthSession,
   CreateLinkInput,
   CreateQrCodeInput,
@@ -13,6 +15,7 @@ import type {
   GlobalAnalyticsDTO,
   ImportCommitResult,
   ImportPreviewResult,
+  InviteMemberInput,
   LinkAnalyticsDTO,
   LinkDTO,
   QrCodeDTO,
@@ -20,6 +23,7 @@ import type {
   SessionUser,
   TeamMemberDTO,
   UpdateLinkInput,
+  UpdateMemberRoleInput,
   UpdateQrCodeInput,
 } from "@kurzly/shared";
 import type { CanaryResult } from "@kurzly/shared";
@@ -517,17 +521,103 @@ export function mapQrFormError(err: unknown): QrFormFieldErrors {
 }
 
 /**
- * Team management API client (Phase 9, TEAM-01/02, UI-09-*) — mirrors the
+ * Team management API client (Phase 9, TEAM-01..05, UI-09-*) — mirrors the
  * same-origin `fetch` + `parseJsonOrThrow<T>` shape used by the
  * domain/link/QR clients above. The server independently re-authorizes
  * every call (admin-gated via `isAccountAdmin`, apps/api's `routes/team.ts`)
  * — this client is convenience only, never the access boundary
- * (T-09-UI-BOUNDARY). `listTeamMembers` is the sole read this plan (09-06)
- * needs; the mutation clients (invite/role/domains/remove) land in 09-07.
+ * (T-09-UI-BOUNDARY). `listTeamMembers` (09-06) is the sole read; the four
+ * mutation clients below (09-07) let `TeamView.vue`/`InviteMemberModal.vue`/
+ * `AssignDomainsModal.vue` wire role changes, domain assignment, invites,
+ * and removal against the 09-04 mutation routes.
  */
 
 /** `GET /api/team` — admin-gated full member roster (TEAM-01/TEAM-02). */
 export async function listTeamMembers(): Promise<TeamMemberDTO[]> {
   const response = await fetch("/api/team", { method: "GET" });
   return parseJsonOrThrow<TeamMemberDTO[]>(response);
+}
+
+/**
+ * `PATCH /api/team/:id/role` — immediate role commit (TEAM-04, UI-09-03).
+ * Promoting to `"admin"` clears the target's domain assignments atomically
+ * server-side (D-09-05); demoting the sole admin is refused with a
+ * `LAST_ADMIN`-coded `ApiError` (D-09-07, UI-09-07).
+ */
+export async function changeMemberRole(id: string, accountRole: AccountRole): Promise<TeamMemberDTO> {
+  const response = await fetch(`/api/team/${id}/role`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accountRole } satisfies UpdateMemberRoleInput),
+  });
+  return parseJsonOrThrow<TeamMemberDTO>(response);
+}
+
+/**
+ * `PUT /api/team/:id/domains` — replaces a member's domain-membership set
+ * exactly (TEAM-03, UI-09-05). `[]` clears every assignment.
+ */
+export async function assignMemberDomains(id: string, domainIds: string[]): Promise<TeamMemberDTO> {
+  const response = await fetch(`/api/team/${id}/domains`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ domainIds } satisfies AssignDomainsInput),
+  });
+  return parseJsonOrThrow<TeamMemberDTO>(response);
+}
+
+/**
+ * `DELETE /api/team/:id` — removes a member (TEAM-05, D-09-06); 204 No
+ * Content on success. Manually extracts the JSON error `code` on failure
+ * (mirroring `parseJsonOrThrow`'s error branch) since a 204 body can't be
+ * parsed as `T` — `removeMember`'s LAST_ADMIN lockout (D-09-07, UI-09-07)
+ * needs that typed code to render the in-dialog error correctly.
+ */
+export async function removeMember(id: string): Promise<void> {
+  const response = await fetch(`/api/team/${id}`, { method: "DELETE" });
+  if (!response.ok) {
+    let code: string | undefined;
+    try {
+      const body = (await response.json()) as { error?: unknown };
+      code = typeof body?.error === "string" ? body.error : undefined;
+    } catch {
+      // Body absent or not JSON — code stays undefined.
+    }
+    throw new ApiError(response.status, response.statusText, code);
+  }
+}
+
+/**
+ * `POST /api/team/invite` — creates a pending member (`emailVerified:false`)
+ * and sends the magic link, or resends it as a no-op for an existing
+ * address (TEAM-01, D-09-04). Rate-limited server-side
+ * (`MAGIC_LINK_RATE_LIMIT`, T-09-INVITE-BOMB).
+ */
+export async function inviteMember(input: InviteMemberInput): Promise<TeamMemberDTO> {
+  const response = await fetch("/api/team/invite", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseJsonOrThrow<TeamMemberDTO>(response);
+}
+
+const TEAM_LAST_ADMIN_MESSAGE = "Es muss mindestens ein Admin bestehen bleiben.";
+const TEAM_GENERIC_ERROR_MESSAGE = "Aktion fehlgeschlagen. Bitte erneut versuchen.";
+
+/**
+ * Maps a team-mutation `ApiError` to the locked inline/dialog message
+ * (09-UI-SPEC.md Copywriting Contract, UI-09-07) — mirrors
+ * `mapLinkFormError`/`mapQrFormError`'s "lives in api.ts, not the SFC"
+ * convention (the generic `*.vue` module shim only declares a `default`
+ * export). Unlike those two, this returns a single string rather than a
+ * field-error object: every one of this plan's error surfaces
+ * (`.member-error-row`, `.dialog-error`, the invite modal's `.field-error`
+ * fallback) is a single flat message, never a multi-field form.
+ */
+export function mapTeamError(err: unknown): string {
+  if (err instanceof ApiError && err.code === "LAST_ADMIN") {
+    return TEAM_LAST_ADMIN_MESSAGE;
+  }
+  return TEAM_GENERIC_ERROR_MESSAGE;
 }

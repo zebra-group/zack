@@ -1,25 +1,56 @@
 /**
  * Component test for TeamView (09-UI-SPEC.md Layout Contract — Surface B,
- * TEAM-01/02, UI-09-08/09) — replaces ComingSoonView at route /team. This
- * plan (09-06) is the read-only slice: renders the full roster from
- * listTeamMembers, the role-model note card, and the header counter. The
- * role <select>/invite button/⋯ menu render present but inert — their
- * mutation wiring lands in 09-07. Mocks `../api` (mirrors
- * QrCodesView.test.ts's `vi.mock` pattern) — no real network happens.
+ * TEAM-01..05, UI-09-*) — replaces ComingSoonView at route /team. 09-06's
+ * read-only slice (roster/header/role-model card) is covered by the first
+ * describe block below; 09-07 extends it with the mutation wiring: the
+ * immediate role-change commit with optimistic chip-swap and safe revert
+ * (UI-09-03/04/07), the invite modal (§8), the AssignDomainsModal
+ * (UI-09-05/12), and the ⋯-menu remove flow (UI-09-06/07). Mocks `../api`
+ * (mirrors QrCodesView.test.ts's `vi.mock` pattern) — no real network
+ * happens; `ApiError`/`mapTeamError` come through unmocked via `...actual`.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { TeamMemberDTO } from "@kurzly/shared";
+import type { DomainDTO, TeamMemberDTO } from "@kurzly/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TeamView from "./TeamView.vue";
+import { ApiError } from "../api";
 
-const { listTeamMembers } = vi.hoisted(() => ({
-  listTeamMembers: vi.fn(),
-}));
+const { listTeamMembers, changeMemberRole, assignMemberDomains, removeMember, inviteMember, listDomains } =
+  vi.hoisted(() => ({
+    listTeamMembers: vi.fn(),
+    changeMemberRole: vi.fn(),
+    assignMemberDomains: vi.fn(),
+    removeMember: vi.fn(),
+    inviteMember: vi.fn(),
+    listDomains: vi.fn(),
+  }));
 
 vi.mock("../api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api")>();
-  return { ...actual, listTeamMembers };
+  return {
+    ...actual,
+    listTeamMembers,
+    changeMemberRole,
+    assignMemberDomains,
+    removeMember,
+    inviteMember,
+    listDomains,
+  };
 });
+
+function makeDomain(overrides: Partial<DomainDTO> = {}): DomainDTO {
+  return {
+    id: "d1",
+    hostname: "s.meinefirma.de",
+    type: "subdomain",
+    status: "active",
+    verifiedAt: "2026-07-11T00:00:00.000Z",
+    lastCheckedAt: null,
+    lastCheckError: null,
+    createdAt: "2026-07-11T00:00:00.000Z",
+    ...overrides,
+  };
+}
 
 function makeMember(overrides: Partial<TeamMemberDTO> = {}): TeamMemberDTO {
   return {
@@ -35,6 +66,12 @@ function makeMember(overrides: Partial<TeamMemberDTO> = {}): TeamMemberDTO {
 
 beforeEach(() => {
   listTeamMembers.mockReset();
+  changeMemberRole.mockReset();
+  assignMemberDomains.mockReset();
+  removeMember.mockReset();
+  inviteMember.mockReset();
+  listDomains.mockReset();
+  listDomains.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -121,5 +158,106 @@ describe("TeamView (09-06 read-only slice)", () => {
     expect(wrapper.text()).toContain("Status");
     expect(wrapper.text()).toContain("Rollenmodell:");
     expect(wrapper.text()).toContain("Mitglied");
+  });
+});
+
+describe("TeamView role change (09-07 Task 1, UI-09-03/04/07)", () => {
+  it("commits a role change immediately, swaps chips for the accent pill, and toasts success", async () => {
+    listTeamMembers.mockResolvedValue([
+      makeMember({ id: "u1", accountRole: "admin" }),
+      makeMember({
+        id: "u2",
+        email: "mo@example.com",
+        accountRole: "member",
+        domains: [{ id: "d1", hostname: "s.meinefirma.de" }],
+      }),
+    ]);
+    changeMemberRole.mockResolvedValue({
+      id: "u2",
+      email: "mo@example.com",
+      name: "Mo Mitglied",
+      accountRole: "admin",
+      status: "active",
+      domains: [],
+    });
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const memberRow = wrapper.findAll(".table-row")[1]!;
+    await memberRow.find("select").setValue("admin");
+    await flushPromises();
+
+    expect(changeMemberRole).toHaveBeenCalledWith("u2", "admin");
+    // Optimistic + confirmed: chips replaced by the accent pill in the same tick.
+    expect(memberRow.find(".domain-chip").exists()).toBe(false);
+    expect(memberRow.text()).toContain("alle Domains");
+    expect(wrapper.text()).toContain("Rolle aktualisiert");
+    expect(memberRow.find(".member-error-row").exists()).toBe(false);
+  });
+
+  it("reverts BOTH role and domain chips on a generic rejection, rendering an inline .member-error-row", async () => {
+    listTeamMembers.mockResolvedValue([
+      makeMember({ id: "u1", accountRole: "admin" }),
+      makeMember({
+        id: "u2",
+        email: "mo@example.com",
+        accountRole: "member",
+        domains: [{ id: "d1", hostname: "s.meinefirma.de" }],
+      }),
+    ]);
+    changeMemberRole.mockRejectedValue(new ApiError(500, "Internal Server Error"));
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const memberRow = wrapper.findAll(".table-row")[1]!;
+    await memberRow.find("select").setValue("admin");
+    await flushPromises();
+
+    expect((memberRow.find("select").element as HTMLSelectElement).value).toBe("member");
+    expect(memberRow.find(".domain-chip").exists()).toBe(true);
+    expect(memberRow.find(".all-domains-pill").exists()).toBe(false);
+
+    const errorRow = wrapper.findAll(".member-error-row");
+    expect(errorRow).toHaveLength(1);
+    expect(errorRow[0]!.text()).toBe("Aktion fehlgeschlagen. Bitte erneut versuchen.");
+  });
+
+  it("shows the locked LAST_ADMIN copy inline and reverts the select on a 409 LAST_ADMIN rejection", async () => {
+    listTeamMembers.mockResolvedValue([
+      makeMember({ id: "u1", accountRole: "admin" }),
+      makeMember({ id: "u2", email: "second-admin@example.com", accountRole: "admin" }),
+    ]);
+    changeMemberRole.mockRejectedValue(new ApiError(409, "Conflict", "LAST_ADMIN"));
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const secondAdminRow = wrapper.findAll(".table-row")[1]!;
+    await secondAdminRow.find("select").setValue("member");
+    await flushPromises();
+
+    expect((secondAdminRow.find("select").element as HTMLSelectElement).value).toBe("admin");
+    const errorRow = wrapper.findAll(".member-error-row");
+    expect(errorRow).toHaveLength(1);
+    expect(errorRow[0]!.text()).toBe("Es muss mindestens ein Admin bestehen bleiben.");
+  });
+
+  it("proactively disables the sole remaining admin's role select with an explanatory title", async () => {
+    listTeamMembers.mockResolvedValue([
+      makeMember({ id: "u1", accountRole: "admin" }),
+      makeMember({ id: "u2", email: "mo@example.com", accountRole: "member", domains: [] }),
+    ]);
+
+    const wrapper = mount(TeamView);
+    await flushPromises();
+
+    const soleAdminSelect = wrapper.findAll(".table-row")[0]!.find("select");
+    expect(soleAdminSelect.attributes("disabled")).toBeDefined();
+    expect(soleAdminSelect.attributes("title")).toBeTruthy();
+
+    const memberSelect = wrapper.findAll(".table-row")[1]!.find("select");
+    expect(memberSelect.attributes("disabled")).toBeUndefined();
   });
 });
