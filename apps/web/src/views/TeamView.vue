@@ -14,12 +14,22 @@
  * UI-09-08 (T-09-STATUS-REDERIVE): the status badge reads `member.status`
  * verbatim — never re-derives it from `emailVerified`, which never crosses
  * the JSON boundary on this DTO (see packages/shared TeamMemberDTO).
+ *
+ * 10-04 (UI-10-01..06, D-10-02) adds the "Authentifizierung" section below:
+ * two cards inserted between the roster table and the role-model card. The
+ * Magic Link card is purely descriptive; the OIDC/SSO card is a READ-ONLY
+ * status + setup-guidance surface driven verbatim by `getSsoStatus()` —
+ * never a credential-entry form, never a toggle. `ssoStatus` starts `null`
+ * and stays `null` on fetch failure (no toast) — the card shows a neutral
+ * fallback rather than asserting a possibly-wrong Aktiv/Deaktiviert state
+ * (UI-10-02, T-10-CARD-FALSE-STATE).
  */
 import { computed, ref } from "vue";
-import type { AccountRole, DomainDTO, TeamMemberDTO } from "@kurzly/shared";
+import type { AccountRole, DomainDTO, SsoStatusDTO, TeamMemberDTO } from "@kurzly/shared";
 import {
   assignMemberDomains,
   changeMemberRole,
+  getSsoStatus,
   inviteMember,
   listDomains,
   listTeamMembers,
@@ -245,8 +255,45 @@ async function confirmRemove(): Promise<void> {
   }
 }
 
+/**
+ * 10-04 (UI-10-02): starts `null` (neutral fallback while loading). On
+ * fetch failure it stays `null` — no toast, since a failed status fetch is
+ * not a user-initiated action and the card's own fallback copy already
+ * communicates the unknown state (T-10-CARD-FALSE-STATE).
+ */
+const ssoStatus = ref<SsoStatusDTO | null>(null);
+
+async function loadSsoStatus(): Promise<void> {
+  try {
+    ssoStatus.value = await getSsoStatus();
+  } catch {
+    ssoStatus.value = null;
+  }
+}
+
+/** UI-10-04: the three ENV var names shown (and copyable) in the disabled OIDC card, in the locked order. */
+const OIDC_ENV_VARS_TEXT = "OIDC_ISSUER_URL\nOIDC_CLIENT_ID\nOIDC_CLIENT_SECRET";
+
+/**
+ * 10-04: generic copy helper for the OIDC card's `.dns-code-block`s
+ * (callback URL, ENV var names) — distinct from DomainsView's
+ * `copyToClipboard` (which toasts the DNS-specific "DNS-Eintrag kopiert"):
+ * this one uses the generic "In Zwischenablage kopiert" success copy locked
+ * by 10-UI-SPEC.md's Copywriting Contract, since these blocks aren't DNS
+ * records.
+ */
+async function copyToClipboard(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast("In Zwischenablage kopiert");
+  } catch {
+    showToast("Kopieren fehlgeschlagen");
+  }
+}
+
 loadMembers();
 loadDomains();
+loadSsoStatus();
 </script>
 
 <template>
@@ -355,6 +402,113 @@ loadDomains();
 
         <div v-if="member.error" class="member-error-row">{{ member.error }}</div>
       </template>
+    </div>
+
+    <!-- 10-04 Authentifizierung section (UI-10-01): inserted between the
+         roster table and the role-model card, matching the locked prototype
+         order (Tabelle -> Auth -> Rollenmodell). -->
+    <div class="auth-section">
+      <h2 class="auth-heading">Authentifizierung</h2>
+      <div class="auth-grid">
+        <div class="auth-card magic-link-card">
+          <div class="auth-card-header">
+            <div>
+              <div class="auth-card-title">Magic Link</div>
+              <div class="auth-card-desc">Standard-Login. Anmeldung per E-Mail-Link, kein Passwort.</div>
+            </div>
+            <span class="standard-badge">Standard</span>
+          </div>
+          <div class="auth-code-hint">better-auth · magicLink()</div>
+          <a
+            class="login-preview-link"
+            href="/login?preview=1"
+            target="_blank"
+            rel="noopener"
+          >
+            Login-Seite ansehen →
+          </a>
+        </div>
+
+        <div class="auth-card oidc-card">
+          <div class="auth-card-header">
+            <div>
+              <div class="auth-card-title">OIDC / SSO</div>
+              <div class="auth-card-desc">
+                Single Sign-On über einen OIDC-Provider (Keycloak, Authentik, Azure AD …).
+              </div>
+            </div>
+            <span
+              v-if="ssoStatus"
+              class="status-badge"
+              :class="{ active: ssoStatus.enabled }"
+            >
+              {{ ssoStatus.enabled ? "Aktiv" : "Deaktiviert" }}
+            </span>
+          </div>
+
+          <p v-if="!ssoStatus" class="oidc-fallback">SSO-Status konnte nicht geladen werden.</p>
+
+          <template v-else-if="ssoStatus.enabled">
+            <div class="oidc-details">
+              <div class="oidc-detail-row">
+                <span class="oidc-label">Issuer</span>
+                <span class="oidc-value">{{ ssoStatus.issuer }}</span>
+              </div>
+              <div class="oidc-detail-row">
+                <span class="oidc-label">Client-ID</span>
+                <span class="oidc-value">{{ ssoStatus.clientIdMasked }}</span>
+              </div>
+              <div class="oidc-detail-row">
+                <span class="oidc-label">Callback-URL</span>
+              </div>
+              <div class="dns-code-block">
+                <code>{{ ssoStatus.callbackPath }}</code>
+                <button
+                  type="button"
+                  class="copy-button"
+                  title="Kopieren"
+                  @click="copyToClipboard(ssoStatus.callbackPath)"
+                >
+                  ⧉
+                </button>
+              </div>
+              <p class="oidc-role-note">Neue Nutzer erhalten die Rolle Mitglied.</p>
+            </div>
+          </template>
+
+          <template v-else>
+            <p class="oidc-disabled-line">Deaktiviert — nur Magic-Link-Login aktiv.</p>
+            <p class="oidc-setup-label">
+              Setze diese Umgebungsvariablen in deiner Deployment-Konfiguration, um SSO zu aktivieren:
+            </p>
+            <div class="dns-code-block">
+              <code>OIDC_ISSUER_URL<br />OIDC_CLIENT_ID<br />OIDC_CLIENT_SECRET</code>
+              <button
+                type="button"
+                class="copy-button"
+                title="Kopieren"
+                @click="copyToClipboard(OIDC_ENV_VARS_TEXT)"
+              >
+                ⧉
+              </button>
+            </div>
+            <p class="oidc-callback-label">
+              Registriere anschließend diese Callback-URL bei deinem OIDC-Provider:
+            </p>
+            <div class="dns-code-block">
+              <code>{{ ssoStatus.callbackPath }}</code>
+              <button
+                type="button"
+                class="copy-button"
+                title="Kopieren"
+                @click="copyToClipboard(ssoStatus.callbackPath)"
+              >
+                ⧉
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
     </div>
 
     <div class="role-model-card">
@@ -638,6 +792,161 @@ loadDomains();
   padding: 0 16px 12px;
   font-size: 11.5px;
   color: #e5484d;
+}
+
+/* 10-04 Authentifizierung section (10-UI-SPEC.md Layout Contract Surface A,
+   UI-10-01..06). All values LOCKED 1:1 from the prototype — no new tokens,
+   colors, sizes, or weights (10-UI-SPEC.md Design System). */
+.auth-heading {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 4px 0 0;
+}
+
+.auth-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.auth-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.auth-card-title {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.auth-card-desc {
+  font-size: 12px;
+  color: var(--mut);
+  margin-top: 2px;
+}
+
+/* "Standard" badge (Magic Link card, LOCKED Z.422). */
+.standard-badge {
+  font-size: 10.5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #1b1b18;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.auth-code-hint {
+  font-size: 11.5px;
+  color: var(--mut);
+  font-family: "Geist Mono", monospace;
+  background: var(--chip);
+  border-radius: 8px;
+  padding: 9px 11px;
+}
+
+.login-preview-link {
+  align-self: flex-start;
+  padding: 7px 13px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12.5px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.login-preview-link:hover {
+  background: var(--hover);
+}
+
+.oidc-fallback,
+.oidc-disabled-line {
+  font-size: 12px;
+  color: var(--mut);
+}
+
+.oidc-setup-label,
+.oidc-callback-label {
+  font-size: 12px;
+  color: var(--mut);
+}
+
+.oidc-details {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.oidc-detail-row {
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--mut);
+}
+
+.oidc-value {
+  font-family: "Geist Mono", monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.oidc-role-note {
+  font-size: 11px;
+  color: var(--mut);
+  margin: 0;
+}
+
+/* Code-/callback-/ENV-blocks — reused verbatim from DomainsView.vue's
+   .dns-code-block/.copy-button idiom (10-UI-SPEC.md, not re-derived here). */
+.dns-code-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: "Geist Mono", monospace;
+  font-size: 12px;
+  background: var(--chip);
+  border-radius: 8px;
+  padding: 12px 14px;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.dns-code-block code {
+  flex: 1;
+  white-space: pre-wrap;
+}
+
+.copy-button {
+  font-size: 11px;
+  color: var(--mut);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 5px;
+  cursor: pointer;
+  background: transparent;
+  flex: none;
+}
+
+.copy-button:hover {
+  color: var(--text);
+  border-color: var(--mut);
 }
 
 /* Role-model note card (LOCKED Z.453) */
