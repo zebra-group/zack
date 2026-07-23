@@ -1,4 +1,5 @@
 import type { PrismaClient } from "../generated/prisma/client.js";
+import { isAccountAdmin } from "./accountRole.js";
 
 /**
  * Domain-scoped authorization core (D-02).
@@ -12,6 +13,13 @@ import type { PrismaClient } from "../generated/prisma/client.js";
  *
  * Zero callers exist in this phase by design — correctness is proven
  * entirely by test/authorization.test.ts's real-Postgres unit suite.
+ *
+ * Phase 9 (D-09-02) additive note: both functions below now start with an
+ * account-admin bypass (`isAccountAdmin`) — an installation-wide admin
+ * reaches every domain regardless of `DomainMembership`. This is checked
+ * FIRST, before any membership lookup, and is the ONLY new branch; the
+ * deny-by-default membership/CR-01 rank logic for everyone else (an
+ * accountRole="member" user) is completely unchanged below it.
  */
 
 export const ROLE_RANK = { member: 0, admin: 1, owner: 2 } as const;
@@ -32,6 +40,15 @@ export async function requireDomainAccess(
   domainId: string,
   minRole: Role,
 ): Promise<void> {
+  // D-09-02: an account-admin reaches every domain, regardless of
+  // DomainMembership or minRole. Checked first so every existing call
+  // site (lib/links.ts, lib/qrCodes.ts, routes/analytics.ts) inherits
+  // the bypass with zero route edits. A non-admin falls through
+  // unchanged to the deny-by-default membership check below.
+  if (await isAccountAdmin(prisma, userId)) {
+    return;
+  }
+
   const membership = await prisma.domainMembership.findUnique({
     where: { userId_domainId: { userId, domainId } },
   });
@@ -71,6 +88,14 @@ export async function scopedDomainIds(
   prisma: PrismaClient,
   userId: string,
 ): Promise<string[]> {
+  // D-09-02: an account-admin's "scope" is every domain, not just their
+  // memberships. A non-admin falls through unchanged to the existing
+  // membership-only query below — never sees another tenant's domains.
+  if (await isAccountAdmin(prisma, userId)) {
+    const domains = await prisma.domain.findMany({ select: { id: true } });
+    return domains.map((domain) => domain.id);
+  }
+
   const memberships = await prisma.domainMembership.findMany({
     where: { userId },
     select: { domainId: true },
