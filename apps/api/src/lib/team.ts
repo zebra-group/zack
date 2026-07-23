@@ -138,31 +138,40 @@ export async function inviteMember(
     // mutation (assigning domains to an existing member is TEAM-03's job).
     user = existingUser;
   } else {
-    const created = await prisma.user.create({
-      data: {
-        id: randomUUID(),
-        // No signup form exists for an invitee — the email's local part is
-        // the same placeholder-name convention `admin-seed.ts` establishes.
-        name: input.email.split("@")[0] ?? input.email,
-        email: input.email,
-        emailVerified: false,
-        accountRole: input.accountRole,
-      },
-    });
-
-    if (domainIds.length > 0) {
-      await prisma.domainMembership.createMany({
-        data: domainIds.map((domainId) => ({
-          userId: created.id,
-          domainId,
-          role: "member" as const,
-        })),
+    // WR-01: the User row and its membership rows are created atomically in
+    // ONE `$transaction`, mirroring `assignMemberDomains`/`changeMemberRole`.
+    // A failed membership write (e.g. the domain-existence TOCTOU) can no
+    // longer leave an orphaned, half-initialized User behind — which a later
+    // re-invite would otherwise treat as a resend and never assign the
+    // intended domains. The magic-link send stays AFTER the commit (below),
+    // so an invitee is never mailed for a row that then rolls back.
+    user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          id: randomUUID(),
+          // No signup form exists for an invitee — the email's local part is
+          // the same placeholder-name convention `admin-seed.ts` establishes.
+          name: input.email.split("@")[0] ?? input.email,
+          email: input.email,
+          emailVerified: false,
+          accountRole: input.accountRole,
+        },
       });
-    }
 
-    user = await prisma.user.findUniqueOrThrow({
-      where: { id: created.id },
-      include: MEMBERSHIPS_INCLUDE,
+      if (domainIds.length > 0) {
+        await tx.domainMembership.createMany({
+          data: domainIds.map((domainId) => ({
+            userId: created.id,
+            domainId,
+            role: "member" as const,
+          })),
+        });
+      }
+
+      return tx.user.findUniqueOrThrow({
+        where: { id: created.id },
+        include: MEMBERSHIPS_INCLUDE,
+      });
     });
   }
 
