@@ -17,7 +17,16 @@
  */
 import { computed, ref } from "vue";
 import type { AccountRole, DomainDTO, TeamMemberDTO } from "@kurzly/shared";
-import { changeMemberRole, inviteMember, listDomains, listTeamMembers, mapTeamError } from "../api";
+import {
+  assignMemberDomains,
+  changeMemberRole,
+  inviteMember,
+  listDomains,
+  listTeamMembers,
+  mapTeamError,
+  removeMember,
+} from "../api";
+import AssignDomainsModal from "../components/AssignDomainsModal.vue";
 import InviteMemberModal from "../components/InviteMemberModal.vue";
 
 /** Adds a transient, row-local mutation error (UI-09-03/07's `.member-error-row`) — never persisted server-side. */
@@ -156,6 +165,86 @@ async function handleInviteSubmit(payload: {
   }
 }
 
+/**
+ * UI-09-05/12: the AssignDomainsModal is only reachable for a `"member"`
+ * row — an admin's domain-access cell renders the static, non-interactive
+ * "alle Domains" pill (an admin already reaches every domain, D-09-02).
+ */
+const showAssignFor = ref<MemberUI | null>(null);
+const assignError = ref<string | null>(null);
+
+function openAssign(member: MemberUI): void {
+  if (member.accountRole === "admin") return;
+  showAssignFor.value = member;
+  assignError.value = null;
+}
+
+function closeAssign(): void {
+  showAssignFor.value = null;
+  assignError.value = null;
+}
+
+async function handleAssignSubmit(domainIds: string[]): Promise<void> {
+  const member = showAssignFor.value;
+  if (!member) return;
+  try {
+    const updated = await assignMemberDomains(member.id, domainIds);
+    Object.assign(member, updated);
+    showAssignFor.value = null;
+    assignError.value = null;
+    showToast("Domain-Zugriff aktualisiert");
+  } catch (err) {
+    assignError.value = mapTeamError(err);
+  }
+}
+
+/** UI-09-06: the ⋯ row menu — a single "Mitglied entfernen" entry, keyboard-reachable (Enter/Space) and Escape/blur-closing. */
+const openMenuFor = ref<string | null>(null);
+
+function toggleMenu(id: string): void {
+  openMenuFor.value = openMenuFor.value === id ? null : id;
+}
+
+function closeMenu(): void {
+  openMenuFor.value = null;
+}
+
+const deleteTarget = ref<MemberUI | null>(null);
+const deleteError = ref<string | null>(null);
+
+/** UI-09-06/07: opens the shared delete-confirm dialog; a no-op for the proactively-disabled sole admin. */
+function handleRemoveClick(member: MemberUI): void {
+  if (lastAdmin(member)) return;
+  openMenuFor.value = null;
+  deleteTarget.value = member;
+  deleteError.value = null;
+}
+
+function cancelRemove(): void {
+  deleteTarget.value = null;
+  deleteError.value = null;
+}
+
+/**
+ * TEAM-05/D-09-06: removes the member row on success; a LAST_ADMIN
+ * rejection (D-09-07) renders a `.dialog-error` INSIDE the still-open
+ * dialog rather than closing it (UI-09-07) — the caller can see exactly
+ * why nothing happened and retry a different member.
+ */
+async function confirmRemove(): Promise<void> {
+  const member = deleteTarget.value;
+  if (!member) return;
+  try {
+    await removeMember(member.id);
+    members.value = members.value.filter((m) => m.id !== member.id);
+    deleteTarget.value = null;
+    deleteError.value = null;
+    showToast(`${member.email} entfernt`);
+  } catch (err) {
+    deleteError.value = mapTeamError(err);
+  }
+}
+
 loadMembers();
 loadDomains();
 </script>
@@ -208,10 +297,28 @@ loadDomains();
               alle Domains
             </span>
             <template v-else>
-              <span v-for="domain in member.domains" :key="domain.id" class="domain-chip">
+              <span
+                v-for="domain in member.domains"
+                :key="domain.id"
+                class="domain-chip"
+                role="button"
+                tabindex="0"
+                @click="openAssign(member)"
+                @keydown.enter="openAssign(member)"
+                @keydown.space.prevent="openAssign(member)"
+              >
                 {{ domain.hostname }}
               </span>
-              <span class="assign-pill">+ zuweisen</span>
+              <span
+                class="assign-pill"
+                role="button"
+                tabindex="0"
+                @click="openAssign(member)"
+                @keydown.enter="openAssign(member)"
+                @keydown.space.prevent="openAssign(member)"
+              >
+                + zuweisen
+              </span>
             </template>
           </div>
 
@@ -221,7 +328,29 @@ loadDomains();
             </span>
           </div>
 
-          <div class="menu-cell">⋯</div>
+          <div
+            class="menu-cell"
+            role="button"
+            tabindex="0"
+            @click="toggleMenu(member.id)"
+            @keydown.enter.prevent="toggleMenu(member.id)"
+            @keydown.space.prevent="toggleMenu(member.id)"
+            @keydown.escape="closeMenu"
+            @blur="closeMenu"
+          >
+            ⋯
+            <div v-if="openMenuFor === member.id" class="action-menu" @click.stop>
+              <div
+                class="action-menu-item"
+                :class="{ disabled: lastAdmin(member) }"
+                :title="lastAdmin(member) ? 'Der letzte Admin kann nicht entfernt werden.' : undefined"
+                @mousedown.prevent
+                @click="handleRemoveClick(member)"
+              >
+                Mitglied entfernen
+              </div>
+            </div>
+          </div>
         </div>
 
         <div v-if="member.error" class="member-error-row">{{ member.error }}</div>
@@ -243,6 +372,31 @@ loadDomains();
     @close="closeInvite"
     @submit="handleInviteSubmit"
   />
+
+  <AssignDomainsModal
+    v-if="showAssignFor"
+    :domains="activeDomains"
+    :member-email="showAssignFor.email"
+    :initial-domain-ids="showAssignFor.domains.map((d) => d.id)"
+    :error="assignError"
+    @close="closeAssign"
+    @submit="handleAssignSubmit"
+  />
+
+  <div v-if="deleteTarget" class="delete-dialog-overlay" @click="cancelRemove">
+    <div class="delete-dialog" @click.stop>
+      <h3 class="delete-title">Mitglied entfernen?</h3>
+      <p class="delete-body">
+        {{ deleteTarget.email }} verliert den Zugriff auf Kurzly. Bereits erstellte Links und
+        QR-Codes bleiben erhalten.
+      </p>
+      <p v-if="deleteError" class="dialog-error">{{ deleteError }}</p>
+      <div class="delete-footer">
+        <button type="button" class="cancel-button" @click="cancelRemove">Abbrechen</button>
+        <button type="button" class="delete-confirm-button" @click="confirmRemove">Entfernen</button>
+      </div>
+    </div>
+  </div>
 
   <div v-if="toastMessage" class="toast">{{ toastMessage }}</div>
 </template>
@@ -402,6 +556,7 @@ loadDomains();
   background: var(--chip);
   color: var(--mut);
   font-family: "Geist Mono", monospace;
+  cursor: pointer;
 }
 
 .assign-pill {
@@ -433,6 +588,7 @@ loadDomains();
 }
 
 .menu-cell {
+  position: relative;
   color: var(--mut);
   text-align: center;
   cursor: pointer;
@@ -440,6 +596,40 @@ loadDomains();
 
 .menu-cell:hover {
   color: var(--text);
+}
+
+/* UI-09-06 ⋯ action menu. */
+.action-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: 10;
+  min-width: 150px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.action-menu-item {
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: #e5484d;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.action-menu-item:hover {
+  background: var(--hover);
+}
+
+.action-menu-item.disabled {
+  color: var(--mut);
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* Inline row mutation error (UI-09-03/04/07) — style = DomainsView's
@@ -463,6 +653,88 @@ loadDomains();
 .role-model-label {
   font-weight: 500;
   color: var(--text);
+}
+
+/* Delete-confirmation dialog (UI-09-06, reused verbatim from DomainsView.vue
+   Surface E). */
+.delete-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.delete-dialog {
+  width: 380px;
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 26px 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.delete-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+}
+
+.delete-body {
+  font-size: 12.5px;
+  color: var(--mut);
+  margin: 0;
+}
+
+/* UI-09-07: in-dialog LAST_ADMIN lockout error, style = .member-error-row. */
+.dialog-error {
+  font-size: 11.5px;
+  color: #e5484d;
+  margin: 0;
+}
+
+.delete-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.cancel-button {
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cancel-button:hover {
+  background: var(--hover);
+}
+
+.delete-confirm-button {
+  padding: 9px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #e5484d;
+  color: #f1f1ec;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.delete-confirm-button:hover {
+  opacity: 0.85;
 }
 
 /* Toast (global pattern, reused from DomainsView) */
