@@ -18,6 +18,13 @@
  * and the invite-only allowlist (`lib/allowlist.ts`'s `isEmailAllowed` only
  * checks row existence). The full global-admin/allowlist-management model
  * is deferred to Phase 9 (Team Management) — see this plan's SUMMARY.
+ *
+ * Phase 9 (D-09-01, T-09-SEED-LOCKOUT): both the `create` AND `update`
+ * branches set `accountRole: "admin"` — a fresh deployment seeds the
+ * operator as an account admin, and a redeploy of an already-seeded
+ * instance re-affirms it (never demotes). This is the precondition the
+ * D-09-07 lockout guards rely on: at least one `accountRole = admin` user
+ * must always exist.
  */
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "../generated/prisma/client.js";
@@ -25,9 +32,10 @@ import type { PrismaClient } from "../generated/prisma/client.js";
 export async function seedInitialAdmin(prisma: PrismaClient, email: string): Promise<void> {
   await prisma.user.upsert({
     where: { email },
-    update: { emailVerified: true },
+    update: { emailVerified: true, accountRole: "admin" },
     create: {
       id: randomUUID(),
+      accountRole: "admin",
       // No real display name is collected at bootstrap time (there is no
       // signup form — this is a direct DB seed); the email's local part is
       // a reasonable placeholder the operator can change later once a

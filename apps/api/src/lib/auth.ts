@@ -62,6 +62,20 @@ export function createAuth(prisma: PrismaClient) {
     baseURL: requireEnv("BASE_URL"),
     secret: requireEnv("BETTER_AUTH_SECRET"),
     database: prismaAdapter(prisma, { provider: "postgresql" }),
+    // Phase 9 (D-09-01, UI-09-02, T-09-ROLE-MASS): the `accountRole` column
+    // already exists (plain additive Prisma migration, apps/api/src/lib/
+    // accountRole.ts) — no `@better-auth/cli generate` schema-sync step is
+    // needed, since this block only teaches the Prisma adapter to READ an
+    // existing column into the get-session/get-user response, never to
+    // create one. `input: false` keeps it non-client-settable through any
+    // auth/signup/update-user path — defense-in-depth alongside
+    // `disableSignUp: true` below, so the only writers of accountRole are
+    // admin-seed.ts and the admin-gated team routes (09-04).
+    user: {
+      additionalFields: {
+        accountRole: { type: "string", required: false, input: false },
+      },
+    },
     session: {
       // 7-day sliding session (AUTH-03): survives a browser refresh, and the
       // 1-day `updateAge` refreshes the expiry on activity rather than
