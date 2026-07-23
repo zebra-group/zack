@@ -21,6 +21,7 @@ import type {
   QrCodeDTO,
   QrRemapHistoryEntryDTO,
   SessionUser,
+  SsoStatusDTO,
   TeamMemberDTO,
   UpdateLinkInput,
   UpdateMemberRoleInput,
@@ -620,4 +621,19 @@ export function mapTeamError(err: unknown): string {
     return TEAM_LAST_ADMIN_MESSAGE;
   }
   return TEAM_GENERIC_ERROR_MESSAGE;
+}
+
+/**
+ * `GET /api/sso/status` (Phase 10, AUTH-05, D-10-02/UI-10-02) — mirrors the
+ * `listDomains`/`getSession` same-origin `fetch` + `parseJsonOrThrow<T>`
+ * shape. Read-only, no request body. Resolves the `SsoStatusDTO` verbatim
+ * (`enabled`/`issuer`/`clientIdMasked`/`callbackPath`) — the DTO structurally
+ * carries no client-secret field (T-10-CARD-SECRET); callers render these
+ * fields as-is and never re-derive/unmask anything client-side (UI-10-06). A
+ * non-ok response throws `ApiError`; `TeamView` (Task 2) treats that as the
+ * neutral "status unknown" fallback rather than a toast (UI-10-02).
+ */
+export async function getSsoStatus(): Promise<SsoStatusDTO> {
+  const response = await fetch("/api/sso/status", { method: "GET" });
+  return parseJsonOrThrow<SsoStatusDTO>(response);
 }
