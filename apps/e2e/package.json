@@ -1,0 +1,16 @@
+{
+  "name": "@kurzly/e2e",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kurzly/api": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}
