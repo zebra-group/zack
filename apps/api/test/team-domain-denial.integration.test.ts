@@ -490,6 +490,7 @@ describe("TEAM-06 exhaustive domain-scoped denial suite (D-09-08)", () => {
     const readLinkId = await seedLink(ownerId, domainId, "admin-allowed-read-link");
     const patchLinkId = await seedLink(ownerId, domainId, "admin-allowed-patch-link");
     const deleteLinkId = await seedLink(ownerId, domainId, "admin-allowed-delete-link");
+    const utmLinkId = await seedLink(ownerId, domainId, "admin-allowed-utm-link");
 
     const getLink = await app.inject({
       method: "GET",
@@ -506,6 +507,19 @@ describe("TEAM-06 exhaustive domain-scoped denial suite (D-09-08)", () => {
     });
     expect(patchLink.statusCode).toBe(200);
     expect(patchLink.json().title).toBe("Admin-edited title");
+
+    const patchUtm = await app.inject({
+      method: "PATCH",
+      url: `/api/links/${utmLinkId}`,
+      headers: { cookie: adminCookie },
+      payload: {
+        utmSource: "admin-source",
+        utmMedium: "admin-medium",
+        utmCampaign: "admin-campaign",
+      },
+    });
+    expect(patchUtm.statusCode).toBe(200);
+    expect(patchUtm.json().utmSource).toBe("admin-source");
 
     const deleteLink = await app.inject({
       method: "DELETE",
