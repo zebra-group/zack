@@ -49,7 +49,13 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
   3. The suite passes identically at `workers=1` and `workers=N` with no `P2002` unique-constraint failures, proving the chosen DB-isolation + truncate/reseed-per-file strategy against the published `5433` Postgres, separate from the Vitest testcontainers harness. [INFRA-03]
   4. A fresh browser context loaded from saved `storageState` reaches an authenticated dashboard route without re-login, for both the Admin and the Member role fixtures. [INFRA-04]
   5. CI runs the Playwright suite as its own job after the existing test/build jobs, uploads report/trace artifacts on failure, and one dedicated spec still trips a real 429 while the rest of the suite runs unthrottled via a narrow test-only bypass (not a blanket disable). [INFRA-05, INFRA-06]
-**Plans**: TBD
+**Plans**: 6 plans
+- [ ] 11-01-PLAN.md — E2E workspace scaffold + Prisma-client subpath export & spike (INFRA-01) [Wave 1]
+- [ ] 11-02-PLAN.md — Rate-limit test-only bypass mechanism + unit tests (INFRA-06) [Wave 1]
+- [ ] 11-03-PLAN.md — E2E compose overlay, boot script & built-image boot smoke (INFRA-01) [Wave 2]
+- [ ] 11-04-PLAN.md — DB reset/seed + Mailpit client + global setup + isolation/wiring smokes (INFRA-02, INFRA-03) [Wave 3]
+- [ ] 11-05-PLAN.md — Per-role storageState auth fixture + reuse smoke (INFRA-04) [Wave 4]
+- [ ] 11-06-PLAN.md — Rate-limit bypass E2E proof + CI e2e job (INFRA-05, INFRA-06) [Wave 5]
 
 ### Phase 12: Redirect Handler E2E (Core Value)
 **Goal**: Prove the redirect handler — Kurzly's stated single most important guarantee — behaves correctly end-to-end across every state, against the built image, with no dependency on authentication (public endpoint).
@@ -131,7 +137,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 | 8. UTM Builder + Custom OG Metadata | v1.0 | 6/6 | Complete | 2026-07-23 |
 | 9. Team Mgmt & Domain-Scoped Authz | v1.0 | 7/7 | Complete | 2026-07-23 |
 | 10. OIDC/SSO Integration | v1.0 | 5/5 | Complete | 2026-07-23 |
-| 11. Playwright E2E Infrastructure & Fixtures | v1.1 | 0/TBD | Not started | - |
+| 11. Playwright E2E Infrastructure & Fixtures | v1.1 | 0/6 | Not started | - |
 | 12. Redirect Handler E2E (Core Value) | v1.1 | 0/TBD | Not started | - |
 | 13. Authentication & Session E2E | v1.1 | 0/TBD | Not started | - |
 | 14. Links & CSV Import E2E | v1.1 | 0/TBD | Not started | - |
