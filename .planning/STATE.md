@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 0
 status: Awaiting next milestone
 stopped_at: Completed 07-09-PLAN.md
-last_updated: "2026-07-23T19:21:13.497Z"
-last_activity: 2026-07-23
-last_activity_desc: Milestone v1.0 completed and archived
+last_updated: "2026-07-24T08:37:03.352Z"
+last_activity: 2026-07-24
+last_activity_desc: "Completed quick task 260724-ecl: Fix CI smoke tests crashing app container"
+current_phase_name: oidc-sso-integration
 progress:
   total_phases: 10
   completed_phases: 10
   total_plans: 65
   completed_plans: 65
   percent: 100
-current_phase_name: oidc-sso-integration
 ---
 
 # Project State
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 Phase: Milestone v1.0 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-07-24 — Completed quick task 260724-d6y: Add delete path for QR codes
+Last activity: 2026-07-24 — Completed quick task 260724-ecl: Fix CI smoke tests crashing app container
 
 ## Performance Metrics
 
@@ -106,6 +106,7 @@ Last activity: 2026-07-24 — Completed quick task 260724-d6y: Add delete path f
 | Phase 07 P07 | 25min | 3 tasks | 5 files |
 | Phase 07 P08 | 20min | 3 tasks | 5 files |
 | Phase 07 P09 | 20min | 2 tasks | 2 files |
+| Phase quick-260724-ecl P01 | 15min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -209,6 +210,7 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-09: RED/GREEN commit order swapped (test authored first) to satisfy the MVP+TDD gate - mirrors 07-07/07-08 precedent — Plan's Task 1 (implementation) preceded Task 2 (test); tdd=true requires a preceding failing test commit
 - [Phase 07]: 07-09: existing-static-QR lookup uses listQrCodes() + client-side filter (variant/linkId) since GET /api/qr-codes has no by-link query param — No backend change was in scope for this frontend-only plan
 - [Phase 07]: 07-09: added a fallback failure toast for handleQrCode's catch branch — Matches every other async action in LinkDetailView.vue; the UI-SPEC only locks the success toast
+- [Phase ?]: Both smoke scripts' auto-create .env branch now generates a real openssl-rand BETTER_AUTH_SECRET (sed with | delimiter) instead of copying .env.example's rejected placeholder
 
 ### Pending Todos
 
@@ -226,6 +228,7 @@ None yet.
 | 260724-d5o | Add UTM field coverage to team domain denial test suite | 2026-07-24 | 0c0bf4d | [260724-d5o-add-utm-field-coverage-to-team-domain-de](./quick/260724-d5o-add-utm-field-coverage-to-team-domain-de/) |
 | 260724-d72 | Enforce one-static-QR-per-link with DB unique index and conflict error code | 2026-07-24 | 9edf583 | [260724-d72-enforce-one-static-qr-per-link-with-db-u](./quick/260724-d72-enforce-one-static-qr-per-link-with-db-u/) |
 | 260724-d6y | Add delete path for QR codes | 2026-07-24 | 5c8265b | [260724-d6y-add-delete-path-for-qr-codes](./quick/260724-d6y-add-delete-path-for-qr-codes/) |
+| 260724-ecl | Fix CI smoke tests crashing app container | 2026-07-24 | ee9fca4 | [260724-ecl-fix-ci-smoke-tests-crashing-app-containe](./quick/260724-ecl-fix-ci-smoke-tests-crashing-app-containe/) |
 
 ## Deferred Items
 
@@ -237,7 +240,7 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-21T08:27:04.220Z
+Last session: 2026-07-24T08:36:16.092Z
 Stopped at: Completed 07-09-PLAN.md
 Resume file: None
 
