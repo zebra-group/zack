@@ -91,6 +91,27 @@ describe("Rate-limit E2E bypass (INFRA-06)", () => {
       await app.close();
     }
   });
+
+  it("Test D (CR-02, 11-REVIEW.md): with nodeEnv 'production', a correct x-e2e-bypass header does nothing (still 429) even though the secret is set", async () => {
+    process.env.E2E_RATE_LIMIT_BYPASS_SECRET = BYPASS_SECRET;
+    const app = await buildApp({ prisma, nodeEnv: "production" });
+
+    try {
+      let lastStatus = 0;
+      for (let i = 0; i < REQUEST_COUNT; i++) {
+        const res = await app.inject({
+          method: "POST",
+          url: "/api/auth/sign-in/magic-link",
+          headers: { "x-e2e-bypass": BYPASS_SECRET },
+          payload: { email: PROBE_EMAIL },
+        });
+        lastStatus = res.statusCode;
+      }
+      expect(lastStatus).toBe(429);
+    } finally {
+      await app.close();
+    }
+  });
 });
 
 describe("E2E bypass secret is not a configurable production key", () => {
