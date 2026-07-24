@@ -5,15 +5,15 @@ milestone_name: E2E Test Coverage
 current_phase: 13
 current_phase_name: Authentication & Session E2E
 status: verifying
-stopped_at: Completed 12-05-PLAN.md (final plan of Phase 12)
-last_updated: "2026-07-24T22:27:33.538Z"
+stopped_at: Completed 13-01-PLAN.md (mock OIDC IdP infra)
+last_updated: "2026-07-24T23:35:20.602Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 12 complete, transitioned to Phase 13
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 19
+  completed_plans: 12
   percent: 29
 ---
 
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 13 — Authentication & Session E2E
-Plan: Not started
-Status: Phase complete — ready for verification
+Plan: 1 of 8 in current phase
+Status: Ready to execute
 Last activity: 2026-07-24 — Phase 12 complete, transitioned to Phase 13
 
 Progress: [██████████] 100%
@@ -77,6 +77,7 @@ Progress: [██████████] 100%
 | Phase 12 P03 | 35min | 2 tasks | 3 files |
 | Phase 12 P04 | 20min | 2 tasks | 2 files |
 | Phase 12 P05 | 95min | 2 tasks | 3 files |
+| Phase 13 P01 | 50min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,9 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 12]: REDIRECT-E2E-04/REDIRECT-E2E-05 required zero changes to apps/e2e/src/links.ts -- the existing createE2eLink/BOT_UA/BROWSER_UA/CANARY_TARGET/assertNoLeak/fetchWithFixtureRaceRetry vocabulary from 12-02/12-03 covered every fixture and assertion verbatim
 - [Phase ?]: [Phase 12, Rule 1 bug FIXED] renderPasswordPage's real-browser form encoding (application/x-www-form-urlencoded) was never parseable by POST /:slug/verify -- fastify.inject's JSON-only payload shape had hidden this since v1.0. Fixed with a plugin-scoped addContentTypeParser inside registerRedirectRoute, proven via RED->GREEN TDD.
 - [Phase ?]: [Phase 12] A real Chromium page navigation cannot exercise a Secure-flagged cookie (NODE_ENV=production forces Secure) over the plain-HTTP, non-localhost e2e.kurzly.local origin -- Chromium withholds it regardless of CSP. page.request (shares the same BrowserContext cookie jar as page, but bypasses CSP form-action + Secure-cookie enforcement) is the closest achievable real-cookie-jar proof given this deliberate architecture; documented as a follow-up consideration, not actioned.
+- [Phase 13]: oidc-provider Provider instance IS the Koa app -- custom routes/middleware register via provider.use() (which inserts immediately before the internal action router), never via a second wrapping Koa() app calling provider.callback() as middleware (throws TypeError)
+- [Phase 13]: mock IdP's auto-approve /interaction/:uid must resolve BOTH login and consent prompts (a provider.Grant covering the requested scope/claims) -- single-prompt-only handling gets stuck looping on consent
+- [Phase 13]: mock IdP's userinfo response needs a rewrite middleware merging extraClaims directly into the response body -- oidc-provider's own claims-scope filtering silently strips unregistered claim keys (role/admin) before they'd otherwise reach the app, which would make AUTH-E2E-04's no-elevation assertion prove nothing
 
 ### Pending Todos
 
@@ -119,6 +123,7 @@ Research flags to resolve during phase planning:
 - Phase 12: review actual bot-detection UA implementation before writing bot/OG specs; confirm custom-domain testing approach (/etc/hosts vs. host-header).
 - Phase 13: mock OIDC IdP (oidc-provider) + better-auth genericOAuth callback specifics need planning validation; confirm where better-auth stores session (cookies vs. sessionStorage) before trusting storageState.
 - Phase 14: confirm CSV import unit-test coverage; keep E2E light where already covered.
+- Phase 13 (13-01 finding): apps/api/src/lib/auth.ts's genericOAuth config sets no scopes (empty scope='' at authorization time, empirically confirmed live against the real running app+mock) -- will cause access_denied against a spec-compliant IdP; add scopes: ['openid','email','profile'] as its own TDD RED->GREEN fix paired with sso-login.spec.ts
 
 ## Deferred Items
 
@@ -130,6 +135,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T21:35:59.539Z
-Stopped at: Completed 12-05-PLAN.md (final plan of Phase 12)
+Last session: 2026-07-24T23:35:20.595Z
+Stopped at: Completed 13-01-PLAN.md (mock OIDC IdP infra)
 Resume file: None

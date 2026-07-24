@@ -95,9 +95,9 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
   4. An invited-but-not-yet-activated magic-link account that first signs in via SSO is correctly merged into a single account. [AUTH-E2E-05]
   5. Logout ends the session and unauthenticated access to dashboard routes redirects to login; a magic-link resend that trips the rate limit surfaces a clear UI message rather than failing silently. [AUTH-E2E-06, AUTH-E2E-07]
 
-**Plans**: 8 plans
+**Plans**: 1/8 plans executed
 
-- [ ] 13-01-PLAN.md — Mock OIDC IdP service (oidc-provider@9.10.0) + docker-compose.e2e.yml wiring (Wave 0)
+- [x] 13-01-PLAN.md — Mock OIDC IdP service (oidc-provider@9.10.0) + docker-compose.e2e.yml wiring (Wave 0)
 - [ ] 13-02-PLAN.md — E2E harness scaffolding: mock-IdP client, User fixtures, standalone `auth` project (Wave 0)
 - [ ] 13-03-PLAN.md — AUTH-E2E-01 magic-link round trip + AUTH-E2E-02 token rejection (Wave 1)
 - [ ] 13-04-PLAN.md — AUTH-E2E-03 non-invited email denial (Wave 1)
@@ -176,7 +176,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 | 10. OIDC/SSO Integration | v1.0 | 5/5 | Complete | 2026-07-23 |
 | 11. Playwright E2E Infrastructure & Fixtures | v1.1 | 6/6 | Complete    | 2026-07-24 |
 | 12. Redirect Handler E2E (Core Value) | v1.1 | 5/5 | Complete    | 2026-07-24 |
-| 13. Authentication & Session E2E | v1.1 | 0/TBD | Not started | - |
+| 13. Authentication & Session E2E | v1.1 | 1/8 | In Progress|  |
 | 14. Links & CSV Import E2E | v1.1 | 0/TBD | Not started | - |
 | 15. QR Studio E2E | v1.1 | 0/TBD | Not started | - |
 | 16. Analytics E2E | v1.1 | 0/TBD | Not started | - |
