@@ -4,16 +4,16 @@ milestone: v1.1
 milestone_name: E2E Test Coverage
 current_phase: 12
 current_phase_name: Redirect Handler E2E (Core Value
-status: planning
-stopped_at: Phase 11 Plan 06 (rate-limit-bypass.spec.ts INFRA-06 E2E proof, CI e2e job INFRA-05) complete. Phase 11 (Playwright E2E Infrastructure & Fixtures) is fully complete — all 6 plans done.
-last_updated: "2026-07-24T19:36:57.865Z"
+status: executing
+stopped_at: Phase 12 Plan 01 (host-header.spike.spec.ts, RESEARCH OQ-1/A1 CONFIRMED live) complete. 4 more plans remain in Phase 12.
+last_updated: "2026-07-24T20:19:13.860Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 11 complete, transitioned to Phase 12
+last_activity_desc: Phase 12 execution started
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 11
+  completed_plans: 7
   percent: 14
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hosted, ohne Drittanbieter-Tracking.
-**Current focus:** Phase 11 — Playwright E2E Infrastructure & Fixtures
+**Current focus:** Phase 12 — Redirect Handler E2E (Core Value)
 
 ## Current Position
 
-Phase: 12 of 17 (Redirect Handler E2E (Core Value))
-Plan: Not started
-Status: Phase 11 complete — ready to plan Phase 12
-Last activity: 2026-07-24 — Phase 11 complete, transitioned to Phase 12
+Phase: 12 (Redirect Handler E2E (Core Value)) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-07-24 — Phase 12 execution started
 
 Progress: [██████████] 100%
 
@@ -72,6 +72,7 @@ Progress: [██████████] 100%
 | Phase 11 P04 | 27min | 3 tasks | 9 files |
 | Phase 11 P05 | 15min | 2 tasks | 3 files |
 | Phase 11 P06 | 10min | 2 tasks | 2 files |
+| Phase 12 P01 | 20min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,7 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 11]: storage-state.spec.ts detects role via testInfo.project.name in a single shared spec file instead of two near-duplicate per-role files — one assertion body proves both "reaches an authenticated route" and "correct role's session was captured" (T-11-08) for chromium-admin and chromium-member alike
 - [Phase 11]: rate-limit-bypass.spec.ts runs the negative burst before the positive burst against the same probe IP so the positive burst proves the bypass overrides an already-tripped bucket
 - [Phase 11]: CI's e2e job generates E2E_RATE_LIMIT_BYPASS_SECRET itself via a dedicated openssl rand -hex 32 step (id: bypass-secret) rather than relying solely on scripts/e2e-compose.sh's own fallback, making per-run provenance explicit in ci.yml
+- [Phase 12]: RESEARCH OQ-1/A1 CONFIRMED live against the built compose image — Playwright APIRequestContext delivers a caller-supplied Host header unmodified to Fastify, no raw http.request fallback needed for this phase's feature specs
 
 ### Pending Todos
 
@@ -117,6 +119,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T14:46:57.913Z
-Stopped at: Phase 11 Plan 06 (rate-limit-bypass.spec.ts INFRA-06 E2E proof, CI e2e job INFRA-05) complete. Phase 11 (Playwright E2E Infrastructure & Fixtures) is fully complete — all 6 plans done.
+Last session: 2026-07-24T20:19:13.854Z
+Stopped at: Phase 12 Plan 01 (host-header.spike.spec.ts, RESEARCH OQ-1/A1 CONFIRMED live) complete. 4 more plans remain in Phase 12.
 Resume file: None
