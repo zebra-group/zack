@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 Phase: Milestone v1.0 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-07-24 — Completed quick task 260724-d72: Enforce one-static-QR-per-link with DB unique index and conflict error code
+Last activity: 2026-07-24 — Completed quick task 260724-d6y: Add delete path for QR codes
 
 ## Performance Metrics
 
@@ -225,6 +225,7 @@ None yet.
 | 260724-d1m | Fix LinkDetailView edit-submit dropping trackingEnabled | 2026-07-24 | 7f15d45 | [260724-d1m-fix-linkdetailview-edit-submit-dropping-](./quick/260724-d1m-fix-linkdetailview-edit-submit-dropping-/) |
 | 260724-d5o | Add UTM field coverage to team domain denial test suite | 2026-07-24 | 0c0bf4d | [260724-d5o-add-utm-field-coverage-to-team-domain-de](./quick/260724-d5o-add-utm-field-coverage-to-team-domain-de/) |
 | 260724-d72 | Enforce one-static-QR-per-link with DB unique index and conflict error code | 2026-07-24 | 9edf583 | [260724-d72-enforce-one-static-qr-per-link-with-db-u](./quick/260724-d72-enforce-one-static-qr-per-link-with-db-u/) |
+| 260724-d6y | Add delete path for QR codes | 2026-07-24 | 5c8265b | [260724-d6y-add-delete-path-for-qr-codes](./quick/260724-d6y-add-delete-path-for-qr-codes/) |
 
 ## Deferred Items
 
