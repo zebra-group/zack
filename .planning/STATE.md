@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: E2E Test Coverage
-current_phase: 11
-current_phase_name: Playwright E2E Infrastructure & Fixtures
-status: executing
+current_phase: 12
+current_phase_name: Redirect Handler E2E (Core Value
+status: planning
 stopped_at: Phase 11 Plan 06 (rate-limit-bypass.spec.ts INFRA-06 E2E proof, CI e2e job INFRA-05) complete. Phase 11 (Playwright E2E Infrastructure & Fixtures) is fully complete — all 6 plans done.
-last_updated: "2026-07-24T14:46:57.920Z"
+last_updated: "2026-07-24T19:36:57.865Z"
 last_activity: 2026-07-24
-last_activity_desc: "Plan 11-06 complete: apps/e2e/tests/smoke/rate-limit-bypass.spec.ts (real 429 without x-e2e-bypass header, all-pass with it — INFRA-06 E2E proof), .github/workflows/ci.yml e2e job (needs: [test, smoke], fresh browser install, per-run generated E2E_RATE_LIMIT_BYPASS_SECRET, failure-only report/trace artifacts — INFRA-05). Phase 11 is fully complete."
+last_activity_desc: Phase 11 complete, transitioned to Phase 12
 progress:
   total_phases: 7
   completed_phases: 1
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: 11 of 17 (Playwright E2E Infrastructure & Fixtures) — first phase of milestone v1.1
-Plan: 6 of 6 complete (11-06: rate-limit-bypass.spec.ts INFRA-06 E2E proof, CI e2e job INFRA-05)
+Phase: 12 of 17 (Redirect Handler E2E (Core Value))
+Plan: Not started
 Status: Phase 11 complete — ready to plan Phase 12
-Last activity: 2026-07-24 — Plan 11-06 complete: apps/e2e/tests/smoke/rate-limit-bypass.spec.ts (real 429 without x-e2e-bypass header, all-pass with it), .github/workflows/ci.yml e2e job (needs: [test, smoke], fresh browser install, per-run generated E2E_RATE_LIMIT_BYPASS_SECRET, failure-only report/trace artifacts)
+Last activity: 2026-07-24 — Phase 11 complete, transitioned to Phase 12
 
 Progress: [██████████] 100%
 
