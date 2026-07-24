@@ -230,6 +230,7 @@ None yet.
 | 260724-d6y | Add delete path for QR codes | 2026-07-24 | 5c8265b | [260724-d6y-add-delete-path-for-qr-codes](./quick/260724-d6y-add-delete-path-for-qr-codes/) |
 | 260724-ecl | Fix CI smoke tests crashing app container | 2026-07-24 | ee9fca4 | [260724-ecl-fix-ci-smoke-tests-crashing-app-containe](./quick/260724-ecl-fix-ci-smoke-tests-crashing-app-containe/) |
 | 6 | Bump GitHub Actions to current majors (checkout v7, setup-node v7, pnpm/action-setup v6) | 2026-07-24 | fcbfc3f | — |
+| 260724-fmm | Add GitHub Actions workflow to build and publish production Docker image to GHCR | 2026-07-24 | a22c687 | [260724-fmm-add-github-actions-workflow-to-build-and](./quick/260724-fmm-add-github-actions-workflow-to-build-and/) |
 
 ## Deferred Items
 
