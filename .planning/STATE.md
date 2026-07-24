@@ -231,6 +231,7 @@ None yet.
 | 260724-ecl | Fix CI smoke tests crashing app container | 2026-07-24 | ee9fca4 | [260724-ecl-fix-ci-smoke-tests-crashing-app-containe](./quick/260724-ecl-fix-ci-smoke-tests-crashing-app-containe/) |
 | 6 | Bump GitHub Actions to current majors (checkout v7, setup-node v7, pnpm/action-setup v6) | 2026-07-24 | fcbfc3f | — |
 | 260724-fmm | Add GitHub Actions workflow to build and publish production Docker image to GHCR | 2026-07-24 | a22c687 | [260724-fmm-add-github-actions-workflow-to-build-and](./quick/260724-fmm-add-github-actions-workflow-to-build-and/) |
+| 260724-gsf | Add semantic-release automated SemVer releases with GHCR publish on release | 2026-07-24 | eeb6362 | [260724-gsf-add-semantic-release-automated-semver-re](./quick/260724-gsf-add-semantic-release-automated-semver-re/) |
 
 ## Deferred Items
 
