@@ -138,6 +138,54 @@ describe("Rate-limit E2E bypass (INFRA-06)", () => {
       await app.close();
     }
   });
+
+  // CR-06 (11-REVIEW.md, discovered via live E2E testing against the built
+  // image — no unit test caught it because `buildApp({ prisma })` here
+  // never passes `nodeEnv: "production"`, so better-auth's own
+  // `enabled: options.rateLimit?.enabled ?? isProduction` default rate
+  // limiter stayed OFF the whole time in every prior test in this file.
+  // Live testing under NODE_ENV=production revealed better-auth's internal
+  // rate limiter (a SEPARATE gate from this file's own `plugins/
+  // rateLimit.ts`, with no knowledge of `x-e2e-bypass`) kept 429-ing an
+  // already-tripped bucket even with the correct bypass header — exactly
+  // reproducing the E2E spec's "already-tripped bucket" scenario
+  // (apps/e2e/tests/smoke/rate-limit-bypass.spec.ts) that this file's own
+  // Test A never covered (Test A always sends the header from the very
+  // first request, never first exhausting the limit without it).
+  it("Test F (CR-06): under nodeEnv 'production' + E2E_COMPOSE_OVERLAY (the real merged E2E env), an already-tripped bucket is still fully bypassed once the header is added", async () => {
+    process.env.E2E_RATE_LIMIT_BYPASS_SECRET = BYPASS_SECRET;
+    process.env.E2E_COMPOSE_OVERLAY = "true";
+    const app = await buildApp({ prisma, nodeEnv: "production" });
+
+    try {
+      // First, trip the bucket WITHOUT the header (mirrors Test B).
+      for (let i = 0; i < REQUEST_COUNT; i++) {
+        const res = await app.inject({
+          method: "POST",
+          url: "/api/auth/sign-in/magic-link",
+          payload: { email: PROBE_EMAIL },
+        });
+        if (i === REQUEST_COUNT - 1) {
+          expect(res.statusCode).toBe(429);
+        }
+      }
+
+      // Now, against the SAME already-tripped bucket, every bypassed
+      // request must succeed — including via better-auth's own internal
+      // rate limiter, not just this file's `plugins/rateLimit.ts`.
+      for (let i = 0; i < REQUEST_COUNT; i++) {
+        const res = await app.inject({
+          method: "POST",
+          url: "/api/auth/sign-in/magic-link",
+          headers: { "x-e2e-bypass": BYPASS_SECRET },
+          payload: { email: PROBE_EMAIL },
+        });
+        expect(res.statusCode).not.toBe(429);
+      }
+    } finally {
+      await app.close();
+    }
+  });
 });
 
 describe("CR-05 regression: docker-compose.e2e.yml's exact merged boot env must not crash-loop", () => {

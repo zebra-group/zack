@@ -119,6 +119,32 @@ export function createAuth(prisma: PrismaClient) {
       expiresIn: 60 * 60 * 24 * 7,
       updateAge: 60 * 60 * 24,
     },
+    // CR-06 (11-REVIEW.md, discovered via live E2E testing against the
+    // built image — never surfaced by fastify.inject unit tests, which run
+    // under NODE_ENV=test): better-auth's OWN core rate limiter defaults to
+    // `enabled: options.rateLimit?.enabled ?? isProduction` (create-context.mjs)
+    // — i.e. ON by default specifically under NODE_ENV=production, the exact
+    // env this app boots under (D-01/INFRA-01). The `magicLink()` plugin
+    // additionally registers its own independent rule (`window: 60, max: 5`
+    // on `/sign-in/magic-link`, plugins/magic-link/index.mjs) gated by the
+    // SAME master `ctx.rateLimit.enabled` switch (api/rate-limiter/index.mjs:
+    // `if (!ctx.rateLimit.enabled) return`). Both were silently active in
+    // production all along, completely independent of and invisible to this
+    // project's own deliberate, reviewed, per-route Fastify-level limiter
+    // (`plugins/rateLimit.ts`'s `MAGIC_LINK_RATE_LIMIT`, 5 req/15min) — a
+    // second, undocumented, unreviewed 5-req/60s gate stacked underneath it.
+    // This surfaced as a real bug (INFRA-06): the E2E `x-e2e-bypass` header
+    // only ever exempted the Fastify-level limiter, so better-auth's own
+    // internal one kept 429-ing regardless. Rather than teach a SECOND
+    // limiter about the bypass secret (doubling the maintenance/security
+    // surface this project's code reviews already flagged once for drift,
+    // CR-05), disable better-auth's redundant internal rate limiting
+    // entirely — `plugins/rateLimit.ts` remains the single, intentional,
+    // security-reviewed source of truth for every auth endpoint's rate
+    // limiting, in every environment.
+    rateLimit: {
+      enabled: false,
+    },
     plugins: [
       magicLink({
         expiresIn: 900, // 15 minutes — AUTH-02
