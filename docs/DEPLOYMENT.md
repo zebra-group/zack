@@ -78,8 +78,8 @@ docker compose -f docker-compose.yml build app
 
 Migrations are **never** run as a Dockerfile `RUN` step — only at
 container start (see Section 3). Operators can also skip building
-altogether and pull a prebuilt image published by CI instead — see
-Section 6.
+altogether and pull a prebuilt versioned image published by CI instead
+— see Section 6.
 
 ## 3. Deploy flow
 
@@ -236,48 +236,96 @@ Not covered here — see
 Caddy/nginx/Traefik setup, including the on-demand TLS integration for
 dynamically-registered custom domains via `GET /api/tls-check`.
 
-## 6. Continuous image publishing to GHCR
+## 6. Versioned releases and GHCR image publishing
 
-In addition to building the image yourself (Section 2), CI publishes a
-prebuilt image on every push to `main`.
+In addition to building the image yourself (Section 2), CI cuts
+versioned releases and publishes a prebuilt image tied to each one.
 
-**What publishes:** the `publish` job in `.github/workflows/ci.yml`
-builds the same multi-stage `Dockerfile` used by `docker-compose.yml`'s
-`app` service and pushes it to `ghcr.io/zebra-group/zack` — but only
-after the `test` and `smoke` jobs both pass (`needs: [test, smoke]`).
-Pull requests and pushes to any branch other than `main` never run this
-job, so no GHCR credentials are ever exposed to untrusted PR code.
+**How releases are cut:** the `release` job in
+`.github/workflows/ci.yml` runs [semantic-release](https://semantic-release.gitbook.io/)
+on every push to `main`, but only after the `test` and `smoke` jobs both
+pass (`needs: [test, smoke]`). It analyzes the conventional commits
+(`feat:`, `fix:`, etc.) added since the last release and, when there is
+a releasable change, automatically creates a Git tag and a GitHub
+Release with an auto-generated changelog — there is no manual
+review-PR gate. With no pre-existing tags, the first release is
+`v1.0.0`. Pull requests and pushes to any branch other than `main`
+never run this job.
 
-**Tags:** every publish produces three tags:
+**The token story:** the entire flow — cutting the release AND
+publishing the image — runs under the **one built-in `GITHUB_TOKEN`**.
+There is **no personal access token (PAT)** and **no extra Actions
+secret to provision**. The `release` job is granted
+`contents: write`, `issues: write`, `pull-requests: write` (so
+semantic-release can push the tag, push its `CHANGELOG.md`/
+`package.json` write-back commit, and comment on/close referenced
+issues and PRs) plus `packages: write` (so the same job can push the
+image to GHCR) — all satisfied by that single token.
+
+**Where and when the image builds now:** in the SAME `release` job,
+immediately after semantic-release runs. The job captures the latest
+Git tag before running semantic-release and again afterward (re-fetching
+tags first, since semantic-release pushed the new tag to the remote);
+only when a NEW tag appeared does it build the same multi-stage
+`Dockerfile` and push to `ghcr.io/zebra-group/zack`. **The image is no
+longer built on every push to `main`** — a push whose commits produce no
+releasable change (e.g. a `docs:`/`chore:`-only commit) cuts no release,
+so the docker steps are skipped and no image is built that run.
+
+**Tags:** each release publishes four tags, built directly from the
+released SemVer:
 
 | Tag | Meaning |
 |---|---|
-| `latest` | Always tracks the current tip of `main`. Convenient for quick pulls, but mutable. |
-| `main` | The branch name — currently equivalent to `latest`. |
-| `sha-<short-git-sha>` | Immutable — pin this tag for reproducible or rollback-safe production deploys. |
+| `1.2.3` | Exact version — pin this for reproducible or rollback-safe production deploys. |
+| `1.2` | Tracks the newest `1.2.x` patch release. |
+| `1` | Tracks the newest `1.x.y` release. |
+| `latest` | Always tracks the newest published release. |
 
-**How to pull:** because the `zebra-group/zack` repository is **PRIVATE**,
-the published image inherits that same PRIVATE visibility on GHCR — the
-CI push itself needs no extra configuration for this, but pulling from
-outside the workflow (e.g. onto a production host) requires
+The old floating `main` / `sha-<short-git-sha>` tags from the
+push-per-commit flow are gone — they no longer add value now that every
+published image is tied to a real, version-pinnable release.
+
+**How to pull a specific version:**
+
+```bash
+docker pull ghcr.io/zebra-group/zack:1.2.3
+# or a moving track:
+docker pull ghcr.io/zebra-group/zack:1.2
+docker pull ghcr.io/zebra-group/zack:1
+docker pull ghcr.io/zebra-group/zack:latest
+```
+
+Because the `zebra-group/zack` repository is **PRIVATE**, the published
+image inherits that same PRIVATE visibility on GHCR. Pulling from
+outside the workflow (e.g. onto a production host) still requires
 authenticating first with a GitHub username and a Personal Access Token
 that carries the `read:packages` scope:
 
 ```bash
 echo "$GHCR_PAT" | docker login ghcr.io -u <github-username> --password-stdin
-docker pull ghcr.io/zebra-group/zack:latest
-# or, pinned to an exact build:
-docker pull ghcr.io/zebra-group/zack:sha-<short>
+docker pull ghcr.io/zebra-group/zack:1.2.3
 ```
 
-The CI job's own `GITHUB_TOKEN` is only valid inside that workflow run —
-it cannot be reused for an out-of-band `docker pull`.
+This `read:packages` PAT is a **pull-time-only** credential for
+authenticating an out-of-band `docker pull` — it is unrelated to the
+release process itself, which (as above) needs no PAT at all. The CI
+job's own `GITHUB_TOKEN` is only valid inside that workflow run and
+cannot be reused for an out-of-band pull.
+
+**Where the changelog lives:** `CHANGELOG.md` at the repo root,
+auto-generated by `@semantic-release/changelog` from the conventional
+commits included in each release, and committed back to `main` by
+`@semantic-release/git`. That write-back commit's message always
+contains `[skip ci]`, which GitHub natively honors to skip triggering a
+new push-driven CI run for it — otherwise the write-back commit would
+loop back into `ci.yml` and try to cut another release from itself.
 
 **Pulling instead of building locally:** this is a drop-in alternative
 to `docker compose build` (Section 2) for production hosts that would
-rather not run a full workspace build themselves. To consume the
+rather not run a full workspace build themselves. To consume a
 published image via Compose, you would set `image:
-ghcr.io/zebra-group/zack:latest` on the `app` service in place of
-`build: .`. The committed `docker-compose.yml` intentionally still
-builds locally by default, so no compose file changes are required to
-keep using local builds.
+ghcr.io/zebra-group/zack:1.2.3` (or `:latest`) on the `app` service in
+place of `build: .`. The committed `docker-compose.yml` intentionally
+still builds locally by default, so no compose file changes are
+required to keep using local builds.
