@@ -28,11 +28,11 @@
 
 ### Redirect-Handler E2E
 
-- [ ] **REDIRECT-E2E-01**: Slug → Ziel Happy Path (3xx + korrekter `Location`-Header/finale URL)
-- [ ] **REDIRECT-E2E-02**: Passwort-Gate — falsches Passwort abgelehnt, korrektes Passwort gibt frei; Ziel taucht vor Freigabe in keiner Response auf
-- [ ] **REDIRECT-E2E-03**: Expiry-Gate — abgelaufener Link liefert HTTP 410, Ziel wird nicht geleakt
-- [ ] **REDIRECT-E2E-04**: Bot-/OG-Rendering zeigt die konfigurierten Custom-OG-Werte, nie das echte Ziel, und respektiert Passwort-/Expiry-Gates
-- [ ] **REDIRECT-E2E-05**: UTM-/Query-Parameter erscheinen korrekt zusammengeführt auf der finalen Redirect-URL
+- [x] **REDIRECT-E2E-01**: Slug → Ziel Happy Path (3xx + korrekter `Location`-Header/finale URL)
+- [x] **REDIRECT-E2E-02**: Passwort-Gate — falsches Passwort abgelehnt, korrektes Passwort gibt frei; Ziel taucht vor Freigabe in keiner Response auf
+- [x] **REDIRECT-E2E-03**: Expiry-Gate — abgelaufener Link liefert HTTP 410, Ziel wird nicht geleakt
+- [x] **REDIRECT-E2E-04**: Bot-/OG-Rendering zeigt die konfigurierten Custom-OG-Werte, nie das echte Ziel, und respektiert Passwort-/Expiry-Gates
+- [x] **REDIRECT-E2E-05**: UTM-/Query-Parameter erscheinen korrekt zusammengeführt auf der finalen Redirect-URL
 
 ### Links & CSV-Import E2E
 
@@ -89,11 +89,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-04 | Phase 11 | Complete |
 | INFRA-05 | Phase 11 | Complete |
 | INFRA-06 | Phase 11 | Complete |
-| REDIRECT-E2E-01 | Phase 12 | Pending |
-| REDIRECT-E2E-02 | Phase 12 | Pending |
-| REDIRECT-E2E-03 | Phase 12 | Pending |
-| REDIRECT-E2E-04 | Phase 12 | Pending |
-| REDIRECT-E2E-05 | Phase 12 | Pending |
+| REDIRECT-E2E-01 | Phase 12 | Complete |
+| REDIRECT-E2E-02 | Phase 12 | Complete |
+| REDIRECT-E2E-03 | Phase 12 | Complete |
+| REDIRECT-E2E-04 | Phase 12 | Complete |
+| REDIRECT-E2E-05 | Phase 12 | Complete |
 | AUTH-E2E-01 | Phase 13 | Pending |
 | AUTH-E2E-02 | Phase 13 | Pending |
 | AUTH-E2E-03 | Phase 13 | Pending |
