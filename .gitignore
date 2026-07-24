@@ -12,3 +12,8 @@ apps/api/src/generated/
 # Coverage
 coverage/
 .planning/research/.cache/
+
+# Playwright E2E (apps/e2e) — live session cookies and run artifacts, never committed
+apps/e2e/playwright/.auth/
+apps/e2e/playwright-report/
+apps/e2e/test-results/
