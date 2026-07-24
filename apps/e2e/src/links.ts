@@ -28,6 +28,7 @@
  * `fullyParallel` safety.
  */
 import { expect } from "@playwright/test";
+import type { APIResponse } from "@playwright/test";
 import bcrypt from "bcryptjs";
 import type { Prisma, PrismaClient } from "@kurzly/api/prisma-client";
 import { ADMIN_EMAIL, BASELINE_DOMAIN_HOSTNAME } from "./db.js";
@@ -150,4 +151,42 @@ export function assertNoLeak(body: string, headers: Record<string, string>, cana
   for (const value of Object.values(headers)) {
     expect(String(value ?? "")).not.toContain(canary);
   }
+}
+
+/**
+ * Retries a "create a fresh fixture Link, then issue the real HTTP request
+ * that reads it back" cycle up to `maxAttempts` times, whenever the response
+ * doesn't match `isExpected` (12-03-PLAN.md deviation, Rule 1 bug fix,
+ * discovered running the full-suite per-wave-merge gate).
+ *
+ * `apps/e2e/tests/smoke/db-isolation.spec.ts` runs 6 concurrent
+ * `withResetDbLock` cycles that each `TRUNCATE ... "Link" ...
+ * RESTART IDENTITY CASCADE` (RESEARCH Pattern 3) from a DIFFERENT spec file
+ * under this project's `fullyParallel: true` config. A plain
+ * `createE2eLink` immediately followed by a real HTTP GET can lose its
+ * just-created row to that sibling file's truncate/reseed between the two
+ * steps — empirically observed as an intermittent 404 where a 302/410 was
+ * expected when running the FULL suite (isolated single-file runs never hit
+ * this, since nothing else is truncating `Link` concurrently).
+ *
+ * A transaction-scoped advisory lock (`withResetDbLock`) cannot fix this for
+ * an HTTP-round-trip test: the created row must be visible to the APP
+ * SERVER's own database connection, which — under Postgres's default READ
+ * COMMITTED isolation — cannot see a row still held inside another
+ * connection's open transaction. Retrying with a BRAND-NEW fixture is the
+ * pragmatic, connection-agnostic fix: each attempt's `create` closure mints
+ * its own random slug, so a retry can never collide with the previous
+ * attempt's (possibly-truncated) row.
+ */
+export async function fetchWithFixtureRaceRetry(
+  attempt: () => Promise<APIResponse>,
+  isExpected: (response: APIResponse) => boolean,
+  maxAttempts = 3,
+): Promise<APIResponse> {
+  let response: APIResponse | undefined;
+  for (let i = 0; i < maxAttempts; i++) {
+    response = await attempt();
+    if (isExpected(response)) return response;
+  }
+  return response as APIResponse;
 }
