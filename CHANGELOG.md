@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/zebra-group/zack/compare/v1.0.1...v1.0.2) (2026-07-24)
+
+
+### Bug Fixes
+
+* **quick-260724-uiversion:** show the actual deployed version instead of a hardcoded UI literal ([67ba746](https://github.com/zebra-group/zack/commit/67ba7469f4861b43323517f026c8e731b23bc7b7))
+
 ## [1.0.1](https://github.com/zebra-group/zack/compare/v1.0.0...v1.0.1) (2026-07-24)
 
 
