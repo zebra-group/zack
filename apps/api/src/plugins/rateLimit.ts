@@ -14,6 +14,7 @@
  */
 import rateLimit from "@fastify/rate-limit";
 import type { FastifyInstance } from "fastify";
+import { isE2EComposeOverlay } from "../env.js";
 
 /**
  * Applied to `POST /api/auth/sign-in/magic-link` only (routes/auth.ts) via
@@ -186,19 +187,18 @@ export async function registerRateLimit(app: FastifyInstance, nodeEnv: string): 
   // longer distinguish "the E2E compose stack" from "a real production
   // deployment" — under the gate above, the bypass would be permanently
   // inert in the E2E stack too, defeating INFRA-06's whole point.
-  // `isE2EStack` is the same narrow, independent signal `env.ts`'s
-  // WR-03 boot guard now keys off: `E2E_COMPOSE_OVERLAY` is a fixed literal
-  // hardcoded ONLY in `docker-compose.e2e.yml`'s `app.environment` — never
-  // in `docker-compose.yml` (the real prod file), `.env.example`, or
+  // `isE2EComposeOverlay()` (shared with `env.ts`'s boot guard, WARNING
+  // follow-up in 11-REVIEW.md iteration 3 — was duplicated inline in both
+  // files, a drift risk that produced CR-05 in the first place) checks for
+  // `E2E_COMPOSE_OVERLAY`, a fixed literal hardcoded ONLY in
+  // `docker-compose.e2e.yml`'s `app.environment` — never in
+  // `docker-compose.yml` (the real prod file), `.env.example`, or
   // `envSchema`. A real production deployment would need BOTH this marker
   // AND the bypass secret to leak in together for the bypass to activate —
   // strictly more defense-in-depth than the single `nodeEnv` check it
   // replaces, not less.
-  const isE2EStack =
-    typeof process.env.E2E_COMPOSE_OVERLAY === "string" &&
-    process.env.E2E_COMPOSE_OVERLAY.trim() !== "";
   const bypassSecret =
-    nodeEnv === "production" && !isE2EStack
+    nodeEnv === "production" && !isE2EComposeOverlay(process.env)
       ? undefined
       : process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
 
