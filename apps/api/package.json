@@ -4,6 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "main": "dist/server.js",
+  "exports": {
+    ".": "./dist/server.js",
+    "./prisma-client": "./src/generated/prisma/client.ts"
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsx watch src/server.ts",
