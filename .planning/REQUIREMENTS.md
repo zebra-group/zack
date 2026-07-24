@@ -83,14 +83,40 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 … INFRA-06 | TBD | Pending |
-| AUTH-E2E-01 … AUTH-E2E-07 | TBD | Pending |
-| REDIRECT-E2E-01 … REDIRECT-E2E-05 | TBD | Pending |
-| LINKS-E2E-01 … LINKS-E2E-03 | TBD | Pending |
-| QR-E2E-01 … QR-E2E-03 | TBD | Pending |
-| ANALYTICS-E2E-01 … ANALYTICS-E2E-03 | TBD | Pending |
-| TEAM-E2E-01 … TEAM-E2E-03 | TBD | Pending |
-| AUTHZ-E2E-01 … AUTHZ-E2E-02 | TBD | Pending |
+| INFRA-01 | Phase 11 | Pending |
+| INFRA-02 | Phase 11 | Pending |
+| INFRA-03 | Phase 11 | Pending |
+| INFRA-04 | Phase 11 | Pending |
+| INFRA-05 | Phase 11 | Pending |
+| INFRA-06 | Phase 11 | Pending |
+| REDIRECT-E2E-01 | Phase 12 | Pending |
+| REDIRECT-E2E-02 | Phase 12 | Pending |
+| REDIRECT-E2E-03 | Phase 12 | Pending |
+| REDIRECT-E2E-04 | Phase 12 | Pending |
+| REDIRECT-E2E-05 | Phase 12 | Pending |
+| AUTH-E2E-01 | Phase 13 | Pending |
+| AUTH-E2E-02 | Phase 13 | Pending |
+| AUTH-E2E-03 | Phase 13 | Pending |
+| AUTH-E2E-04 | Phase 13 | Pending |
+| AUTH-E2E-05 | Phase 13 | Pending |
+| AUTH-E2E-06 | Phase 13 | Pending |
+| AUTH-E2E-07 | Phase 13 | Pending |
+| LINKS-E2E-01 | Phase 14 | Pending |
+| LINKS-E2E-02 | Phase 14 | Pending |
+| LINKS-E2E-03 | Phase 14 | Pending |
+| QR-E2E-01 | Phase 15 | Pending |
+| QR-E2E-02 | Phase 15 | Pending |
+| QR-E2E-03 | Phase 15 | Pending |
+| ANALYTICS-E2E-01 | Phase 16 | Pending |
+| ANALYTICS-E2E-02 | Phase 16 | Pending |
+| ANALYTICS-E2E-03 | Phase 16 | Pending |
+| TEAM-E2E-01 | Phase 17 | Pending |
+| TEAM-E2E-02 | Phase 17 | Pending |
+| TEAM-E2E-03 | Phase 17 | Pending |
+| AUTHZ-E2E-01 | Phase 17 | Pending |
+| AUTHZ-E2E-02 | Phase 17 | Pending |
+
+**Coverage:** 32/32 requirements mapped across Phases 11–17 — no orphans, no duplicates.
 
 ---
 *Requirements for: Milestone v1.1 "E2E Test Coverage", Kurzly*
