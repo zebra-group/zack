@@ -171,7 +171,13 @@ jobs:
   release:
     name: Release and publish image to GHCR
     runs-on: ubuntu-latest
-    needs: [test, smoke]
+    # WR-01 (11-REVIEW.md): `e2e` added to `needs` so a failing (or racing)
+    # Playwright E2E suite blocks release/publish — without it, `e2e` and
+    # `release` both only depended on [test, smoke] and ran in parallel,
+    # letting a version get cut and an image get published to GHCR even
+    # when the E2E suite (validating the redirect handler as actually
+    # deployed — this project's Core Value) failed.
+    needs: [test, smoke, e2e]
     # Fork-safety guard (mitigates T-gsf-02): skipped on all pull_request
     # events and all non-main branch pushes, so a fork PR never reaches a
     # step that could hold this job's write-scoped GITHUB_TOKEN.
