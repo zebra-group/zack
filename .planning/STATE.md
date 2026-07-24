@@ -5,15 +5,15 @@ milestone_name: E2E Test Coverage
 current_phase: 12
 current_phase_name: Redirect Handler E2E (Core Value
 status: executing
-stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-07-24T20:29:57.267Z"
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-07-24T20:42:24.396Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 12 execution started
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 9
   percent: 14
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 12 (Redirect Handler E2E (Core Value)) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-07-24 — Phase 12 execution started
 
@@ -74,6 +74,7 @@ Progress: [██████████] 100%
 | Phase 11 P06 | 10min | 2 tasks | 2 files |
 | Phase 12 P01 | 20min | 1 tasks | 1 files |
 | Phase 12 P02 | 25min | 2 tasks | 4 files |
+| Phase 12 P03 | 35min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,7 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 12]: RESEARCH OQ-1/A1 CONFIRMED live against the built compose image — Playwright APIRequestContext delivers a caller-supplied Host header unmodified to Fastify, no raw http.request fallback needed for this phase's feature specs
 - [Phase 12]: Confirmed RESEARCH Q2's resolved finding empirically -- @kurzly/api's exports map makes lib/links.ts's createLink/updateLink unreachable from apps/e2e, so createE2eLink is a raw prisma.link.create mirroring derivePasswordHash/deriveExpiresAt's exact derivation shape
 - [Phase 12]: bcryptjs added as an explicit apps/e2e devDependency -- pnpm's non-hoisted workspace layout does not expose a sibling workspace package's (apps/api) transitive deps as bare imports, even when already pinned/vetted in the shared lockfile
+- [Phase 12]: REDIRECT-E2E-01/03 proven over real HTTP against the built compose image; fetchWithFixtureRaceRetry added to apps/e2e/src/links.ts to close a cross-file DB race between db-isolation.spec.ts's concurrent Link-table truncates and a fixture-creating real-HTTP test's read-back
 
 ### Pending Todos
 
@@ -122,6 +124,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T20:29:57.261Z
-Stopped at: Completed 12-02-PLAN.md
+Last session: 2026-07-24T20:42:24.389Z
+Stopped at: Completed 12-03-PLAN.md
 Resume file: None
