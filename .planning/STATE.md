@@ -5,15 +5,15 @@ milestone_name: E2E Test Coverage
 current_phase: 12
 current_phase_name: Redirect Handler E2E (Core Value
 status: executing
-stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-07-24T20:42:24.396Z"
+stopped_at: Completed 12-04-PLAN.md
+last_updated: "2026-07-24T20:49:21.972Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 12 execution started
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
   percent: 14
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 12 (Redirect Handler E2E (Core Value)) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-07-24 — Phase 12 execution started
 
@@ -75,6 +75,7 @@ Progress: [██████████] 100%
 | Phase 12 P01 | 20min | 1 tasks | 1 files |
 | Phase 12 P02 | 25min | 2 tasks | 4 files |
 | Phase 12 P03 | 35min | 2 tasks | 3 files |
+| Phase 12 P04 | 20min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,8 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 12]: Confirmed RESEARCH Q2's resolved finding empirically -- @kurzly/api's exports map makes lib/links.ts's createLink/updateLink unreachable from apps/e2e, so createE2eLink is a raw prisma.link.create mirroring derivePasswordHash/deriveExpiresAt's exact derivation shape
 - [Phase 12]: bcryptjs added as an explicit apps/e2e devDependency -- pnpm's non-hoisted workspace layout does not expose a sibling workspace package's (apps/api) transitive deps as bare imports, even when already pinned/vetted in the shared lockfile
 - [Phase 12]: REDIRECT-E2E-01/03 proven over real HTTP against the built compose image; fetchWithFixtureRaceRetry added to apps/e2e/src/links.ts to close a cross-file DB race between db-isolation.spec.ts's concurrent Link-table truncates and a fixture-creating real-HTTP test's read-back
+- [Phase 12]: Bot-vs-human test reuses the SAME slug/Link for both the bot-UA and browser-UA requests, proving the branch is driven purely by User-Agent, not by any incidental fixture difference between two separate Links
+- [Phase 12]: REDIRECT-E2E-04/REDIRECT-E2E-05 required zero changes to apps/e2e/src/links.ts -- the existing createE2eLink/BOT_UA/BROWSER_UA/CANARY_TARGET/assertNoLeak/fetchWithFixtureRaceRetry vocabulary from 12-02/12-03 covered every fixture and assertion verbatim
 
 ### Pending Todos
 
@@ -124,6 +127,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T20:42:24.389Z
-Stopped at: Completed 12-03-PLAN.md
+Last session: 2026-07-24T20:49:21.966Z
+Stopped at: Completed 12-04-PLAN.md
 Resume file: None
