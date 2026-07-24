@@ -53,6 +53,24 @@ export default defineConfig({
       testMatch: /auth\.setup\.ts$/,
     },
     {
+      // 13-02-PLAN.md (AUTH-E2E phase) — standalone, no `dependencies:
+      // ["setup"]` and no `use.storageState`: every spec under `tests/auth/`
+      // establishes (or deliberately fails to establish) its OWN session,
+      // because these specs ARE the proof of login itself — depending on
+      // `setup`'s own magic-link round trip would make them implicitly
+      // depend on the exact mechanism half of them test the failure modes
+      // of (CONTEXT.md discretion note; 13-RESEARCH.md Recommended Project
+      // Structure). `use.baseURL` is inherited from the top-level `use`.
+      //
+      // fullyParallel is true at the top level; the SSO specs
+      // (tests/auth/sso*.spec.ts, added in 13-07/13-08) must serialize their
+      // own mock-claim access via `test.describe.serial` so they never race
+      // the mock IdP's single global profile state (`oidc-mock.ts`), while
+      // the magic-link specs in this same project remain freely parallel.
+      name: "auth",
+      testMatch: /auth\/.*\.spec\.ts$/,
+    },
+    {
       name: "chromium-admin",
       testMatch: /authed\/.*\.spec\.ts$/,
       dependencies: ["setup"],
