@@ -76,6 +76,10 @@ pg_db=$(grep -E '^POSTGRES_DB=' .env 2>/dev/null | tail -n1 | cut -d'=' -f2-)
 export E2E_DATABASE_URL="postgresql://${pg_user:-kurzly}:${pg_password:-changeme}@localhost:5433/${pg_db:-kurzly}"
 export MAILPIT_URL="http://localhost:8025"
 export PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL:-http://localhost:3000}"
+# Host-published mock OIDC IdP (13-01-PLAN.md) -- apps/e2e/src/oidc-mock.ts's
+# client targets this for the PUT/DELETE /__test__/profile test-control
+# endpoint (docker-compose.e2e.yml's `oidc-mock` service, host port 9000).
+export OIDC_MOCK_CONTROL_URL="http://localhost:9000"
 
 echo "==> pnpm --filter @kurzly/e2e test"
 pnpm --filter @kurzly/e2e test "$@"
