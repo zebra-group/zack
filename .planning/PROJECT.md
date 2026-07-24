@@ -8,6 +8,15 @@ Kurzly ist ein self-hosted, quelloffener URL-Shortener (in der Klasse von bit.ly
 
 Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hosted, ohne Drittanbieter-Tracking. Wenn alles andere ausfällt, muss der Redirect-Handler (Domain → Slug → Ziel-URL) korrekt und schnell funktionieren.
 
+## Current Milestone: v1.1 E2E Test Coverage
+
+**Goal:** Komplette Playwright-E2E-Abdeckung für alle kritischen v1.0-User-Flows, ergänzend zur bestehenden Vitest-Unit-/Integrationssuite.
+
+**Target features:**
+- Playwright-Infrastruktur (Config, Fixtures, Testdaten-Seeding) im pnpm-Monorepo
+- Mailpit/MailHog-SMTP-Catcher in `docker-compose.dev.yml` + CI-Wiring, damit Magic-Link-Mails E2E auslesbar sind
+- E2E-Abdeckung: Magic-Link-Login-Roundtrip, OIDC/SSO-Login, Redirect-Handler-Zustände (Slug→Ziel, Passwort-Gate, Expiry 410, Bot-OG-Rendering), Links-CRUD inkl. CSV-Import, QR-Studio (statisch + dynamisches Remapping), Analytics-Ansichten, Team-Management (Invite/Rollen/Domain-Zuweisung/Entfernen), domain-scoped Autorisierung end-to-end
+
 ## Current State
 
 **Shipped: v1.0 MVP (2026-07-23)** — full v1 feature scope, all 53 requirements delivered and verified across 10 phases. ~37k LOC TypeScript/Vue across a pnpm monorepo (apps/api Fastify + apps/web Vue 3 + packages/shared). Test suite: 540 API tests (44 files, real-Postgres testcontainers harness) + 256 web tests (21 files), workspace `tsc --noEmit` clean. Docker/Compose-hostable, ENV-configured end to end.
@@ -32,7 +41,7 @@ Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hos
 
 ### Active
 
-(Nächster Milestone noch nicht definiert — `/gsd-new-milestone` startet die Anforderungsdefinition. Kandidaten aus v1.0-Tech-Debt: QR-Löschpfad, DB-Unique-Index für statische QRs, `trackingEnabled`-Edit-Fix.)
+- Playwright-E2E-Abdeckung für alle kritischen v1.0-Flows (Auth, Redirect-Handler, Links/QR/Analytics, Team-Management, domain-scoped Autorisierung) — v1.1, Requirements werden in `REQUIREMENTS.md` definiert.
 
 ### Out of Scope
 
@@ -94,4 +103,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-23 after v1.0 milestone*
+*Last updated: 2026-07-24 — milestone v1.1 (E2E Test Coverage) started*

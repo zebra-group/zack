@@ -1,20 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_phase: 0
-status: Awaiting next milestone
-stopped_at: Completed 07-09-PLAN.md
-last_updated: "2026-07-24T08:37:03.352Z"
+milestone: v1.1
+milestone_name: E2E Test Coverage
+status: planning
+last_updated: "2026-07-24T12:40:40.182Z"
 last_activity: 2026-07-24
-last_activity_desc: "Completed quick task 260724-ecl: Fix CI smoke tests crashing app container"
-current_phase_name: oidc-sso-integration
 progress:
-  total_phases: 10
-  completed_phases: 10
-  total_plans: 65
-  completed_plans: 65
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -28,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 
 ## Current Position
 
-Phase: Milestone v1.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-07-24 — Completed quick task 260724-ecl: Fix CI smoke tests crashing app container
+Status: Defining requirements
+Last activity: 2026-07-24 — Milestone v1.1 started
 
 ## Performance Metrics
 
