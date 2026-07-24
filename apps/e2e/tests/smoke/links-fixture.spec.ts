@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import bcrypt from "bcryptjs";
 import { createE2ePrisma, withResetDbLock, BASELINE_DOMAIN_HOSTNAME, ADMIN_EMAIL } from "../../src/db.js";
-import { createE2eLink, derivePasswordHash, deriveExpiresAt } from "../../src/links.js";
+import { createE2eLink, derivePasswordHash, deriveExpiresAt, fetchWithFixtureRaceRetry } from "../../src/links.js";
 
 /**
  * RED->GREEN contract spec for `apps/e2e/src/links.ts` (12-02-PLAN.md Task
@@ -33,6 +33,52 @@ test.describe("deriveExpiresAt", () => {
   test("returns the exact UTC end-of-day instant for a YYYY-MM-DD date", () => {
     const expiresAt = deriveExpiresAt("2020-01-01");
     expect(expiresAt.toISOString()).toBe("2020-01-01T23:59:59.999Z");
+  });
+});
+
+test.describe("fetchWithFixtureRaceRetry", () => {
+  // 12-REVIEW.md WR-02: this new, non-trivial control-flow helper had no
+  // dedicated unit test of its own, breaking this file's own established
+  // convention (every other exported helper above is proven in isolation)
+  // and a direct instance of the project's CLAUDE.md TDD mandate not being
+  // followed for genuinely new function logic. These three cases prove the
+  // exact contract this phase's feature specs all depend on.
+  test("returns immediately on a first-try match, without calling attempt a second time", async () => {
+    let calls = 0;
+    const attempt = async () => {
+      calls += 1;
+      return { status: 200 };
+    };
+
+    const result = await fetchWithFixtureRaceRetry(attempt, (r) => r.status === 200);
+
+    expect(result).toEqual({ status: 200 });
+    expect(calls).toBe(1);
+  });
+
+  test("retries up to maxAttempts times on a persistent mismatch, then returns the last response rather than throwing", async () => {
+    let calls = 0;
+    const attempt = async () => {
+      calls += 1;
+      return { status: 404, attemptNumber: calls };
+    };
+
+    const result = await fetchWithFixtureRaceRetry(attempt, (r) => r.status === 200, 3);
+
+    expect(calls).toBe(3);
+    expect(result).toEqual({ status: 404, attemptNumber: 3 });
+  });
+
+  test("defaults maxAttempts to 3 when not supplied", async () => {
+    let calls = 0;
+    const attempt = async () => {
+      calls += 1;
+      return { status: 404 };
+    };
+
+    await fetchWithFixtureRaceRetry(attempt, (r) => r.status === 200);
+
+    expect(calls).toBe(3);
   });
 });
 
