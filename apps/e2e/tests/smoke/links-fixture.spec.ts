@@ -80,6 +80,46 @@ test.describe("fetchWithFixtureRaceRetry", () => {
 
     expect(calls).toBe(3);
   });
+
+  // 12-REVIEW.md WR-03: `onDiscardedAttempt` must fire for EVERY mismatched
+  // attempt (including the final, exhausted one) so a caller can still
+  // inspect a response this function itself never returns — e.g. running a
+  // no-leak assertion against an intermediate attempt that would otherwise
+  // be silently thrown away.
+  test("invokes onDiscardedAttempt for every mismatched attempt, including the final exhausted one, but never for the matching attempt", async () => {
+    let calls = 0;
+    const attempt = async () => {
+      calls += 1;
+      return { status: calls === 2 ? 200 : 404, attemptNumber: calls };
+    };
+    const discarded: number[] = [];
+
+    const result = await fetchWithFixtureRaceRetry(attempt, (r) => r.status === 200, 3, {
+      onDiscardedAttempt: (r) => {
+        discarded.push(r.attemptNumber);
+      },
+    });
+
+    expect(result).toEqual({ status: 200, attemptNumber: 2 });
+    expect(discarded).toEqual([1]);
+  });
+
+  test("invokes onDiscardedAttempt for the final attempt too when every attempt is exhausted without a match", async () => {
+    let calls = 0;
+    const attempt = async () => {
+      calls += 1;
+      return { status: 404, attemptNumber: calls };
+    };
+    const discarded: number[] = [];
+
+    await fetchWithFixtureRaceRetry(attempt, (r) => r.status === 200, 3, {
+      onDiscardedAttempt: (r) => {
+        discarded.push(r.attemptNumber);
+      },
+    });
+
+    expect(discarded).toEqual([1, 2, 3]);
+  });
 });
 
 test.describe("createE2eLink", () => {
