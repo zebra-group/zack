@@ -240,6 +240,61 @@ describe("parseEnv() — empty/whitespace optional vars normalize to unset (CR-0
   });
 });
 
+describe("parseEnv() — E2E_RATE_LIMIT_BYPASS_SECRET production boot guard (WR-03, CR-02)", () => {
+  it("is not a key of envSchema.shape (unchanged from before this fix)", async () => {
+    const { envSchema } = await import("../src/env.js");
+
+    expect(Object.keys(envSchema.shape)).not.toContain("E2E_RATE_LIMIT_BYPASS_SECRET");
+  });
+
+  it("fails loudly when NODE_ENV=production and E2E_RATE_LIMIT_BYPASS_SECRET is set", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      NODE_ENV: "production",
+      E2E_RATE_LIMIT_BYPASS_SECRET: "leaked-secret",
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected failure");
+    const paths = result.issues.map((issue) => issue.path.join("."));
+    expect(paths).toContain("E2E_RATE_LIMIT_BYPASS_SECRET");
+  });
+
+  it("succeeds when NODE_ENV=production and E2E_RATE_LIMIT_BYPASS_SECRET is absent", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({ ...VALID_SOURCE, NODE_ENV: "production" });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("succeeds when E2E_RATE_LIMIT_BYPASS_SECRET is set but NODE_ENV is NOT production", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      NODE_ENV: "development",
+      E2E_RATE_LIMIT_BYPASS_SECRET: "some-dev-secret",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("treats a whitespace-only E2E_RATE_LIMIT_BYPASS_SECRET as absent (not a false-positive boot failure)", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      NODE_ENV: "production",
+      E2E_RATE_LIMIT_BYPASS_SECRET: "   ",
+    });
+
+    expect(result.success).toBe(true);
+  });
+});
+
 describe("loadEnv() (fail-fast boot wrapper)", () => {
   let exitSpy: ReturnType<typeof vi.spyOn>;
   let errorSpy: ReturnType<typeof vi.spyOn>;

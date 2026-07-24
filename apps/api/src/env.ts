@@ -199,6 +199,33 @@ export function parseEnv(source: NodeJS.ProcessEnv): ParseEnvResult {
     return { success: false, issues };
   }
 
+  // WR-03 (11-REVIEW.md), defense-in-depth alongside CR-02's runtime gate in
+  // rateLimit.ts: `envSchema` deliberately stays a plain `z.object({...})`
+  // with no `.strict()` (env-example-drift.test.ts / env.test.ts both
+  // introspect `envSchema.shape`, which `.strict()`'s wider tightening would
+  // risk destabilizing, AND `process.env` always carries OS-level keys like
+  // `PATH`/`HOME` that `.strict()` would reject outright — bricking every
+  // boot, not just catching a leaked secret). That means an unrecognized key
+  // — including `E2E_RATE_LIMIT_BYPASS_SECRET` itself — silently passes
+  // `safeParse` with zero boot-time signal. Fail loudly here, specifically
+  // and only for this one already-known-dangerous key, rather than widening
+  // schema strictness for every unrelated env var.
+  if (
+    result.data.NODE_ENV === "production" &&
+    typeof source.E2E_RATE_LIMIT_BYPASS_SECRET === "string" &&
+    source.E2E_RATE_LIMIT_BYPASS_SECRET.trim() !== ""
+  ) {
+    const issues: z.core.$ZodIssue[] = [
+      {
+        code: "custom",
+        path: ["E2E_RATE_LIMIT_BYPASS_SECRET"],
+        message:
+          "E2E_RATE_LIMIT_BYPASS_SECRET must never be set when NODE_ENV=production (CR-02/WR-03, 11-REVIEW.md) — this is an E2E-only rate-limit bypass; its presence in a production environment is always a misconfiguration.",
+      },
+    ];
+    return { success: false, issues };
+  }
+
   return { success: true, data: result.data };
 }
 
