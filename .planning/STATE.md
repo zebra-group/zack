@@ -6,14 +6,14 @@ current_phase: 13
 current_phase_name: Authentication & Session E2E
 status: verifying
 stopped_at: Completed 13-01-PLAN.md (mock OIDC IdP infra)
-last_updated: "2026-07-24T23:35:20.602Z"
+last_updated: "2026-07-24T23:42:50.343Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 12 complete, transitioned to Phase 13
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 19
-  completed_plans: 12
+  completed_plans: 13
   percent: 29
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 13 — Authentication & Session E2E
-Plan: 1 of 8 in current phase
+Plan: 2 of 8 in current phase
 Status: Ready to execute
 Last activity: 2026-07-24 — Phase 12 complete, transitioned to Phase 13
 
@@ -78,6 +78,7 @@ Progress: [██████████] 100%
 | Phase 12 P04 | 20min | 2 tasks | 2 files |
 | Phase 12 P05 | 95min | 2 tasks | 3 files |
 | Phase 13 P01 | 50min | 3 tasks | 5 files |
+| Phase 13 P02 | 15min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,8 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 13]: oidc-provider Provider instance IS the Koa app -- custom routes/middleware register via provider.use() (which inserts immediately before the internal action router), never via a second wrapping Koa() app calling provider.callback() as middleware (throws TypeError)
 - [Phase 13]: mock IdP's auto-approve /interaction/:uid must resolve BOTH login and consent prompts (a provider.Grant covering the requested scope/claims) -- single-prompt-only handling gets stuck looping on consent
 - [Phase 13]: mock IdP's userinfo response needs a rewrite middleware merging extraClaims directly into the response body -- oidc-provider's own claims-scope filtering silently strips unregistered claim keys (role/admin) before they'd otherwise reach the app, which would make AUTH-E2E-04's no-elevation assertion prove nothing
+- [Phase 13]: createInvitedUnverifiedUser uses prisma.user.create (not upsert) -- a colliding email is a test bug, not a legitimate resend; inviteMember's own resend semantics stay app-layer
+- [Phase 13]: Playwright 1.61.1 throws Error: No tests found (exit 1) when a --project filter matches zero total spec files -- expected for the new auth project until Wave 1/2 adds tests/auth/** specs; verified project registration via the Available-projects listing instead of the plan's literal exit-code check
 
 ### Pending Todos
 
@@ -135,6 +138,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T23:35:20.595Z
+Last session: 2026-07-24T23:42:34.011Z
 Stopped at: Completed 13-01-PLAN.md (mock OIDC IdP infra)
 Resume file: None
