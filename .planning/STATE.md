@@ -6,14 +6,14 @@ current_phase: 11
 current_phase_name: Playwright E2E Infrastructure & Fixtures
 status: executing
 stopped_at: Phase 11 Plan 01 (Playwright E2E workspace scaffold + Prisma-subpath spike) complete.
-last_updated: "2026-07-24T13:57:03.000Z"
+last_updated: "2026-07-24T14:02:42.661Z"
 last_activity: 2026-07-24
-last_activity_desc: Plan 11-01 complete — @kurzly/e2e workspace scaffolded, apps/api ./prisma-client subpath export proven under Playwright's runtime
+last_activity_desc: "Plan 11-01 complete: @kurzly/e2e scaffolded, apps/api ./prisma-client subpath export proven under Playwright's runtime"
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 11 of 17 (Playwright E2E Infrastructure & Fixtures) — first phase of milestone v1.1
-Plan: 01 of 6 complete (11-01: Playwright E2E workspace scaffold + Prisma-subpath spike)
+Plan: 2 of 6 complete (11-01: Playwright E2E workspace scaffold + Prisma-subpath spike)
 Status: In progress — 5 plans remaining in Phase 11
 Last activity: 2026-07-24 — Plan 11-01 complete: @kurzly/e2e scaffolded, apps/api ./prisma-client subpath export proven under Playwright's runtime
 
@@ -67,6 +67,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 11 P01 | 10min | 3 tasks | 6 files |
 
 *Updated after each plan completion*
+| Phase 11 P02 | 12min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - Sequence infra-first: shared foundation bugs (Mailpit inbox scoping, DB isolation, rate-limit 429s, CI healthchecks/shm) solved once in Phase 11 before any flow coverage.
 - Domain-scoped authz E2E complements, does NOT re-run, the v1.0 integration Denial-Suite — only representative UI-layer proof per resource type.
 - [Phase 11]: Raw-.ts Prisma-client subpath export (apps/api/package.json exports['./prisma-client']) resolves directly under Playwright's runtime — RESEARCH OQ-1/A1 closed green, no compiled-artifact fallback needed.
+- [Phase 11]: allowList (not a custom keyGenerator hack) is the correct @fastify/rate-limit mechanism for full request exclusion — set once at global registration, covers global bucket + every named per-route override
+- [Phase 11]: E2E_RATE_LIMIT_BYPASS_SECRET is read directly from process.env in registerRateLimit, never added to envSchema/.env.example — structurally impossible to set via production config, proven by a dedicated schema-absence test
 
 ### Pending Todos
 
@@ -103,6 +106,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T13:57:03.000Z
+Last session: 2026-07-24T14:02:02.491Z
 Stopped at: Phase 11 Plan 01 complete (Playwright E2E workspace scaffold + Prisma-subpath spike). Ready to execute 11-02.
 Resume file: None

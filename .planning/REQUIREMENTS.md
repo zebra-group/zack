@@ -14,7 +14,7 @@
 - [ ] **INFRA-03**: E2E-Testlauf hat eine isolierte, wiederherstellbare Postgres-Instanz (getrennt vom bestehenden Vitest-Testcontainers-Setup), inkl. Reset-/Seed-Strategie zwischen Testdateien
 - [ ] **INFRA-04**: Ein wiederverwendbares `storageState`-Auth-Fixture (pro Rolle: Admin/Mitglied) erspart jeder nachgelagerten Test-Suite einen erneuten Login-Roundtrip
 - [ ] **INFRA-05**: CI führt die Playwright-Suite als eigener Job nach dem bestehenden Test-/Build-Job aus, inkl. Report-/Trace-Artifact-Upload bei Fehlschlägen
-- [ ] **INFRA-06**: `@fastify/rate-limit` blockiert die E2E-Suite nicht (dedizierter Test-Bypass, keine pauschale Deaktivierung)
+- [x] **INFRA-06**: `@fastify/rate-limit` blockiert die E2E-Suite nicht (dedizierter Test-Bypass, keine pauschale Deaktivierung)
 
 ### Auth E2E
 
@@ -88,7 +88,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-03 | Phase 11 | Pending |
 | INFRA-04 | Phase 11 | Pending |
 | INFRA-05 | Phase 11 | Pending |
-| INFRA-06 | Phase 11 | Pending |
+| INFRA-06 | Phase 11 | Complete |
 | REDIRECT-E2E-01 | Phase 12 | Pending |
 | REDIRECT-E2E-02 | Phase 12 | Pending |
 | REDIRECT-E2E-03 | Phase 12 | Pending |
