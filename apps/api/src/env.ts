@@ -122,6 +122,19 @@ export type ParseEnvResult =
   | { success: false; issues: z.core.$ZodIssue[] };
 
 /**
+ * Shared predicate for the `E2E_COMPOSE_OVERLAY` marker (CR-05 follow-up,
+ * 11-REVIEW.md iteration 3) — `apps/api/src/plugins/rateLimit.ts`'s bypass
+ * gate and this file's own boot guard below both need the identical
+ * "is this the E2E compose overlay" check; duplicating the inline
+ * `typeof ... === "string" && ... .trim() !== ""` logic in two files is
+ * exactly the kind of drift risk that produced CR-05 in the first place —
+ * one copy could be edited without the other. Single source of truth here.
+ */
+export function isE2EComposeOverlay(source: NodeJS.ProcessEnv): boolean {
+  return typeof source.E2E_COMPOSE_OVERLAY === "string" && source.E2E_COMPOSE_OVERLAY.trim() !== "";
+}
+
+/**
  * Pure schema validation over an arbitrary env-shaped source. Returns a
  * discriminated result instead of throwing, so callers (including tests)
  * can inspect the offending key(s) without unstructured errors.
@@ -217,21 +230,20 @@ export function parseEnv(source: NodeJS.ProcessEnv): ParseEnvResult {
   // `E2E_RATE_LIMIT_BYPASS_SECRET` (INFRA-06) — exactly the combination this
   // guard used to treat as an unconditional boot-time misconfiguration,
   // crash-looping the entire E2E stack. `NODE_ENV` can therefore no longer
-  // serve as "is this a real production deployment" on its own. `isE2EStack`
-  // is the narrow, independent signal that answers that question instead:
-  // `E2E_COMPOSE_OVERLAY` is a fixed literal ("true") hardcoded ONLY in
-  // `docker-compose.e2e.yml`'s `app.environment` — structurally absent from
-  // `docker-compose.yml` (the real prod file), `.env.example`, and
+  // serve as "is this a real production deployment" on its own —
+  // `isE2EComposeOverlay()` (shared with `plugins/rateLimit.ts`, WARNING
+  // follow-up in 11-REVIEW.md iteration 3) answers that question instead: it
+  // checks for `E2E_COMPOSE_OVERLAY`, a fixed literal ("true") hardcoded ONLY
+  // in `docker-compose.e2e.yml`'s `app.environment` — structurally absent
+  // from `docker-compose.yml` (the real prod file), `.env.example`, and
   // `envSchema` itself, mirroring `E2E_RATE_LIMIT_BYPASS_SECRET`'s own
   // "never in the documented config surface" discipline. A real production
   // deployment would need BOTH vars to leak in together (not just one) for
   // this guard to stay silent — strictly more defense-in-depth than the
   // single-signal check it replaces, not less.
-  const isE2EStack =
-    typeof source.E2E_COMPOSE_OVERLAY === "string" && source.E2E_COMPOSE_OVERLAY.trim() !== "";
   if (
     result.data.NODE_ENV === "production" &&
-    !isE2EStack &&
+    !isE2EComposeOverlay(source) &&
     typeof source.E2E_RATE_LIMIT_BYPASS_SECRET === "string" &&
     source.E2E_RATE_LIMIT_BYPASS_SECRET.trim() !== ""
   ) {
