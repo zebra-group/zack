@@ -1,10 +1,10 @@
 # Stack Research
 
-**Domain:** Self-hosted, open-source URL shortener (Kurzly) — Vue 3 + Fastify + Postgres/Prisma + better-auth, Docker-deployed, TDD-mandatory
-**Researched:** 2026-07-10
-**Confidence:** MEDIUM (versions cross-checked directly against the npm registry `dist-tags.latest` field and official docs via web search; no Context7/MCP doc tools were available in this environment, so nothing reaches HIGH — treat exact patch versions as a snapshot to re-verify at `npm install` time, not as pinned gospel)
+**Domain:** Playwright E2E test infrastructure addition to an existing Fastify + Vue + Postgres + better-auth pnpm monorepo (Kurzly v1.1 milestone)
+**Researched:** 2026-07-24
+**Confidence:** MEDIUM-HIGH (versions verified directly against npm registry / GitHub Releases API; integration patterns synthesized from official Playwright docs + current community practice via web search, no MCP docs provider available in this environment)
 
-The core stack (Vue 3, Fastify, PostgreSQL, Prisma, better-auth + magicLink + OIDC, nodemailer/SMTP, Docker) is **already fixed by the project owner** — this document does not re-litigate those choices. It prescribes current versions, companion libraries, and integration patterns for exactly that stack.
+The v1.0 stack (Node 24, Fastify ^5.10, Vue 3.5 + Vite 8, PostgreSQL 18 + Prisma ^7, better-auth ^1.6.23, nodemailer, qrcode+sharp, Vitest ^4.1 + @testcontainers/postgresql, @vue/test-utils) is **already validated and shipped** — this document does not re-research it. It covers only what's new for the v1.1 E2E-coverage milestone: Playwright itself, an SMTP test-catcher, an OIDC test double, and how to wire all of it into the existing pnpm workspace + GitHub Actions CI.
 
 ## Recommended Stack
 
@@ -12,127 +12,110 @@ The core stack (Vue 3, Fastify, PostgreSQL, Prisma, better-auth + magicLink + OI
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Node.js | 24.x (Active LTS "Krypton", LTS through 2028-05-31) | JS runtime | Node 24 is the current Active LTS as of mid-2026; Node 22 is Maintenance LTS (fine as a floor), Node 20 is end-of-active-support. Target 24 in Docker base images for longest runway; avoid Node 26 (Current, not LTS until Oct 2026) for a production self-hosted tool. |
-| Fastify | ^5.10.0 | Backend HTTP framework | Fixed by project owner. v5 is current major (v4 still maintained, v3 EOL) — build on v5 for a greenfield project. Fastify's schema-based validation/serialization and plugin encapsulation model fit the multi-tenant (domain-scoped) authorization requirements well. |
-| PostgreSQL | 18.x (18.4 current stable) | Primary datastore | Fixed by project owner. PG 18 is the latest stable major; PG 19 is in beta (target Sept 2026) — do not build against a beta major for a v1 self-hosted release. Use the official `postgres:18-alpine` Docker image. |
-| Prisma ORM | ^7.x (7.8.0 latest) | ORM / migrations / typed client | Fixed by project owner. Prisma 7 dropped the Rust query engine for a TypeScript/Wasm runtime: ~3x faster queries, ~90% smaller client bundle, ~70% faster typechecking — directly relevant to a Docker image you want lean. **Breaking change to plan for:** Prisma 7 requires an explicit `output` path in the `generator client` block; the client must then be imported from that generated path, not the bare `@prisma/client` package. Decide this path (e.g. `src/generated/prisma`) at Phase 1 scaffolding time so better-auth's Prisma adapter imports the same client instance. |
-| Vue 3 (Composition API) | ^3.5.39 | Frontend framework | Fixed by project owner. 3.5.x is the current stable line; use `<script setup>` Composition API throughout per the design handoff's component patterns. |
-| Vite | ^8.x (8.1.4 latest) | Frontend build tool / dev server | Standard companion to Vue 3 via `create-vue` scaffolding; fast HMR, native ESM, first-class Vitest integration (shared config/transform pipeline). |
-| better-auth | ^1.6.x (1.6.23 latest) | Auth framework (magicLink + generic OIDC/SSO) | Fixed by project owner. Actively developed, TypeScript-first, plugin architecture matches the exact requirement shape here: `magicLink()` as the sole login plugin, an OIDC plugin toggle for optional SSO, and a first-party Prisma adapter — no need to hand-roll session/cookie/token handling. |
+| `@playwright/test` | ^1.61.1 (verified via npm registry `dist-tags.latest`, 2026-07-24) | E2E test runner, browser automation, assertions, tracing | Spec-named tool for this milestone, and current stable. Ships its own test runner (deliberately separate from Vitest — E2E has a different execution model than the existing unit/integration suites), first-class TypeScript, `webServer` orchestration for booting the app under test, `storageState` for reusable authenticated sessions, native test sharding + blob-report merging for CI, and a matching official Docker image (`mcr.microsoft.com/playwright:v1.61.1-noble`) for CI/local parity. `engines` requires Node >=18 — comfortably covered by the project's Node 24 baseline (exact Node-24 compatibility not explicitly documented by Playwright as of this pass; low risk, worth a smoke-check at scaffolding time). |
+| Mailpit (Docker: `axllent/mailpit`) | v1.30.5 (verified via GitHub Releases API, published 2026-07-20 — actively maintained) | SMTP test-catcher + REST API, so Playwright tests can read the real magic-link email sent via nodemailer | MailHog (the alternative named in the milestone context) is effectively unmaintained — no meaningful commits since ~2020, confirmed via 4+ independent community sources. Mailpit is the community-adopted drop-in replacement: same default ports (SMTP 1025, Web UI 8025), a documented REST API (`GET /api/v1/messages`, `GET /api/v1/message/{ID}`) purpose-built for "capture email → extract link → navigate to it" test flows, and active releases. Add to `docker-compose.dev.yml` only (test/dev-only, matching the project's existing SMTP-provider-neutral, ENV-configured convention). |
+| `@testcontainers/postgresql` | reuse existing ^12.0.4 (already a project dependency for the Vitest API integration harness; verified current on npm) | Provisions a real, disposable Postgres instance for local `pnpm test:e2e` runs | Do not add a second Postgres-provisioning mechanism. This exact library is already validated in this repo for real-Postgres integration testing (540 API tests), including the hard-won "Postgres has no nested transactions" lesson from Phase 7 (per-file cloned-DB isolation). Reuse the same container-lifecycle code in E2E's `globalSetup`, with a different reset granularity suited to HTTP-level E2E rather than `fastify.inject`-level integration tests (see Stack Patterns below). |
 
 ### Supporting Libraries
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| `@fastify/cors` | ^11.3.0 | CORS handling | Register before the better-auth catch-all route; needed because the Vue SPA and API may be served from different origins/ports in dev (and potentially prod if not served from the same Fastify instance). |
-| `@fastify/helmet` | ^13.1.0 | Security headers (CSP, HSTS, X-Frame-Options, etc.) | Helmet-equivalent for Fastify. Mandatory baseline hardening for a public-facing redirect service; tune CSP carefully since the redirect handler renders OG-tag HTML for bots and the password/expiry pages are public. |
-| `@fastify/rate-limit` | ^11.1.0 | Rate limiting | Apply to the magic-link request endpoint (prevent email-bombing), the link-password-check endpoint (prevent brute force), and the public redirect handler (basic abuse protection). |
-| `@fastify/static` | ^9.3.0 | Static file serving | Serve the built Vue SPA (`dist/`) directly from Fastify in the self-hosted single-container deployment model, or serve QR logo uploads if stored on local disk instead of object storage. |
-| `@fastify/cookie` | ^11.1.1 | Cookie parsing helper | Optional — better-auth manages its own session cookies internally via `Set-Cookie` response headers from `auth.handler()`, so this is **not required for auth itself**. Only add it if you need cookie access for something auth-unrelated (e.g. a UI preference cookie). Do **not** reach for `@fastify/session` — better-auth owns session state; a second session plugin would conflict. |
-| Pinia | ^3.0.4 | Vue state management | The official Vue-team-endorsed store library for Vue 3 Composition API (Vuex is legacy/maintenance-only). Use for cross-screen state: `theme`, `domainFilter`, `authSession`, `toast` queue — matches the state shape already implied by the design handoff. |
-| Vue Router | ^4.6.x (stable) | Client-side routing | Use the **v4 line**, not v5, for this project. v5 (5.1.0) exists in parallel and only adds optional file-based routing (absorbed `unplugin-vue-router`) with no other breaking changes — a nice-to-have, not a need, and it adds build-time complexity this project's fixed screen set (7 named views) doesn't benefit from. Revisit if the route surface grows organically later. |
-| `prismaAdapter` (from `better-auth/adapters/prisma`) | bundled with better-auth 1.6.x | Connects better-auth to Prisma | Built into the core `better-auth` package (import path `better-auth/adapters/prisma`) — do not add a separate `@better-auth/prisma-adapter` package, that name is not the current shipping path. Pass your Prisma client instance + `provider: "postgresql"`. |
-| `better-auth/plugins` → `magicLink` | bundled | Passwordless login | Server-side plugin; configure `sendMagicLink` to call your nodemailer transport. This is the *only* login method per spec — do not add an email/password plugin. |
-| `better-auth/plugins` → `sso` (preferred) or `genericOAuth` | bundled | Optional OIDC/SSO | Use the dedicated **`sso` plugin** over `genericOAuth` for this project: it auto-discovers IdP endpoints from just an issuer URL (`{issuer}/.well-known/openid-configuration`) via `registerSSOProvider`, matching the spec's "Issuer-URL, Client-ID, Client-Secret" admin UI fields almost exactly, and its callback path is predictable (`/sso/callback/:providerId`, adjust the spec's `/api/auth/callback/oidc` naming to match or configure a shared callback). `genericOAuth` is the right fallback if a target IdP doesn't expose full OIDC discovery. Either way, run `npx @better-auth/cli generate` (better-auth's schema generator) after adding the plugin to update the Prisma schema with the SSO/account tables. |
-| nodemailer | ^9.0.3 | SMTP email transport | `createTransport({host, port, secure, auth:{user, pass}})` populated entirely from ENV (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`) — provider-neutral, works against Postfix, Mailgun-SMTP, SES-SMTP, Fastmail, etc. Wire this as the `sendMagicLink` implementation for better-auth. |
-| `qrcode` (node-qrcode) | ^1.5.4 | QR code generation (PNG buffer, SVG string, data URL) | The standard, most battle-tested server-side QR library. Set `errorCorrectionLevel: 'H'` whenever a logo overlay is requested (tolerates ~30% data loss — required, per spec, for logo-overlay QR codes). It does **not** composite logos natively — see pattern below. |
-| `sharp` | latest 0.3x | Image compositing (QR + logo overlay, PNG output) | Composite the logo PNG/SVG onto the raster QR output using `sharp().composite([{ input: logoBuffer, gravity: 'center' }])`. Preferred over `canvas`/`jimp` for a Docker image because it ships prebuilt binaries per-platform and has no native `node-gyp` build step at container build time (avoids flaky Alpine builds) — pin the correct `--platform=linuxmusl-x64` prebuilt binary if using `node:*-alpine`. |
-| — (manual SVG string manipulation) | n/a | SVG logo overlay | For the SVG export path, generate the QR as an SVG string via `qrcode`'s `toString({type:'svg'})`, then inject an `<image>` element (base64 data-URI logo) centered in the viewBox before returning — no extra library needed. |
-| Playwright | ^1.61.x (`@playwright/test`) | E2E testing | For the critical-flow E2E suite mandated by TDD: magic-link login round-trip (using a test SMTP catcher like Mailpit/MailHog), redirect handler (slug → target, password gate, expiry 410), QR dynamic remap, domain-scoped member authorization. |
-| Vitest | ^4.1.x | Unit + component test runner | See Testing Stack section below — this is the backbone test runner for both the Fastify backend and the Vue frontend. |
-| `@vitest/coverage-v8` | matches Vitest 4.1.x | Coverage reporting | Default coverage provider; since Vitest 3.2 uses AST-based remapping so V8-speed coverage is Istanbul-accurate. v4 removed `coverage.all` — set `coverage.include` explicitly rather than relying on an "include everything" default. |
-| `@vue/test-utils` | ^2.4.11 | Vue component testing | Official Vue-team library, works directly with Vitest. Preferred over `@testing-library/vue` for this project specifically because the design handoff has Suspense-adjacent async patterns (accordion sections, analytics data loading) where Testing Library has known gaps. |
-| `@testcontainers/postgresql` (testcontainers-node) | current | Ephemeral Postgres for integration tests | Spin up a real disposable Postgres container per test run (or per Vitest worker) instead of mocking Prisma — validates actual SQL/migrations/constraints, which is where most Prisma-layer bugs hide. Use Vitest's `globalSetup` `provide`/`inject` to hand the container's connection string to worker threads; either one container per parallel worker, or seed once + wrap each test in a rolled-back transaction for speed (do the transaction-rollback pattern for the bulk of tests, keep true multi-container isolation only for migration/schema tests). |
-| Mailpit or MailHog (Docker, dev/test only) | current | SMTP test double | Point nodemailer at this in dev/CI so magic-link E2E tests can assert on the actual received email + extract the link, without touching a real SMTP provider. Ship it in `docker-compose.dev.yml` only, never in the production compose file. |
+| `oidc-provider` | ^9.10.0 (verified current on npm) | In-process mock OpenID Connect IdP, run as a Playwright fixture/global-setup process, so the OIDC/SSO login flow (better-auth's `genericOAuth` plugin) can be exercised E2E without depending on a real external IdP | Add as a devDependency in the new E2E workspace package only. Boot it in `globalSetup` (or per-file fixture) on a local port with one pre-registered test client matching Kurzly's `genericOAuth` config shape (issuer, client id/secret, redirect URI). Materially lighter than running Dex (`v2.45.1`, verified via GitHub Releases) or Keycloak as a separate Docker service just for a handful of SSO E2E cases — starts in-process in milliseconds, torn down with the test process, no extra CI service to provision. |
+| `pg` (already resolved transitively via `@testcontainers/postgresql`/Prisma's `adapter-pg`) | matches existing lockfile-resolved version | Direct SQL for E2E database reset/seed helpers (`TRUNCATE ... RESTART IDENTITY CASCADE`), deliberately bypassing the app's authorization layer for out-of-band plumbing only | Use in a small `apps/e2e/src/db.ts` helper for the "full reset between test files" path (see Stack Patterns). Do **not** use it to create the actual entities under test (links, QR codes, invites) — those must go through the real API/UI so the server-side `requireDomainAccess`/`scopedDomainIds` authorization logic is what's actually being exercised, which is the whole point of E2E coverage per this milestone's stated scope. |
 
 ### Development Tools
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| `fastify.inject` (light-my-request, bundled in Fastify core) | API/integration testing without a real socket | Exercises the full plugin lifecycle, schema compilation, and serialization — the same code path as a real HTTP request, minus the transport layer. Use this as the default for backend integration tests (route + auth + Prisma), reserving Playwright for true end-to-end (browser + real HTTP + real SMTP catcher) critical-flow tests only. |
-| pnpm workspaces (or npm workspaces) | Monorepo layout (frontend/backend/shared) | Given the user's global tooling already assumes pnpm (`pnpm tsc --noEmit`), scaffold this as a pnpm workspace monorepo: `apps/web` (Vue), `apps/api` (Fastify), optionally a `packages/shared` for shared types (e.g. link/QR/domain DTOs) consumed by both — matches the "rebuild the shared package" instruction in the user's global CLAUDE.md. |
-| Docker / docker-compose | Deployment | Multi-stage Dockerfile per app (or one image serving both via `@fastify/static` for the built SPA); `docker-compose.yml` wires Postgres + the app + (optionally) a reverse proxy for Let's Encrypt/DNS-01 TLS per custom domain. |
-| ESLint + `eslint-plugin-vue` / TypeScript strict mode | Static analysis | Standard for a Vue 3 + TS + Fastify + TS project; run in CI alongside `tsc --noEmit` per the user's global build instructions. |
+| `mcr.microsoft.com/playwright:v1.61.1-noble` (Docker image) | CI runner image with browsers + OS deps preinstalled, version-locked to `@playwright/test` | Pin the image tag to exactly match the installed npm package version; a mismatched pair is the most common cause of "green locally, red in CI" Playwright flakiness. Bump both together whenever `@playwright/test` is upgraded. |
+| Playwright blob + HTML reporters | Local debugging (traces/videos in `playwright-report/`) and CI report merging across shards | `reporter: [['html', { open: 'never' }], ['blob']]` in CI config; a separate merge job runs `npx playwright merge-reports --reporter html` over all shards' blob artifacts, then uploads the combined report via `actions/upload-artifact@v4`. |
+| GitHub Actions native `services:` block (Postgres + Mailpit) | Provision Postgres (`postgres:18-alpine`) and Mailpit (`axllent/mailpit:v1.30.5`) as native CI service containers instead of orchestrating them through testcontainers-in-Node inside the CI job | Simpler and one layer shallower than container-in-container orchestration; GH Actions natively starts/health-checks/tears down `services:` entries per job. Keep `@testcontainers/postgresql` for local developer runs only (mirrors how the existing Vitest harness already behaves locally vs. in CI). |
 
 ## Installation
 
 ```bash
-# Core (backend)
-pnpm add fastify @fastify/cors @fastify/helmet @fastify/rate-limit @fastify/static
-pnpm add prisma @prisma/client better-auth nodemailer qrcode sharp
+# New workspace package for E2E, mirroring the apps/api, apps/web naming convention
+mkdir -p apps/e2e
 
-# Core (frontend)
-pnpm add vue vue-router@^4 pinia
+# Inside apps/e2e's package.json (add as devDependencies), then from repo root:
+pnpm install
 
-# Dev dependencies (shared / testing)
-pnpm add -D vitest @vitest/coverage-v8 @vue/test-utils @playwright/test
-pnpm add -D @testcontainers/postgresql testcontainers
-pnpm add -D typescript vite @vitejs/plugin-vue
+# Add the new E2E-only packages
+pnpm --filter e2e add -D @playwright/test@^1.61.1 oidc-provider@^9.10.0
 
-# Prisma init (PostgreSQL)
-pnpm exec prisma init --datasource-provider postgresql
+# Install browsers + OS deps (first-time local setup)
+pnpm --filter e2e exec playwright install --with-deps chromium
 
-# better-auth schema generation after configuring plugins
-pnpm exec @better-auth/cli generate
+# No new package needed for Postgres provisioning — reuse the existing
+# @testcontainers/postgresql devDependency already used by apps/api's Vitest harness.
+```
+
+```yaml
+# docker-compose.dev.yml addition (dev/test only — never in the production compose file)
+services:
+  mailpit:
+    image: axllent/mailpit:v1.30.5
+    ports:
+      - "1025:1025"   # SMTP — point SMTP_HOST/SMTP_PORT here for dev + E2E runs
+      - "8025:8025"   # Web UI + REST API (GET /api/v1/messages)
 ```
 
 ## Alternatives Considered
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|--------------------------|
-| `qrcode` + `sharp` (manual logo compositing) | `qr-code-styling` | If you want rounded-module styling and logo overlay "out of the box" without hand-writing the compositing step. Tradeoff: it depends on `canvas` + `jsdom` in Node, which is heavier and more fragile to build in a slim Docker/Alpine image than `sharp`'s prebuilt binaries. Given the spec wants rounded modules AND logo AND level-H AND dual PNG/SVG export, `qrcode`+`sharp` gives more control per format at the cost of a bit more glue code. |
-| better-auth `sso` plugin for OIDC | `genericOAuth` plugin | Use `genericOAuth` if a target IdP does not expose a working OIDC discovery document (`/.well-known/openid-configuration`) or you need finer manual control over `authorizationEndpoint`/`tokenEndpoint`/`jwksEndpoint`. For mainstream IdPs named in the spec (Keycloak, Authentik, Azure AD) discovery works fine, so `sso` is less code. |
-| Vue Router v4 | Vue Router v5 | If the app's route surface grows into dozens of nested/dynamic routes and file-based routing (auto-generated routes from a `pages/` directory) becomes valuable for maintainability. Not justified for this project's fixed ~7-screen nav. |
-| `@vue/test-utils` | `@testing-library/vue` | If the team wants to enforce "test like a user" queries (role/label-based selectors) over instance-inspection APIs, and is willing to work around its documented Suspense-testing rough edges. |
-| Vitest `coverage-v8` | `@vitest/coverage-istanbul` | If you need coverage features Istanbul historically had that V8 lacked; largely moot since Vitest 3.2+ V8 provider does AST remapping for Istanbul-equivalent accuracy — no strong reason to switch. |
-| testcontainers ephemeral Postgres | SQLite/in-memory Postgres shims (e.g. pglite) for tests | Only for the fastest unit-level Prisma query tests where container startup latency matters more than 100% Postgres-fidelity (e.g. extension-specific SQL features aren't being exercised). Keep the real Postgres container for any test touching migrations, constraints, or the multi-tenant authorization queries — those are exactly the bugs a shim would hide. |
+| Mailpit | MailHog | Never, for new setup in 2026 — no meaningful MailHog commits since ~2020, community-considered abandoned. Only relevant if the team already had deep MailHog-specific tooling elsewhere (not the case: this repo has zero existing E2E/SMTP-catcher tooling — greenfield). |
+| `oidc-provider` (in-process mock IdP) | Dex (`dexidp/dex`, current `v2.45.1`, verified via GitHub Releases) or a Keycloak container | Use a real IdP container only if the suite needs to validate against a *specific* IdP's quirks (e.g. a claims-mapping bug seen with an actual customer IdP) rather than the generic OIDC contract better-auth's `genericOAuth` plugin consumes. For "does our SSO login flow work end-to-end," the in-process mock is faster to boot, trivial to seed per-test, and removes a Docker service from the CI matrix entirely. |
+| `@testcontainers/postgresql` for local `pnpm test:e2e` runs | GitHub Actions native `services: postgres:18-alpine` for CI runs | Use native GH Actions services in CI (one less container-orchestration layer inside an already-containerized runner); keep testcontainers for local developer machines so nobody needs a manually-managed local Postgres instance — mirrors exactly how the existing Vitest integration harness already splits local vs. CI. |
+| Data-namespacing (unique domain/slug/email per test) as the default E2E isolation strategy | Per-worker cloned database (the same pattern already validated for Vitest in Phase 7 — Postgres `CREATE DATABASE ... TEMPLATE`) | Fall back to per-worker DB cloning only for suites asserting on *global* counts with no natural unique key to namespace by. For the bulk of Kurzly's flows (link CRUD, QR, per-domain analytics, team management) every entity is already domain/email-scoped by the fixture, so unique naming is sufficient and far cheaper than spinning multiple Postgres containers per CI run. |
+| Native Playwright sharding (`--shard=X/Y` + blob-report merge) | Hand-splitting suites into separate CI jobs | Only hand-split if there's a natural, stable grouping needing different service dependencies per job (e.g. an "SSO suite" needing `oidc-provider` vs. everything else). For one homogeneous suite against one running app, native sharding needs less upkeep. |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `@fastify/session` alongside better-auth | better-auth manages its own session tokens/cookies end-to-end via its Fetch-API-based handler; a second session plugin creates two competing sources of truth for "who is logged in" and cookie collisions. | Rely solely on better-auth's session cookie + `auth.api.getSession()` for all authenticated route guards. |
-| Vuex | Superseded by Pinia; Vue core team has moved Vuex to maintenance-only status, and Pinia is the documented default for new Vue 3 projects. | Pinia |
-| Email/password login plugin for better-auth | Explicitly out of scope per project spec — Magic Link is the sole login method. | `magicLink()` plugin only |
-| Hand-rolled QR generation from scratch | Reinventing Reed–Solomon error correction / module-matrix generation is unnecessary risk for a solved problem with mature libraries. | `qrcode` npm |
-| `canvas` npm for server-side logo compositing in an Alpine Docker image | Native `node-gyp` build of `canvas` against Alpine's musl libc is a well-known source of flaky Docker builds and large image bloat. | `sharp` (prebuilt binaries, smaller footprint) |
-| Mocking Prisma entirely in "integration" tests | Gives false confidence — the actual SQL, migration compatibility, and Postgres-specific constraint behavior (e.g. unique slug-per-domain) never gets exercised. | testcontainers-backed Postgres for the integration layer of the test pyramid |
-| Real third-party SMTP providers in CI/E2E tests | Slow, flaky, potential cost/rate-limit issues, and leaks real emails during automated test runs. | Mailpit/MailHog SMTP catcher container in dev/CI only |
-| Building against PostgreSQL 19 (beta) | PG 19 is still in beta as of mid-2026 (target GA ~Sept 2026); not appropriate for a self-hosted tool users will run in production. | PostgreSQL 18.x (current stable) |
+| MailHog | Unmaintained since ~2020 — no active bugfixes/security patches/API evolution, despite being named as an option in the milestone context. Mailpit has fully superseded it in the ecosystem (Laravel Sail, DDEV, and others have already migrated). | Mailpit v1.30.5 |
+| A second E2E runner (e.g. Cypress) alongside Playwright | Not requested, and would introduce a second test-runner paradigm for no benefit. Playwright's multi-tab/multi-origin support specifically matters here — custom-domain redirect testing crosses origins by design. | `@playwright/test` |
+| Routing E2E test-data setup through raw SQL / direct Prisma writes for the entities under test | Bypasses the exact server-side authorization logic (`requireDomainAccess`/`scopedDomainIds`) this milestone exists to prove end-to-end. E2E's entire value proposition is exercising the real HTTP/UI surface, not seeding around it. | Create test data via real API/UI actions in fixtures; reserve raw `pg`/SQL strictly for full-database reset/seed plumbing between runs, never for the entities the test is actually verifying. |
+| Caching `~/.cache/ms-playwright` browser binaries in GitHub Actions as a default optimization | Playwright's own CI guidance notes cache download+extraction can take as long as a fresh install, and a stale cache silently pinned to an old browser build is a real footgun whenever `@playwright/test` is bumped. | Run `playwright install --with-deps` fresh each CI run, or better — use the pre-built `mcr.microsoft.com/playwright` image (browsers baked in, version-pinned) as the CI container, sidestepping the cache-vs-no-cache tradeoff entirely. |
+| Testing exclusively against split dev servers (`apps/web` Vite dev server + `apps/api` Fastify dev server, two origins) as the *only* CI configuration | Production is a single Fastify instance serving both `/api/*` and the built Vue `dist/` from one origin (`@fastify/static`), with CORS dropped entirely in prod. Dev-server-only E2E would never exercise that real topology and could hide origin/CORS-adjacent redirect-handler bugs. | Run the required CI E2E pass against the **built Docker image** (single origin, prod-shaped); keep a separate optional dev config (two `webServer` entries, `reuseExistingServer: !process.env.CI`) purely for fast local iteration while writing tests. |
 
 ## Stack Patterns by Variant
 
-**If deploying as a single Docker image (SPA + API together):**
-- Use `@fastify/static` to serve the built Vue `dist/` from the same Fastify instance that serves `/api/*` and the redirect handler.
-- Because it's the same origin, you can drop `@fastify/cors` in production (keep it dev-only, gated by `NODE_ENV`).
+**If running E2E locally during test development:**
+- Use `playwright.config.ts` with an array `webServer: [...]` starting `pnpm --filter api dev` and `pnpm --filter web dev` on their normal dev ports, `reuseExistingServer: !process.env.CI` so already-running dev servers aren't killed on every run.
+- Point `SMTP_HOST`/`SMTP_PORT` at the Mailpit service in `docker-compose.dev.yml` (start once, leave running across iterations).
+- Use `@testcontainers/postgresql` in `globalSetup` to boot a disposable Postgres, run `prisma migrate deploy` + the seed script, and export the resulting connection string for the dev-mode API process.
 
-**If deploying as two containers (separate frontend/backend, e.g. behind a reverse proxy):**
-- Keep `@fastify/cors` active in production, locked to the known dashboard origin(s) via ENV.
-- The public redirect handler (custom domains) still lives in the same Fastify app — those requests hit arbitrary customer domains, not the dashboard's origin, so they bypass CORS entirely (server-to-browser redirect, not an XHR).
+**If running E2E in CI (the required/canonical run):**
+- Build the actual production Docker image as part of the job, then use a *single* `webServer` entry whose `command` runs `docker compose -f docker-compose.yml -f docker-compose.e2e.yml up`, `url` pointed at the single Fastify origin's health-check route, with a generous `timeout` for image build + migration on cold start.
+- Use GitHub Actions' native `services:` block for Postgres (`postgres:18-alpine`) and Mailpit (`axllent/mailpit:v1.30.5`) rather than testcontainers-in-Node — one less orchestration layer inside an already-containerized runner.
+- Run the job itself in/against the `mcr.microsoft.com/playwright:v1.61.1-noble` container so browsers are pre-installed and version-locked.
+- Add sharding (`--shard=$INDEX/$TOTAL` matrix) once the suite is large enough that wall-clock time matters — not needed on day one with a small initial suite; add it when full "critical flows" coverage exists and runtime is actually measured.
 
-**If OIDC/SSO is disabled (default state per spec):**
-- Do not register the `sso`/`genericOAuth` plugin at all in that instance's `betterAuth()` config — avoids exposing `/sso/*` or `/api/auth/callback/oidc` endpoints unnecessarily on installs that don't use SSO.
+**If a specific suite needs to assert on global/cross-tenant counts (rare):**
+- Fall back to the heavier per-worker cloned-database pattern (the same Postgres `CREATE DATABASE ... TEMPLATE` approach already validated for Vitest) instead of data-namespacing, and pin that suite to `workers: 1` or its own project to avoid cross-test count pollution.
 
 ## Version Compatibility
 
 | Package A | Compatible With | Notes |
 |-----------|-----------------|-------|
-| `prisma`@^7 / `@prisma/client`@^7 | `better-auth`@1.6.x prisma adapter | Confirmed working combination per better-auth's own Prisma guide; watch for the Prisma 7 custom `output` path — the adapter and your own app code must import the client from the same generated path. |
-| Fastify@^5 | `@fastify/cors`@^11, `@fastify/helmet`@^13, `@fastify/rate-limit`@^11, `@fastify/cookie`@^11, `@fastify/static`@^9 | These major versions are the ones built against Fastify v5's plugin encapsulation API; do not mix with Fastify v4-targeted plugin majors. |
-| Vite@^8 | Vitest@^4 | Both consume the same underlying Vite transform pipeline/config; keep them on majors released around the same time to avoid resolver mismatches. |
-| Vue@^3.5 | `@vue/test-utils`@^2.4, Pinia@^3, Vue Router@^4.6 | All current majors are mutually compatible Vue-3-only lines; no known conflicts. |
-| Node.js 24.x | `sharp` prebuilt binaries | Confirm `sharp`'s published prebuilt binary matrix covers your target Node ABI + Alpine musl variant before locking the Dockerfile base image — worth a quick check at implementation time since sharp's binary support matrix shifts with new Node majors. |
+| `@playwright/test`@^1.61.1 | Node.js 24.x | `engines` field only requires Node >=18; no Node-24-specific incompatibility found in release notes, but this exact pairing isn't explicitly called out in Playwright's own compatibility docs as of this pass — low risk, worth a smoke-check (`pnpm --filter e2e exec playwright --version` + one trivial test) at scaffolding time. |
+| `mcr.microsoft.com/playwright:v1.61.1-noble` | `@playwright/test`@^1.61.1 | Pin these together explicitly; a mismatched image/library pair surfaces as CI-only browser-binary/driver flakiness. |
+| Mailpit v1.30.5 | nodemailer (existing project dependency, ^9.0.3) | Mailpit is a transparent SMTP endpoint — no Mailpit-specific nodemailer config needed, just `SMTP_HOST`/`SMTP_PORT` pointed at it with `secure: false` (no TLS needed for the local test catcher). |
+| `oidc-provider`@^9.10.0 | better-auth `genericOAuth` plugin (existing project dependency, ^1.6.23) | `oidc-provider` implements a standards-compliant OIDC discovery document (`/.well-known/openid-configuration`), exactly what better-auth's `genericOAuth` resolution expects — no bespoke shimming beyond registering one test client (id/secret/redirect URI). |
+| `@testcontainers/postgresql`@^12.0.4 | PostgreSQL 18.x (existing project version) | Already validated in the Vitest harness; use the same `postgres:18-alpine` image reference for E2E's `globalSetup` container to avoid version drift between what integration and E2E tests exercise. |
 
 ## Sources
 
-- npm registry `dist-tags.latest` (direct fetch, `registry.npmjs.org/<pkg>`) for: fastify, better-auth, prisma, vue, vite, pinia, vue-router, nodemailer, qrcode, vitest, @playwright/test, @vue/test-utils, @fastify/cookie, @fastify/rate-limit, @fastify/cors, @fastify/helmet, @fastify/static — confidence MEDIUM (authoritative registry data, but fetched via generic web-fetch tool rather than an MCP docs provider)
-- better-auth.com official docs: `/docs/integrations/fastify`, `/docs/plugins/magic-link`, `/docs/plugins/sso`, `/docs/plugins/generic-oauth`, `/docs/adapters/prisma` — confidence MEDIUM
-- prisma.io official blog/changelog: "Announcing Prisma ORM 7.0.0", changelog entries 7.2–7.7 — confidence MEDIUM
-- postgresql.org versioning/roadmap pages, endoflife.date/postgresql — confidence MEDIUM
-- nodejs.org release blog + endoflife.date/nodejs — confidence MEDIUM
-- vitest.dev migration guide + "Vitest 4.0/4.1 is out" blog posts — confidence MEDIUM
-- General web search synthesis (WebSearch tool, no Context7/MCP docs provider available in this environment) for: qrcode logo-overlay compositing patterns, Fastify testcontainers/Vitest integration test patterns, `@vue/test-utils` vs `@testing-library/vue` guidance — confidence MEDIUM/LOW, flagged for re-verification at implementation time via each library's own README/docs
+- npm registry `dist-tags.latest` (direct fetch, `registry.npmjs.org/<pkg>`) for: `@playwright/test` (1.61.1), `@testcontainers/postgresql` (12.0.4), `oidc-provider` (9.10.0) — confidence HIGH (authoritative registry data, direct fetch, verified 2026-07-24)
+- GitHub Releases API (direct fetch) for `axllent/mailpit` latest release (v1.30.5, published 2026-07-20) and `dexidp/dex` latest release (v2.45.1, considered as an alternative IdP) — confidence HIGH
+- playwright.dev official docs: `/docs/test-webserver`, `/docs/ci`, `/docs/auth`, `/docs/test-sharding-js`, `/docs/test-global-setup-teardown` — confidence MEDIUM (WebSearch synthesis, not a direct MCP docs provider; core claims cross-checked across multiple independent community articles referencing the same official pages)
+- mailpit.axllent.org official docs: `/docs/install/docker/`, `/docs/api-v1/` — confidence MEDIUM
+- Community sources on MailHog-vs-Mailpit maintenance status (SendPigeon, SendPit, Jeff Geerling blog, `ddev/ddev` GitHub issue #4827) — confidence MEDIUM, cross-checked across 4+ independent sources reaching the same conclusion
+- Community sources on GitHub Actions Playwright CI patterns (QASkills.sh "Playwright CI on GitHub Actions: Complete 2026 Guide", playwrightsolutions.com, Brian Birtles' blog on sharding-by-browser) — confidence MEDIUM, general patterns only; verify exact YAML syntax against `playwright.dev/docs/ci` at implementation time
+- Community sources on Postgres seeding/reset patterns for Playwright (`playwright-postgres-seeder` README, Seedmancer blog, `microsoft/playwright` issue #33699 "How to write isolated playwright tests against a real database") — confidence LOW-MEDIUM, no single authoritative "official" pattern exists; the data-namespacing recommendation here is this researcher's synthesis from the project's own existing domain-scoped-entity constraints, not a directly-cited external best practice — flag for reconsideration if the actual suite reveals it insufficient
 
 ---
-*Stack research for: self-hosted URL shortener (Kurzly) — Vue 3 / Fastify / Postgres+Prisma / better-auth stack*
-*Researched: 2026-07-10*
+*Stack research for: Playwright E2E test infrastructure (Kurzly v1.1 milestone)*
+*Researched: 2026-07-24*

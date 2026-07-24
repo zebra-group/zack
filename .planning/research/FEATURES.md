@@ -1,233 +1,204 @@
 # Feature Research
 
-**Domain:** Self-hosted URL shortener / link management platform (Kurzly)
-**Researched:** 2026-07-10
-**Confidence:** MEDIUM (well-documented domain; competitor feature sets confirmed via multiple current sources; some edge-case behaviors are inferred best practice rather than directly cited)
+**Domain:** E2E test coverage scope for a self-hosted URL-shortener/link-management dashboard (bit.ly/dub.co class) — magic-link + OIDC auth, domain-scoped RBAC, QR codes, privacy-friendly analytics
+**Researched:** 2026-07-24
+**Confidence:** MEDIUM (synthesis of established Playwright/testing-pyramid practice + general web sources; individual web citations are LOW-confidence blog/community content, but cross-checked against multiple independent sources and general software-testing consensus, and against this project's own already-established TDD/testing conventions in PROJECT.md)
 
-## Context
-
-The product spec (12 requirements, `design_handoff_url_shortener/README.md`) is already fixed and full-scope for v1 — this is not a "what should we cut" exercise. This document's job is to (a) place the 12 requirements against the wider market (bit.ly, dub.co, Kutt, YOURLS, Shlink) so the roadmap knows which pieces are commodity vs. genuinely differentiating, and (b) surface **expected sub-behaviors the spec text glosses over**, because those sub-behaviors are exactly where phase plans under-scope and rewrites happen later.
-
-Competitor landscape snapshot:
-- **Shlink** — self-hosted, Docker-first, real-time visit tracking, multi-domain, REST API. Closest architectural sibling to Kurzly's ambitions.
-- **YOURLS** — PHP/MySQL, oldest and most established self-hosted option, plugin ecosystem, minimal built-in analytics.
-- **Kutt** — Node.js/TypeScript, self-hostable, password-protected links, custom domains, API — feature set close to Kurzly's baseline but no team/role model.
-- **dub.co** — the explicit reference point in the spec ("wie bei dub" for UTM builder). Open-core, Next.js. Full feature set: UTM builder, custom link previews (OG), device/geo targeting, password protection, expiration, QR codes, real-time analytics with geo/device/browser/referrer breakdowns, up to N custom domains per workspace, team roles.
-- **bit.ly** — market incumbent, sets user expectations for dynamic QR codes (redirect history retained across remaps) and standard link attributes.
+> Milestone note: this file supersedes the v1.0 product-feature-landscape research (originally researched 2026-07-10) for the purposes of the **v1.1 "E2E Test Coverage" milestone**. The v1.0 product features are fully shipped and validated (see PROJECT.md Validated section); this milestone adds no new product features, only test coverage. In this research the "feature" grain is therefore **E2E test scenario groups**, not product features. Table Stakes = scenarios that must exist for "complete E2E coverage" to be a true claim. Differentiators = valuable edge-case scenarios that raise confidence further. Anti-Features = scenarios that look temptingly automatable as E2E but are actively wasteful there and belong in unit/integration tests instead.
 
 ## Feature Landscape
 
-### Table Stakes (Users Expect These)
+### Table Stakes (Users/Stakeholders Expect These)
 
-Features users assume exist in any product in this class. Missing these makes Kurzly feel unfinished next to Kutt/Shlink/dub, even though the spec doesn't over-explain them.
+These are the scenarios a reviewer or auditor would look for first; missing any of them means the "complete E2E coverage" claim in the milestone goal is not actually true.
 
-| Feature | Why Expected | Complexity | Notes |
+| Feature (E2E scenario group) | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Custom slug + auto-generated slug fallback | Every competitor (bit.ly, dub, Kutt, YOURLS) supports both; users expect empty slug to "just work" | LOW | Spec confirms: empty slug → autogenerate. Collision handling (retry with longer random suffix) must be specified — spec is silent on this. |
-| Multi-domain link creation with domain picker | Table stakes for any "bring your own domain" shortener (Shlink, dub, Rebrandly) | MEDIUM | Requires DNS verification flow (spec has this) + per-domain slug uniqueness (a slug is unique *within* a domain, not globally — spec implies this via `example.com/kurz` per domain, but this must be an explicit DB constraint: `UNIQUE(domain_id, slug)`). |
-| Redirect handler (the core value prop) | This is the entire product; if it's slow or wrong, nothing else matters | MEDIUM | See Pitfalls-adjacent notes below — the spec under-specifies status code choice, precedence order of checks, and 404 vs 410 distinction. |
-| Click count display | Every competitor shows a click count on the link list; users compare "which link performs" | LOW | Already spec'd (tracking toggle). Must gracefully show "—" when tracking is off (spec already calls this out). |
-| Copy-to-clipboard for short link | Universal micro-interaction across bit.ly/dub/Kutt/YOURLS | LOW | Already spec'd. |
-| Static QR code per link | Every modern shortener (bit.ly, dub) auto-generates a QR for any short link; users expect it without extra setup | LOW | `qrcode` npm library, straightforward. Distinct from *dynamic* QR (separate entity in spec). |
-| Search/filter on link list | Any list beyond ~20 rows needs this; YOURLS, Kutt, dub all have it | LOW | Already spec'd (search field + domain-filter pills). |
-| Link expiration → dead link handling | dub has this ("expiration dates" is explicitly listed as a dub feature) | LOW-MEDIUM | Spec correctly identifies 410 Gone as the right status (see Pitfalls note on why 410, not 404). |
-| Password-protected links | dub, Kutt both support this | MEDIUM | Spec correctly requires server-side hashing and never embedding the target before verification — this is good instinct already captured in spec; needs a session/short-lived-token mechanism after unlock (see below). |
-| CSV/bulk import | Any tool used by an agency (Kurzly's stated persona) needs migrating hundreds of existing links | MEDIUM | Spec has this as Screen 10. Needs to handle partial failure gracefully (already spec'd: N valid / M skipped). |
-| Team invite + role-based access | dub has "team roles"; any multi-user self-hosted tool needs at least this | MEDIUM | Spec's 2-role model (Admin/Member) is a deliberately simplified version of what dub/Bitly Enterprise offer (which often has 3-4 roles) — correctly scoped down per Out-of-Scope. |
-| Dark/light theme | Not competitively differentiating, but modern dashboards (dub, Vercel-style tools) all have it; its absence would look dated | LOW | Already spec'd, tokens defined. |
+| **Auth — Magic-link login round-trip** | Core Value depends on getting past login; this is the only login method (no password fallback) so it is the single point of failure for every other flow. | MEDIUM | Requires an SMTP catcher (Mailpit/MailHog) wired into `docker-compose.dev.yml` + CI, a way to poll it via HTTP API, extract the link, and navigate. Must also cover: invalid/expired magic-link token → rejected; unknown (non-invited) email → no session created (invite-only). |
+| **Auth — OIDC/SSO login round-trip** | Explicit v1.0 feature; SSO users get a different provisioning path (least-privilege "Mitglied" on first login) that only an E2E test can prove end-to-end through real cookie/session issuance. | MEDIUM-HIGH | Recommend one real-flow smoke test against a disposable/test IdP (or a stub OIDC provider container) to validate the callback contract, plus mocked/intercepted variants for negative cases (denied consent, invalid state, callback tampering) — don't hand-roll every OIDC edge case against a live IdP. |
+| **Auth — Session/logout & route guarding** | Every other E2E scenario depends on a working session; also a security-relevant boundary (unauthenticated access to dashboard routes must redirect to login). | LOW-MEDIUM | Cheap once magic-link login exists — reuse `storageState` from the login test as a fixture for all subsequent suites rather than re-running login per test. |
+| **Redirect handler — slug → target (happy path)** | This *is* the Core Value statement in PROJECT.md verbatim ("wenn alles andere ausfällt, muss der Redirect-Handler korrekt funktionieren"). | LOW | Simple GET against the custom domain (or a test domain fixture) → assert 3xx + `Location` header, or full navigation → final URL. |
+| **Redirect handler — password gate** | Explicit security constraint: target must never leak pre-auth. | MEDIUM | Must assert (a) wrong password rejected, correct password passes; (b) response body/HTML before password entry contains **no trace** of the real target (a common regression class per research). |
+| **Redirect handler — expiry (410) gate** | Explicit v1.0 requirement; distinct HTTP semantics from "not found." | LOW | Assert exact 410 status + that target is not leaked, distinct from a 404 slug-not-found case. |
+| **Redirect handler — bot / OG-tag rendering** | Explicit v1.0 feature (custom OG tags, SSRF-safe, no OG preview of the target before unlock) — a security-relevant negative-space feature that's easy to silently regress. | MEDIUM | Simulate a bot UA (or hit the route with the server-side-rendering code path) and assert OG meta tags reflect the *custom* configured title/description/image, not the real target's OG data, and that this respects password/expiry gates too (gated links must not leak OG preview of the real target). |
+| **Redirect handler — query-param forwarding & UTM** | Explicit v1.0 feature (UTM builder) whose only observable proof is the final redirected URL. | LOW-MEDIUM | Assert query params configured in the UTM builder appear on the final `Location`/navigated URL, and that request-time query params are forwarded/merged correctly. |
+| **Links CRUD — create/edit/delete + search/filter** | Baseline dashboard functionality; if broken, the product is unusable regardless of anything else. | LOW-MEDIUM | One canonical "author a link, see it, edit it, delete it, find it via search" journey covers most of this; don't multiply near-duplicate CRUD tests for password/expiry/OG variants that are already integration-tested. |
+| **Links — CSV bulk import (preview → commit)** | Two-step, stateful UI flow (upload → preview → commit) that is exactly the kind of multi-step, cross-request flow E2E exists to validate; integration tests can't exercise the file-upload UI itself. | MEDIUM-HIGH | Cover: valid CSV happy path, preview showing correct row count/diff, partial-failure rows surfaced correctly, and commit only writes what was previewed (no silent extra rows). |
+| **QR Studio — static QR generation + customization** | Explicit, highly visual v1.0 feature (color/rounding/logo); visual/interactive state is exactly what E2E (vs. unit) is good at catching. | MEDIUM | Assert the generated PNG/SVG actually decodes back to the target URL after customization (round-trip, not just "an image rendered") — this is the one QR assertion that must be end-to-end, not just visual. |
+| **QR Studio — dynamic QR remapping (`/q/:code`)** | Distinct feature from static QR: the *whole point* is that the same physical code can be repointed without reprinting; only a real GET-after-remap proves this works. | MEDIUM | Generate dynamic QR → resolve to target A → remap in Studio → resolve to target B via the same `/q/:code` URL, and assert remap history is recorded. |
+| **QR Studio — PNG/SVG export** | Explicit dual-format requirement. | LOW | One test per format is enough; don't multiply across every color/logo permutation (that's a rendering/unit concern). |
+| **Analytics — per-link view populates after a tracked click** | Core value-prop differentiator ("privacy-friendly internal tracking"); only an E2E test proves the full pipeline (click → recorded → rendered in UI) actually wires together. | MEDIUM | Perform a real redirect-handler hit, then assert the analytics view reflects it (count, referrer/country if feasible in test env). |
+| **Analytics — tracking toggle produces true zero-rows** | Explicit, security/privacy-relevant requirement ("true zero-rows wenn aus") — this is a *negative* assertion that's easy to accidentally break in a refactor and easy to skip in manual QA. | MEDIUM | Toggle tracking off → perform redirect → assert no new tracking row is created (not just "hidden in UI"). Best proven via API/DB assertion, but the toggle-and-click journey belongs in E2E since it spans UI + redirect handler + storage. |
+| **Team management — invite → accept → appears in team list** | Only way new users are provisioned (invite-only); this is a genuinely multi-actor, multi-session flow (inviter + invitee) that only E2E can exercise faithfully. | MEDIUM-HIGH | Requires two browser contexts (or sequential context switch) + the SMTP catcher again (invite email reuses magic-link-style delivery). |
+| **Team management — role & domain assignment changes take effect** | Explicit v1.0 feature; the "does the change actually restrict/grant access after being saved" question is an E2E-shaped question, not a unit one. | MEDIUM | Admin changes a member's domain scope → member's own session (re-navigated) shows only the newly scoped domains. |
+| **Domain-scoped authorization — deny path per resource type** | This is the single most safety-critical claim in the whole project ("serverseitig bei JEDER Operation autorisiert... bewiesen durch Denial-Suite") — already proven at the integration level in v1.0, but the milestone explicitly calls out "domain-scoped Autorisierung end-to-end" as new E2E scope. | HIGH | E2E's job here is *not* to re-enumerate every denial (that's the existing integration Denial-Suite's job) — it's to prove the denial is also correctly surfaced through the real UI/session for at least one resource per type (link, QR, analytics) so a UI-layer regression (e.g. a client-side-only guard silently replacing the server check) would be caught. |
+| **Account-admin bypass** | Explicit v1.0 mechanism (account-admin bypasses domain scoping) that is easy to accidentally over- or under-scope. | LOW-MEDIUM | One test: account-admin sees/acts on a domain never explicitly assigned to them. |
 
-### Differentiators (Competitive Advantage)
+### Differentiators (Raise Confidence Further — Nice-to-Have Edge Cases)
 
-Where Kurzly can genuinely compete, mostly on **self-hosted + privacy + on-prem control**, which none of dub/bit.ly offer and which Shlink/YOURLS/Kutt don't do as polished/complete as the spec describes.
+Not required for the coverage claim to be true, but valuable if time allows; typically the second wave after table stakes are green.
 
-| Feature | Value Proposition | Complexity | Notes |
+| Feature (E2E scenario group) | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Dynamic QR codes with own short URL + remap history | bit.ly has this at Enterprise-tier pricing; Shlink/YOURLS/Kutt do not have this at all. A print-once, redirect-forever QR is genuinely valuable for agencies doing physical collateral (posters, packaging) | MEDIUM-HIGH | Needs its own entity distinct from links (spec models this correctly: `qrs[]` with `mapsTo -> linkId`, `history[]`). Remap history is the differentiator — competitors that have dynamic QR often don't surface history to the user; Kurzly's spec explicitly shows it (Screen 4: "gerade geändert" toast + dashed history line). |
-| Privacy-first internal tracking, toggleable per link, zero third-party | This is the stated Core Value in PROJECT.md. No competitor combines self-hosted + no-third-party + per-link opt-out this cleanly; Shlink/YOURLS have analytics but not a privacy-first architecture story; dub/bit.ly are SaaS (data leaves your infra) | MEDIUM | Must actually honor "off = store nothing" at the DB layer (no rows written, not soft-deleted/hidden) — this is a trust claim, and quality bar is high: any leaked click row when tracking is off is a broken promise, not just a bug. |
-| Per-domain role scoping (not just per-workspace) | dub/Bitly scope by *workspace/team*, not by *domain within one instance*. Kurzly's model (one instance, N domains, Members scoped to specific domains) fits the agency-with-many-clients use case better than dub's workspace model | MEDIUM-HIGH | This is architecturally the most novel piece of the spec — see PITFALLS/ARCHITECTURE for the "authorize every operation server-side" requirement. Differentiator only if enforcement is airtight; a leaky implementation turns this into a liability, not a feature. |
-| OIDC/SSO on a free self-hosted OSS tool | Enterprise-grade auth options are usually paywalled (bit.ly Enterprise, dub Enterprise); giving this away in a self-hosted OSS project is a real draw for companies with existing Keycloak/Authentik/Azure AD | MEDIUM | better-auth's generic OIDC plugin makes this tractable; the differentiator is packaging/UX (toggle + 3 fields), not novel auth engineering. |
-| Custom OG-tags + social card live preview | dub has "custom link previews" but doesn't show a true multi-platform preview UI; most self-hosted tools (YOURLS, Kutt) don't have this at all | MEDIUM | Requires bot-vs-human branching in the redirect handler (see Pitfalls) — the preview UI itself (Screen 3, accordion section 2) is cheap; the *serving* mechanism is the real engineering work. |
-| UTM builder with live preview | Explicitly modeled on dub, which has this; Shlink/YOURLS/Kutt do not | LOW-MEDIUM | Straightforward URLSearchParams manipulation; the differentiator is doing it self-hosted with no data going to a third party's attribution engine. |
-| Full Docker/Compose on-prem deployment story | dub/bit.ly are SaaS-only for teams that want the full feature set; Shlink/YOURLS are self-hostable but have a much thinner feature set (no dynamic QR, no team roles, no OIDC) | HIGH (product-level, not a single feature) | This is the overall differentiator: "the only self-hosted option with the full dub-like feature set." Everything else in this table serves this positioning. |
+| **Magic-link: resend / rate-limit UX** | Proves the rate-limit constraint (`@fastify/rate-limit` on the magic-link request endpoint) surfaces a sane UI message rather than a silent failure. | LOW-MEDIUM | Good candidate for a single test; rate-limit *logic* itself is better unit/integration-tested. |
+| **OIDC — first-SSO-login provisioning edge case (existing email collision)** | Verifies SSO-created accounts correctly reconcile with an existing invited-but-not-yet-activated magic-link account for the same email. | MEDIUM-HIGH | Genuinely tricky account-linking logic; worth one dedicated E2E test given it's a known source of real-world auth bugs. |
+| **Redirect handler — malformed/unknown slug on a valid domain** | Confirms clean 404 behavior distinct from password (401/403-style) and expiry (410). | LOW | Cheap addition once the other redirect states exist. |
+| **Redirect handler — case sensitivity / trailing slash / query-string-only variants of the same slug** | Real-world URL-shortener robustness; users paste links with trailing punctuation, tracking wrappers, etc. | LOW | Good candidate for a small parametrized test, not a full scenario each. |
+| **CSV import — large file / duplicate-slug conflict handling** | Import is the riskiest bulk-write path in the product; conflict resolution (skip/overwrite existing slug) is exactly the kind of stateful edge case E2E should protect once. | MEDIUM | One dedicated "conflicting rows in the preview" test is worth it; don't build a matrix of every possible CSV malformation here (push to unit tests on the parser). |
+| **QR Studio — logo overlay at max distortion (EC-level H boundary)** | Visual correctness at the edge of scannability. | MEDIUM | The decode-round-trip test (table stakes) already covers correctness; this is about visual regression, better served by a snapshot/visual-diff test than a new full E2E journey. |
+| **Analytics — global (cross-link) dashboard view aggregation** | Confirms rollup math, not just per-link. | LOW-MEDIUM | Worth one test once per-link analytics E2E exists — mostly a UI-aggregation smoke check. |
+| **Team — member removal revokes access mid-session** | Session-invalidation-on-removal is a real security property, not just a CRUD delete. | MEDIUM | Valuable if the removed-member's active session is expected to be killed immediately rather than only on next login. |
+| **Dashboard theming — Light/Dark toggle persists across navigation** | Explicit pixel-fidelity/UX requirement, but purely cosmetic/state-persistence. | LOW | Cheap, but genuinely "nice to have" — a visual-regression tool or a single smoke assertion is enough; don't build a Light+Dark variant of every other E2E scenario (see Anti-Features). |
 
-### Anti-Features (Deliberately Not Building)
+### Anti-Features (Commonly Tempting to E2E-Automate, Often Wasteful There)
 
-Already excluded per PROJECT.md Out of Scope: email/password login, third-party analytics (GA etc.), public self-signup, roles beyond Admin/Member, billing. Additional anti-features surfaced by this research:
-
-| Feature | Why Requested | Why Problematic | Alternative |
+| Feature (scenario) | Why Tempting as E2E | Why Problematic as E2E | Alternative |
 |---------|---------------|------------------|-------------|
-| Full attribution/marketing suite (A/B testing, device targeting, deep links, geo-targeting redirects) | dub has these; feels like "if we're already matching dub, why not match all of it" | Scope creep against the fixed 12-requirement spec; device/geo-based *conditional redirects* (different target per device/country) is a materially different redirect-handler architecture (multi-target resolution before the 302) — not a toggle, a redesign | Explicitly defer; the spec's redirect handler resolves one link → one target. If ever requested, treat as a new major version, not a phase add-on. |
-| Public self-service link shortening (anonymous, no login) | Every consumer-facing shortener (tinyurl, bit.ly free tier) allows this; "just paste a URL" is the most familiar mental model | Directly conflicts with PROJECT.md's "no public self-signup" and the per-domain authorization model — an anonymous link has no owner/domain-scope to authorize against, and is also a classic open-redirect/spam vector for self-hosted tools left on the public internet | Team-invite-only creation, as already spec'd. |
-| Third-party/browser-fingerprint-based analytics enrichment (device fingerprinting, cross-site tracking pixels) | "More analytics = more value" instinct, and competitors like dub show device/browser/OS breakdowns | Directly contradicts the stated Core Value (privacy-first, no third-party tracking); fingerprinting also reintroduces exactly the GDPR/consent-banner problem the privacy-first architecture is meant to avoid | Stick to referrer + country (from IP→GeoIP lookup, IP itself discarded) + click timestamp; this is enough for the "top referrers / top links / time series" aggregations the spec asks for. |
-| Full plugin/extension marketplace (à la YOURLS' 245+ plugins) | YOURLS' longevity is partly attributed to its plugin ecosystem; tempting to build an extension API for "future-proofing" | Massive scope and API-surface commitment for a spec that has zero mention of extensibility; premature abstraction | Ship the fixed feature set well; revisit extensibility only if/when a v2 milestone explicitly asks for it. |
-| CAPTCHA/anti-bot gating on password-protected or expired link pages | Seems like sensible hardening against brute-forcing per-link passwords | Not in spec, adds a UX/dependency burden (CAPTCHA provider = a third party in the request path for a *public* page, undermining self-hosted/no-third-party positioning) | Rate-limit password attempts per-link per-IP server-side (simple in-memory or DB counter) instead of introducing a third-party CAPTCHA service. |
-| Storing target URL or password in a query param, hash fragment, or inline `<script>` on the password/expired pages | Naive/fast implementation path when serving these public pages | Explicitly called out as a security requirement to avoid in PROJECT.md/spec ("Ziel-URL erst nach erfolgreicher Prüfung ausgeliefern, nie im HTML der Sperrseite einbetten") — get this wrong and the password gate is cosmetic only | Resolve target server-side only after password POST validates; issue redirect from the server response, never client-side reveal. |
-
-## Under-Specified Sub-Behaviors (Spec Gaps to Resolve Before/During Planning)
-
-These are expected industry behaviors the 12 requirements imply but don't fully pin down. Flagging them now so phase plans don't have to rediscover them mid-build.
-
-### Redirect handler semantics
-- **Status code choice is unspecified for the "happy path" redirect** (only 410-for-expired is spec'd). Industry norm for link shorteners: **302 (or 307) by default, not 301** — 301s are cached by the browser, which (a) breaks click-count accuracy after the first visit, and (b) prevents the target from ever being changed for users who already visited once (their browser silently skips the shortener forever). Recommend: 302 default for all links, always (even ones without tracking) — it's the correct default for a "target can change" product regardless of whether tracking is on, since consistent behavior matters for QR remapping too. Confidence: MEDIUM (cross-source consensus, not from official spec).
-- **Precedence order of checks is unspecified.** A redirect can be simultaneously expired AND password-protected AND requested by a bot. Order matters: recommend checking **expiration first** (410, terminal — nothing else should matter once gone), then **password gate** (if set, before revealing anything), then **bot detection → OG-tag page** vs **real visitor → redirect + click event**. This ordering should be an explicit decision written into the phase plan for the redirect handler, not discovered in code review.
-- **404 vs 410 distinction matters and the spec gets it right** for expired links (410 Gone, not 404) — but the spec doesn't say what happens for a slug that **never existed** (domain+slug not found at all). Standard behavior: true 404 in that case, distinct from expired-410. Both need a public page (not a raw HTTP error), consistent with the spec's designed "abgelaufen" page pattern.
-- **OG-tag injection must be bot-only, and the mechanism must not be spoofable-security-critical.** Server-side User-Agent matching (e.g. via the `isbot` npm package's regex list for facebookexternalhit/Twitterbot/Slackbot/LinkedInBot/Discordbot/etc.) is the standard approach — but UA strings are trivially spoofable, so this check must ONLY gate "serve HTML-with-meta-tags vs. issue redirect," never bypass password/expiration checks. A malicious actor spoofing a bot UA should still hit the password gate / 410 page, not get a free peek at OG data for a protected/expired link. Confidence: MEDIUM.
-- **Password unlock needs a short-lived proof mechanism**, not just "check password, then redirect once." Spec's UI (Screen 11) implies a single POST → unlock → redirect flow, but if the visitor's browser is also going to load OG-preview assets or the redirect needs to survive a page transition, a short-lived signed token/cookie (e.g. 60s validity, single-use) is the standard pattern — otherwise the "Unlocked" state shown in the prototype has nothing to actually redirect from. This is a real implementation decision missing from the spec, not just a formatting detail.
-
-### QR codes
-- **Error correction level** must be H (30% redamage tolerance) specifically because of the logo overlay — spec already notes this correctly. Sub-behavior not spec'd: minimum logo size ratio (industry rule of thumb: logo should occupy ≤ ~20-25% of the QR code area at EC level H, else scan reliability degrades) — worth pinning as a concrete constraint (spec says 46×46px logo in a 196px/21-module QR, which is roughly in-range but should be validated against the actual generated matrix, not just visually).
-- **Dynamic QR remap needs an audit trail schema**, not just a `history[]` display array — who remapped, when, from/to. Spec shows the UI (dashed history line) but the data model implication (append-only remap log table, not an overwritten field) should be explicit in the DB schema, else "history" silently becomes "last change only."
-- **Static vs dynamic QR are genuinely different entities**, not a toggle on one entity: a static QR encodes the destination URL directly (no server round-trip, can't ever be remapped without reprinting); a dynamic QR encodes `/q/xxxx` and requires its own redirect-resolution path (which itself needs point-in-time click/scan tracking separate from link clicks, since the spec calls out a distinct "scan counter"). Recommend explicitly modeling `qrs.dynamic: boolean` and branching the render+redirect logic on it, per spec's own data model — just flagging that this isn't a cosmetic difference, it's two code paths.
-
-### Tracking / analytics
-- **"Off = store nothing" is a hard architectural constraint, not a UI filter.** Must be enforced at the point of write (no click-event row created at all when tracking is off for that link), not by hiding rows in the aggregation query. Any implementation that logs-then-filters is a false claim of the privacy feature and a compliance/trust risk given this is the product's Core Value.
-- **Unique visitor counting without cookies/third-party** needs a defined method since the spec asks for "Unique Visitors" as an aggregation but doesn't specify how uniqueness is derived. Standard privacy-preserving approach (as used by Plausible/Fathom/Umami): hash `IP + User-Agent + daily-rotating-salt` with SHA-256 to derive an ephemeral daily visitor ID; discard the salt at day-boundary so the same person can't be correlated across days. Raw IP itself is never persisted — only used transiently to (a) derive that hash and (b) do a GeoIP country lookup, then discarded. Confidence: MEDIUM (cross-source consensus from Plausible/Fathom/Umami documentation, standard pattern not spec-mandated but directly serves the stated Core Value).
-- **Referrer parsing needs normalization**, not raw storage of the `Referer` header — grouping `t.co`, `twitter.com`, `x.com` etc. into recognizable sources is expected polish (dub/bit.ly do this) but the spec doesn't call it out; recommend at minimum bucketing into "direct / social / search / other" plus raw domain, since raw unprocessed referrer strings make the "Top Referrers" aggregation noisy and low-value on day one.
-
-### Multi-domain + per-domain roles
-- **Slug uniqueness scope**: confirmed above — must be unique per domain, not globally, since the spec's model is `domain + slug → target`.
-- **Domain deletion/deactivation cascading behavior is unspecified**: what happens to existing links when a domain is removed or DNS verification is later revoked? Recommend: domain can be deactivated (existing links keep resolving, but slug creation is blocked) rather than hard-deleted, to avoid silently breaking already-distributed short links — flag this as a decision needed during the Domains-screen phase, not left implicit.
-- **Member domain-access changes must invalidate cached authorization**, not just update the DB row — if role/domain-assignment changes happen while a member has an active session, the very next request must reflect the new scope (server-side check on every request, as the spec already mandates — just noting that "every operation" includes requests made seconds after a change, so no long-lived authorization cache/JWT claims baking in stale domain lists).
+| **Every input-validation error message (slug format, URL format, password rules, CSV column mismatch, etc.)** | Feels like "real user behavior," and QA instinct is to click through every validation error. | Multiplies test count and runtime for logic that is pure and synchronous — no real integration risk. Slows the suite down without raising confidence proportionally (violates the ~10%-of-suite guidance for E2E). | Unit-test the validators/schemas directly (Fastify schema validation, Vue form validators); E2E only needs one representative "invalid input shows an error" smoke case per form. |
+| **Exhaustive domain-scoped denial matrix (every role × every resource × every operation)** | It's the single most safety-critical property in the app, so the instinct is "test everything, everywhere." | This exact matrix is already what the existing v1.0 integration-level "Denial-Suite" (per Key Decisions in PROJECT.md) proves cheaply and fast via `fastify.inject`; re-doing the full matrix through a real browser is slow, redundant, and doesn't test anything the integration suite doesn't already cover. | Keep the integration Denial-Suite as the source of truth for the full matrix; E2E adds only representative UI-layer proof (see Table Stakes) that the server check isn't bypassed by a client-side-only guard. |
+| **Full color/rounding/logo permutation matrix in QR Studio** | Visually rich feature invites "test every combination users could configure." | Combinatorial explosion of near-identical journeys testing rendering, not integration; QR generation logic (Reed–Solomon, compositing) is a `qrcode`+`sharp` library concern already covered by unit tests per the stack's testing philosophy. | One E2E decode-round-trip test (already Table Stakes) + optional visual-regression snapshots for style permutations, not full Playwright journeys per combination. |
+| **Testing OIDC/IdP's own login page or third-party SSO provider behavior** | "Complete coverage" instinct says test the whole login journey including the IdP screens. | You don't control the IdP's UI; it's flaky, slow, occasionally down, and testing it proves nothing about Kurzly's own code — pure external-dependency risk with no product-quality payoff. | Mock/intercept the OIDC callback for negative/variant cases; keep at most one deep "real flow against a disposable test IdP container" smoke test, not a suite. |
+| **Real production SMTP delivery in E2E/CI** | Feels "more real" than a catcher. | Slow, flaky, potential cost, and leaks test emails; also explicitly listed as a project-level anti-pattern already ("Real third-party SMTP providers in CI/E2E tests"). | Mailpit/MailHog catcher, dev/CI only (already decided in the project's stack docs). |
+| **Pixel-perfect Light/Dark visual fidelity via Playwright assertions** | UI-treue is an explicit hard constraint, so it's tempting to assert exact colors/spacing per screen via Playwright. | Playwright is the wrong tool for pixel-fidelity verification (brittle screenshot diffs across environments/fonts); this is a UI-review/visual-regression-tool concern, not a functional E2E concern. | Keep Light/Dark to functional smoke coverage (toggle works, persists) in E2E; delegate pixel-fidelity to a dedicated visual-review pass (e.g. this toolchain's `gsd-ui-review` process) or a proper visual-regression tool. |
+| **Analytics numeric-precision / referrer-parsing edge cases (unusual user-agents, malformed referrers, IP-to-country edge cases)** | Analytics correctness feels safety-critical, so it's tempting to E2E-test many input variants. | This is data-transformation logic (UA/referrer parsing, GeoIP lookup) with no meaningful browser-interaction component — an E2E test can't easily control the actual referrer/UA reaching the server in a realistic way anyway. | Unit/integration-test the parsing functions directly with a table of inputs; E2E only proves "a real click produces a visible non-zero row" (Table Stakes) and "tracking-off produces true zero rows" (Table Stakes). |
 
 ## Feature Dependencies
 
 ```
-Multi-domain support
-    └──requires──> Domain DNS verification + TLS (Let's Encrypt)
-                       └──enables──> Custom short-link creation per domain
+Auth E2E infrastructure (Mailpit/MailHog wiring + storageState fixture)
+    └──requires──> Magic-link login E2E (must exist and be green first)
+                       └──enables──> Session/logout & route-guarding E2E
+                       └──enables──> Team management E2E (invite/accept reuses magic-link delivery + login)
+                       └──enables──> Domain-scoped authorization E2E (needs authenticated sessions per role)
+                       └──enables──> Links / QR / Analytics E2E (all dashboard actions require a logged-in session)
 
-Redirect handler (core)
-    ├──requires──> Domain + slug resolution (multi-domain)
-    ├──gates──> Password protection (check before serving target)
-    ├──gates──> Expiration check (410, checked before password/OG)
-    ├──branches on──> Bot detection ──> OG-tag HTML page (read-only, no click event)
-    └──branches on──> Human visitor ──> Click event (if tracking on) ──> redirect
+OIDC/SSO login E2E
+    └──independent of──> Magic-link E2E (parallel auth path, but shares session/route-guard assertions)
+    └──enables──> SSO-provisioning edge cases (account-linking, least-privilege default role)
 
-Dynamic QR codes
-    └──requires──> Links (a QR maps to a link, not a raw URL)
-                       └──requires──> Remap history log (append-only)
+Redirect handler E2E (slug→target, password, expiry, bot-OG, query-forwarding)
+    └──requires──> Links CRUD E2E only insofar as a link must exist to redirect through
+                       (in practice: seed a link via API/fixture, not via the CRUD E2E test itself —
+                        avoid chaining full UI flows as setup for other E2E tests)
+    └──independent of──> Auth E2E (redirect handler is a public, unauthenticated endpoint)
 
-Static QR codes
-    └──requires──> Links (encodes the link's URL directly; no server dependency after generation)
+Links CRUD E2E (create/edit/delete/search + CSV import)
+    └──requires──> Auth E2E (dashboard actions require a session)
+    └──enables──> QR Studio E2E (QR codes attach to a link)
+    └──enables──> Analytics E2E (clicks need a link+redirect to generate data)
 
-Per-link tracking toggle
-    └──gates──> Click-event write (off = no rows written, not filtered)
-                       └──enables──> Analytics aggregations (time series, top links, top referrers, unique visitors, countries)
+QR Studio E2E (static + dynamic/:code remapping)
+    └──requires──> Links CRUD E2E fixture (a link or standalone QR target must exist)
+    └──requires──> Redirect-handler-equivalent resolution logic for /q/:code (same gate semantics)
 
-UTM builder
-    └──enhances──> Link creation (appends params to target URL at creation time, not at redirect time)
+Analytics E2E (per-link + global + tracking toggle)
+    └──requires──> Redirect handler E2E (a real tracked click is the only realistic data-generation path)
+    └──requires──> Links CRUD E2E fixture (a link to view analytics for)
 
-Custom OG-tags
-    └──requires──> Bot detection in redirect handler (to decide HTML-page vs redirect)
+Team management E2E (invite/accept/roles/domain assignment/removal)
+    └──requires──> Auth E2E infrastructure (invite delivery reuses the SMTP-catcher pattern; acceptance reuses login)
+    └──enables──> Domain-scoped authorization E2E (need a second, differently-scoped user to prove deny-path)
 
-Team/role management
-    ├──requires──> Auth (better-auth: magic link default)
-    ├──requires──> Domain-scoped authorization enforced server-side on EVERY link/QR/analytics operation
-    └──enables──> OIDC/SSO (optional; new SSO users default to Member role)
-
-Bulk CSV import
-    └──requires──> Link creation logic (reuses same validation/slug-generation path, not a separate code path)
+Domain-scoped authorization E2E (deny path per resource type, account-admin bypass)
+    └──requires──> Team management E2E (need role/domain-assigned users as fixtures)
+    └──requires──> Links / QR / Analytics E2E (needs each resource type to attempt denied operations against)
+    └──complements (not duplicates)──> existing v1.0 integration-level Denial-Suite (full matrix stays there)
 ```
 
 ### Dependency Notes
 
-- **Redirect handler requires multi-domain resolution first**: the handler can't look up a link without first resolving which domain the incoming request is on — multi-domain support is architecturally a prerequisite phase, not a parallel one.
-- **Expiration gates before password**, and both gate before bot-detection branching: get this order wrong (e.g. showing an OG preview for an expired or password-protected link to a spoofed bot UA) and you leak target metadata that should have been hidden — this is the single most safety-critical ordering decision in the whole spec.
-- **Dynamic QR requires Links to exist as a concept** (a dynamic QR always points at a link, never directly at a raw target URL) — so QR-code phase work depends on Links phase work being done first, per the spec's own data model (`qrs[].mapsTo → linkId`).
-- **Tracking toggle gates Analytics entirely**: the global Analytics screen (Screen 5) can only aggregate over links that have tracking on — this should be an explicit `WHERE tracking = true` filter at the query layer, and the phase plan for Analytics should assume some/most/all links may be excluded.
-- **Team/role management requires Auth to exist before it's meaningful**: invitations, magic-link sending, and pending/active status all depend on better-auth's magicLink() plugin being wired up first — Auth is a dependency of Team management, not a peer.
-- **OIDC/SSO conflicts with nothing, but is additive**: it's a second auth method layered onto the same user/role model, not a replacement — new SSO users still land in the same `users` table with `role: member` default, so it depends on the role model already existing, not the other way around.
+- **Auth infrastructure must land first, in its own phase-or-sub-phase:** the Mailpit/MailHog wiring plus `storageState` fixture pattern is the shared foundation every other suite depends on (either directly for login, or transitively via the fixture). Sequencing anything else before this exists means re-doing login boilerplate per suite, then throwing it away.
+- **Redirect handler E2E is intentionally decoupled from full Links-CRUD E2E:** seed the link-under-test via a direct API call/fixture rather than driving the "create a link" UI flow as a setup step for redirect tests — this keeps redirect tests fast and independent, and avoids a single flaky CRUD-UI step cascading failures into an unrelated suite.
+- **Team management E2E must exist before (or alongside) Domain-scoped-authorization E2E:** you need at least two real, differently-scoped user fixtures (created via the real invite flow, or seeded directly and only *verified* via UI) before you can meaningfully assert a deny path through the UI layer.
+- **Domain-scoped authorization E2E complements, not replaces, the existing integration Denial-Suite:** per Key Decisions in PROJECT.md, the full allow/deny matrix already has integration-level proof from v1.0. The new E2E scope's job is narrower and different — proving the *server* check (not a client-side hide) is what's actually gating the UI for at least one representative case per resource type. Treating this as "redo the whole matrix in Playwright" would be the single biggest source of wasted effort in this milestone.
+- **QR Studio's dynamic remap (`/q/:code`) shares gate semantics with the redirect handler** (password/expiry-equivalent behavior may apply depending on v1.0 implementation) — reuse the same assertion helpers/fixtures built for the redirect-handler suite rather than re-deriving them.
+- **Analytics E2E is downstream of the redirect handler, not of the dashboard UI alone:** the only trustworthy way to generate a "real click" for the analytics view to display is to actually hit the public redirect endpoint (or navigate through it), not to seed a database row directly — seeding directly would test the UI's rendering of fake data, not the tracking pipeline this feature exists to prove.
 
-## MVP Definition
+## MVP Definition (for this milestone: v1.1 "complete E2E coverage")
 
-Per PROJECT.md, this is explicitly **not** an MVP-cut milestone — the Active requirements section states v1 = all 12 requirements, no deliberate feature cutting for launch. This section is included per template convention but should be read as **phase sequencing guidance**, not scope reduction.
+### Launch With (v1.1 — all Table Stakes rows above)
 
-### Launch With (v1 — all spec'd, per PROJECT.md)
+Minimum required for the milestone's "complete E2E coverage" claim to be honest:
 
-- [ ] Docker/Compose hostability — infra foundation, needed before anything is demoable
-- [ ] Multi-domain link creation + redirect handler (301/302/307 decision, 404/410 distinction) — the stated Core Value; everything else is worthless if this is wrong
-- [ ] Password protection + expiration (410 Gone) — directly gates the redirect handler's correctness
-- [ ] Internal privacy-first tracking (toggle, store-nothing-when-off) — second half of Core Value
-- [ ] Static + dynamic QR codes with remap history — explicitly spec'd, no smaller cut available
-- [ ] UTM builder, custom OG-tags — spec'd, moderate complexity, no reason to defer
-- [ ] Bulk CSV import — spec'd, reuses link-creation validation logic
-- [ ] Team/role management (Admin/Member, per-domain scoping) — required for the agency/multi-client persona to be usable at all
-- [ ] Magic-link auth (better-auth) — required for any team feature to function
-- [ ] OIDC/SSO (optional, toggle) — spec'd as v1, not deferred
+- [ ] Playwright infra: config, fixtures, Mailpit/MailHog wiring in `docker-compose.dev.yml` + CI — foundational, blocks everything else
+- [ ] Magic-link login round-trip (happy + invalid/expired token + non-invited email)
+- [ ] OIDC/SSO login round-trip (happy path + least-privilege provisioning)
+- [ ] Session/logout/route-guard smoke
+- [ ] Redirect handler: happy path, password gate, expiry (410), bot-OG rendering, query/UTM forwarding
+- [ ] Links CRUD: create/edit/delete/search-filter journey
+- [ ] CSV bulk import: preview → commit round-trip
+- [ ] QR Studio: static generation + decode round-trip, dynamic remap via `/q/:code`, PNG/SVG export
+- [ ] Analytics: click populates per-link view; tracking-off produces true zero rows
+- [ ] Team management: invite → accept → appears in list; role/domain assignment takes effect
+- [ ] Domain-scoped authorization: one representative deny-path per resource type (link/QR/analytics) + account-admin bypass
 
-### Add After Validation (v1.x)
+### Add After Validation (nice-to-have hardening, same milestone if time allows)
 
-Not requested by the spec, but natural next asks once real usage starts (flag for future milestones, not this one):
-- [ ] Referrer bucketing/normalization polish (social/search/direct grouping) if raw referrer data proves too noisy in practice
-- [ ] Domain deactivation/soft-delete UX refinement if the "what happens when a domain is removed" question surfaces in real use
+- [ ] Magic-link resend/rate-limit UX
+- [ ] SSO account-linking edge case (existing invited email + first SSO login)
+- [ ] Redirect handler: unknown-slug 404, slug normalization (trailing slash/case)
+- [ ] CSV import: duplicate-slug conflict handling
+- [ ] Analytics: global/cross-link aggregation view
+- [ ] Team: member removal revokes an active session mid-flight
 
-### Future Consideration (v2+)
+### Future Consideration (explicitly out of E2E scope, use other test layers instead)
 
-Explicitly out of scope per PROJECT.md and this research — do not let these creep into phase plans:
-- [ ] Device/geo-targeted conditional redirects (different target per device/country) — architecturally a different redirect model
-- [ ] A/B testing on links — not requested, not aligned with self-hosted-simplicity positioning
-- [ ] Plugin/extension marketplace — premature abstraction for a fixed-spec v1
-- [ ] Roles beyond Admin/Member — explicitly out of scope in PROJECT.md
+- [ ] Exhaustive validation-message coverage across all forms — unit-test instead
+- [ ] Full domain-scoped denial matrix (every role × resource × op) — already covered by the v1.0 integration Denial-Suite
+- [ ] Full QR style/color/logo permutation matrix — unit-test the generation library usage + optional visual-regression snapshots
+- [ ] Pixel-fidelity Light/Dark verification — visual-review process, not Playwright assertions
+- [ ] Analytics UA/referrer/GeoIP parsing edge cases — unit-test the parsing functions
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Priority |
+| Feature (scenario group) | User/Stakeholder Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Redirect handler (multi-domain, status codes, 410) | HIGH | MEDIUM | P1 |
-| Multi-domain + DNS verification | HIGH | MEDIUM | P1 |
-| Password protection + expiration | HIGH | MEDIUM | P1 |
-| Privacy-first tracking (toggle, aggregations) | HIGH | MEDIUM-HIGH | P1 |
-| Static QR codes | MEDIUM | LOW | P1 |
-| Dynamic QR codes + remap history | HIGH (differentiator) | MEDIUM-HIGH | P1 |
-| UTM builder + live preview | MEDIUM | LOW | P1 |
-| Custom OG-tags + bot-branching serve logic | MEDIUM (differentiator) | MEDIUM-HIGH | P1 |
-| Bulk CSV import | MEDIUM | MEDIUM | P1 |
-| Team/role management, per-domain scoping | HIGH (differentiator) | MEDIUM-HIGH | P1 |
-| Magic-link auth | HIGH | LOW-MEDIUM (better-auth handles most of it) | P1 |
-| OIDC/SSO | MEDIUM (differentiator for enterprise) | MEDIUM | P1 |
-| Referrer normalization polish | LOW-MEDIUM | LOW | P2 |
-| Domain deactivation UX | LOW | LOW | P2 |
+| Playwright infra + Mailpit/MailHog wiring | HIGH (blocks all else) | MEDIUM | P1 |
+| Magic-link login E2E | HIGH | MEDIUM | P1 |
+| OIDC/SSO login E2E | HIGH | MEDIUM-HIGH | P1 |
+| Redirect handler E2E (all gates) | HIGH (Core Value) | MEDIUM | P1 |
+| Links CRUD + CSV import E2E | HIGH | MEDIUM-HIGH | P1 |
+| QR Studio E2E (static/dynamic/export) | HIGH | MEDIUM | P1 |
+| Analytics E2E (click + toggle) | HIGH | MEDIUM | P1 |
+| Team management E2E | HIGH | MEDIUM-HIGH | P1 |
+| Domain-scoped authorization E2E (representative) | HIGH (safety-critical) | HIGH | P1 |
+| SSO account-linking edge case | MEDIUM | MEDIUM-HIGH | P2 |
+| CSV duplicate-slug conflict E2E | MEDIUM | MEDIUM | P2 |
+| Analytics global aggregation view | LOW-MEDIUM | LOW-MEDIUM | P2 |
+| Team removal mid-session revocation | MEDIUM | MEDIUM | P2 |
+| Full denial matrix in E2E | LOW (redundant with integration suite) | HIGH | P3 (avoid) |
+| Full QR style permutation matrix | LOW | HIGH | P3 (avoid) |
+| Pixel-fidelity Playwright assertions | LOW (wrong tool) | HIGH | P3 (avoid) |
 
-**Priority key:** all P1 items are already committed per PROJECT.md's "full spec, no MVP cut" decision — this column reflects relative build-order risk (get P1-HIGH-value + P1-HIGH-risk items like the redirect handler and privacy-tracking store-nothing-guarantee right first, since they're both Core Value AND hardest to retrofit correctly).
+**Priority key:**
+- P1: Must have for the "complete E2E coverage" claim in this milestone
+- P2: Should have, add once P1 is green and stable
+- P3: Anti-pattern for E2E specifically — do not build in Playwright; covered elsewhere or explicitly redundant
 
-## Competitor Feature Analysis
+## Competitor/Reference Analysis
 
-| Feature | dub.co | Shlink | Kutt | YOURLS | Kurzly's Approach |
-|---------|--------|--------|------|--------|--------------------|
-| Self-hosted | No (SaaS, open-core) | Yes | Yes | Yes | Yes (Docker/Compose, on-prem, hard requirement) |
-| Multi-domain | Yes (per workspace, paid tiers) | Yes | Yes | Via plugins | Yes, native, per-instance with DNS verification UI |
-| Dynamic QR w/ remap history | Built-in QR, no confirmed remap-history UI | No | No | No | Yes — explicit differentiator, own `/q/xxxx` entity + audit trail |
-| UTM builder w/ live preview | Yes | No | No | No | Yes, modeled directly on dub |
-| Custom OG-tags + social preview | Yes ("custom link previews") | No | No | No | Yes, with bot-branching redirect handler |
-| Password-protected links | Yes | Partial | Yes | Via plugins | Yes, server-hashed, target never pre-revealed |
-| Internal privacy-first tracking (toggle, no 3rd party) | No (own hosted analytics, data leaves your infra) | Yes (basic) | Basic | Basic (plugin-dependent) | Yes — Core Value; explicit "store nothing when off" guarantee |
-| Team roles | Yes (workspace-based) | No | No | No (single-admin model) | Yes — Admin/Member, per-domain scoped (finer-grained than dub's workspace model) |
-| OIDC/SSO | Enterprise tier only | No | No | No | Yes, free, via better-auth generic OIDC |
-| Bulk import | Via API | Via API/CLI | Via API | Via plugins | Yes, dedicated CSV UI with live validation preview |
+| Practice | Typical SaaS/dashboard E2E convention | Kurzly's approach |
+|---------|--------------|--------------|
+| Auth testing under CI | Mock/intercept third-party IdP responses; cache session state via storage-state fixtures rather than re-running login per test | Same — magic-link via real local SMTP catcher (already decided project-wide), OIDC via intercepted callback + one real smoke test against a disposable IdP |
+| Multi-tenant/role coverage | Prove critical-path allow/deny per role, not an exhaustive matrix, at the E2E layer; push exhaustive matrices to lower/faster test layers | Same — E2E adds representative UI-layer proof only; full matrix already lives in v1.0's integration Denial-Suite |
+| Test pyramid shape | E2E ~10% of suite, reserved for cross-system golden paths; unit/integration absorb the rest | Consistent with the project's existing TDD constraint (Unit + Integration mandatory, E2E for "kritische Flows" only per PROJECT.md) |
+| Visual/pixel fidelity | Handled by dedicated visual-regression tooling, not general E2E frameworks | Recommend keeping pixel-fidelity checks out of the Playwright suite; already has a separate `gsd-ui-review` process available in this toolchain |
 
 ## Sources
 
-- [How Short.io Is Better Than Self-Hosted Link Shorteners — Short.io Blog](https://blog.short.io/how-short-io-is-better-than-self-hosted-link-shorteners/)
-- [Best Self-Hosted URL Shorteners in 2026: Shlink, YOURLS & More | selfhosting.sh](https://selfhosting.sh/best/url-shorteners/)
-- [Dub.co Alternatives: Top 12 URL Shorteners | AlternativeTo](https://alternativeto.net/software/dub/)
-- [Dub Links Overview - Dub](https://dub.co/help/article/dub-links)
-- [Dub: Open Source Alternative to TinyURL, Bitly and Rebrandly](https://openalternative.co/dub)
-- [301 vs. 302 Redirects in URL Shorteners: Speed, SEO, and Caching Best Practices](https://url-shortening.com/blog/301-vs-302-redirects-in-shorteners-speed-seo-and-caching)
-- [Redirection Status Codes: 301, 302, 307, and 308 | Baeldung on Computer Science](https://www.baeldung.com/cs/redirection-status-codes)
-- [How to Create Short Links With 301, 302, 307, 308 Status — Short.io Blog](https://blog.short.io/how-to-create-short-links-with-301-302-307-308-status/)
-- [isbot - npm](https://www.npmjs.com/package/isbot)
-- [GitHub - omrilotan/isbot: Detect bots/crawlers/spiders using the user agent string](https://github.com/omrilotan/isbot)
-- [Meta Crawler Bot — Detection, User-Agent & Management | Switch](https://www.switchtheweb.com/agents/meta-crawler)
-- [Edit QR Code Destination and Design: A Guide | Bitly](https://bitly.com/blog/edit-qr-code/)
-- [Dynamic QR Codes 101 & 201: Examples & Expert Tips | Bitly](https://bitly.com/blog/dynamic-qr-codes/)
-- [Static vs. Dynamic QR Codes: What Enterprises Need to Know | Bitly](https://bitly.com/blog/static-vs-dynamic-qr-codes/)
-- [Privacy-Friendly Analytics Guide (2026) - Clickport](https://clickport.io/blog/privacy-friendly-analytics-guide)
-- [GDPR compliant website analytics without cookies - Fathom Analytics](https://usefathom.com/blog/anonymization)
-- [GitHub - plausible/analytics: Open source, privacy-first web analytics](https://github.com/plausible/analytics)
-- [Self-Hosted Analytics Without DPAs: GDPR, HIPAA, CCPA Guide | OpenPanel Analytics](https://openpanel.dev/articles/better-compliance-self-hosted-analytics)
-- Project spec: `design_handoff_url_shortener/README.md` (internal, 12 requirements + 12 screens)
-- Project context: `.planning/PROJECT.md` (internal)
+- [Integration testing Passwordless authentication with Playwright — Marcin Skrzyński](https://marcin.codes/posts/integration-testing-passwordless-authentication-with-playwright/) — LOW confidence (community blog, not cross-verified against official docs), consistent with general practice
+- [E2E Testing Signup and Login Workflows with Playwright — Better Stack Community](https://betterstack.com/community/guides/testing/playwright-signup-login/) — LOW confidence
+- [Test OAuth & SSO in CI: Playwright Examples — Zerocheck](https://tryzerocheck.com/guides/test-oauth-sso/) — LOW confidence
+- [How to Manage Authentication in Playwright — Checkly Docs](https://www.checklyhq.com/docs/learn/playwright/authentication/) — LOW confidence (vendor docs, generally reliable for Playwright patterns specifically)
+- [Testing Authentication with Playwright: The Complete Guide — Currents.dev](https://currents.dev/posts/testing-authentication-with-playwright-the-complete-guide) — LOW confidence
+- [Scaling E2E Tests for Multi-Tenant SaaS with Playwright — CyberArk Engineering (Medium)](https://medium.com/cyberark-engineering/scaling-e2e-tests-for-multi-tenant-saas-with-playwright-c85f50e6c2ae) — LOW confidence, but consistent with independent sources
+- [E2E test coverage: how much is enough for your SaaS? — AI QA Live Sessions](https://aiqalive.com/blog/e2e-test-coverage-guide) — LOW confidence
+- [The Layers of the Testing Pyramid — Checkly Docs](https://www.checklyhq.com/docs/learn/playwright/testing-pyramid/) — LOW confidence, matches well-established test-pyramid consensus
+- [Unit vs Integration vs E2E Testing: Testing Pyramid Decision Framework — Autonoma](https://getautonoma.com/blog/unit-vs-integration-vs-e2e-testing) — LOW confidence
+- [Design a URL Shortener Like Bitly — Hello Interview System Design](https://www.hellointerview.com/learn/system-design/problem-breakdowns/bitly) — LOW confidence, general system-design reference for redirect-handler response semantics
+- Project-internal: `.planning/PROJECT.md` (v1.0 Key Decisions — existing integration Denial-Suite, testcontainers Postgres harness, TDD constraint) — HIGH confidence (first-party project record)
+- Superseded (product-feature-landscape research, retained in git history): `.planning/research/FEATURES.md` as of 2026-07-10 milestone (v1.0 product scope)
 
 ---
-*Feature research for: Self-hosted URL shortener (Kurzly)*
-*Researched: 2026-07-10*
+*Feature research for: E2E test coverage milestone (v1.1), Kurzly self-hosted URL shortener*
+*Researched: 2026-07-24*

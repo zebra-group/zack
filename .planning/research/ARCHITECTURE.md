@@ -1,375 +1,228 @@
 # Architecture Research
 
-**Domain:** Self-hosted URL shortener / link-management SaaS-in-a-box (Kurzly)
-**Researched:** 2026-07-10
-**Confidence:** MEDIUM-HIGH (system-design patterns and Caddy/better-auth/qrcode specifics cross-checked via web search at MEDIUM confidence; Fastify/Prisma/Vue composition choices are well-established HIGH-confidence conventions, not novel claims)
+**Domain:** Playwright E2E integration into an existing pnpm monorepo (Fastify single-image + Vue SPA + Postgres, real-Postgres TDD already established via Vitest/testcontainers)
+**Researched:** 2026-07-24 (v1.1 milestone — supersedes the v1.0-era ARCHITECTURE.md for this document; that content described the shipped system, now recorded in `.planning/PROJECT.md`)
+**Confidence:** MEDIUM (grounded primarily in this repo's own established patterns — `scripts/smoke-compose.sh`, `docker-compose.dev.yml`, `apps/api/test/globalSetup.ts` — cross-checked against general Playwright/monorepo community practice via web search; no official Playwright MCP/docs provider was available this run, see Sources)
 
 ## Standard Architecture
 
 ### System Overview
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│  Reverse Proxy / TLS terminator (Caddy)                                   │
-│  - host-based routing: dashboard domain -> SPA+API ; customer domains -> │
-│    redirect route                                                        │
-│  - On-Demand TLS w/ "ask" endpoint hitting API's domain-verify lookup    │
-├──────────────────────────────────────────────────────────────────────────┤
-│                         Fastify process (single deployable)              │
-│  ┌────────────────────────────┐   ┌───────────────────────────────────┐ │
-│  │ Redirect scope (public)     │   │ Dashboard API scope (authed)      │ │
-│  │  GET /:slug  (any domain)   │   │  /api/links, /api/qr, /api/domains│ │
-│  │  GET /q/:code (dynamic QR)  │   │  /api/analytics, /api/team        │ │
-│  │  - no auth, no session      │   │  - better-auth session required   │ │
-│  │  - in-process hot-slug cache│   │  - per-domain authorization guard │ │
-│  │  - password/expiry checks   │   │  - Prisma queries (full ORM)      │ │
-│  │  - OG-tag injection for bots│   │                                    │ │
-│  │  - fire-and-forget click log│   │                                    │ │
-│  └──────────────┬───────────────┘   └────────────────┬──────────────────┘ │
-├─────────────────┴────────────────────────────────────┴────────────────────┤
-│                    Shared service/data-access layer (Prisma)              │
-│   LinkService · DomainAuthService · QrService · ClickEventService         │
-├──────────────────────────────────────────────────────────────────────────┤
-│                          PostgreSQL (single instance)                     │
-│   users/sessions (better-auth) · domains · domain_members · links        │
-│   qr_codes · qr_remap_history · click_events                             │
-├──────────────────────────────────────────────────────────────────────────┤
-│  Vue 3 SPA (static build) — served by Caddy as static files on the       │
-│  dashboard domain; calls the same Fastify API over /api                  │
-└──────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────┐
+│                    CI: GitHub Actions (ci.yml, existing)               │
+│  job:test  (vitest, testcontainers PG — ephemeral, per-run, in-process)│
+│         │ needs                                                        │
+│  job:smoke (docker compose up -d --wait, curl /health + /api/canary)   │
+│         │ needs                                                        │
+│  job:e2e  ◄── NEW: builds app image, boots docker-compose stack        │
+│             + dev overlay (mailpit) + e2e overlay (published DB port), │
+│             runs `pnpm --filter @kurzly/e2e test` against it           │
+└───────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────┐
+│              docker compose stack (E2E target — NEW overlay)           │
+│  -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.e2e.yml -p kurzly-e2e │
+│                                                                          │
+│  ┌──────────┐   SMTP :1025    ┌──────────┐                              │
+│  │   app    │ ───────────────►│ mailpit  │                              │
+│  │ (built   │                 │ (dev ovl)│         ┌──────────┐         │
+│  │  image,  │◄── HTTP :3000 ──┤ web UI/  │         │    db    │         │
+│  │  D-01)   │   (published)   │ API :8025│         │ postgres │         │
+│  └────┬─────┘   (published)   └────┬─────┘         │  :18     │         │
+│       │ pg :5432 (internal)        │ HTTP           └────┬─────┘         │
+│       └──────────────────────────►(published)             │ pg :5433     │
+│                                     │                       │ (published,│
+│                                     │                       │  e2e ovl)  │
+└─────────────────────────────────────┼───────────────────────┼────────────┘
+                                       ▼                       ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│         apps/e2e (NEW workspace package) — Playwright test runner       │
+│                          (host process, not containerized)              │
+│  ┌────────────┐  ┌───────────────┐  ┌──────────────────────────────┐   │
+│  │global-setup│  │ auth.setup.ts │  │ spec files (redirect/, links/,│   │
+│  │ + teardown │  │ → storageState│  │ qr/, team/, analytics/, auth/)│   │
+│  │(DB seed via│  │ per role, once│  │  use fixtures.ts for:         │   │
+│  │ @kurzly/api│  │ per run       │  │  - authenticatedPage(role)    │   │
+│  │ prisma-    │  └───────┬───────┘  │  - db reset per file          │   │
+│  │ client     │          │          │  - mailpit inbox client        │   │
+│  │ export)    │          ▼          └──────────────────────────────┘   │
+│  └────────────┘  playwright/.auth/*.json (gitignored)                  │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
 | Component | Responsibility | Typical Implementation |
 |-----------|----------------|-------------------------|
-| Caddy (edge) | TLS termination for dashboard domain (static cert) and N customer domains (On-Demand TLS gated by an "ask" endpoint), host-based routing to SPA vs Fastify | `docker-compose` service, `Caddyfile` with `tls { on_demand }` + `ask http://api:3000/internal/domain-verify` |
-| Vue 3 SPA | Dashboard UI only (12 screens); never resolves redirects itself | Vite build → static files, served by Caddy or a tiny static file server |
-| Fastify: redirect scope | Public, unauthenticated, host+slug → target resolution; password/expiry/OG logic; the one path that must never be slow or down | Fastify plugin registered with `fastify.register(redirectPlugin, { prefix: '/' })`, no session/auth hooks in its chain |
-| Fastify: dashboard API scope | All authenticated CRUD (links, domains, QR, team, analytics) | Fastify plugin registered under `/api`, `preHandler` hooks for session + domain-authorization |
-| Domain-authorization service | Central, single source of truth for "can this user touch this domain/link/qr/analytics row" | Pure function/service called from every dashboard route's `preHandler`, never re-implemented per-route |
-| Hot-slug cache | Reduce DB round-trips for the redirect path's read-heavy traffic | In-process LRU (e.g. `lru-cache`) keyed by `host:slug`, or Redis if horizontally scaled later |
-| Click-event pipeline | Record clicks without blocking the redirect response | Fire-and-forget `INSERT` (not awaited before responding), aggregated on read |
-| QR generation | Turn dynamic/static QR config into scannable PNG/SVG with optional logo | Server-side `qrcode` (npm) + `sharp`/`canvas` for logo compositing, level-H error correction |
-| better-auth | Session, magic link, OIDC | Mounted as a Fastify plugin at `/api/auth/*`, backed by Prisma adapter |
-| PostgreSQL | System of record | Single instance in compose for v1; Prisma migrations |
+| `apps/e2e` (new) | Owns all Playwright config, specs, fixtures, and DB/mail test helpers | New pnpm workspace package, sibling to `apps/api`/`apps/web`; auto-picked up by the existing `apps/*` glob in `pnpm-workspace.yaml` — no workspace config change needed |
+| `docker-compose.e2e.yml` (new overlay) | Adds only what E2E needs beyond the existing prod + dev overlays: a host-published Postgres port for the test runner's seed/reset client, and fixed deterministic env (test secrets, test admin email, SMTP pointed at mailpit) | Third `-f` file, composed on top of `docker-compose.yml` + `docker-compose.dev.yml`, same additive-merge pattern the dev overlay already uses |
+| `scripts/e2e-compose.sh` (new) | Boots the 3-file compose stack under a distinct project name, waits for health via `--wait` (delegating readiness to Docker's own healthcheck, not a Playwright `webServer` port-probe), runs the Playwright suite, always tears down | Mirrors `scripts/smoke-compose.sh`'s trap/cleanup structure almost line-for-line |
+| `apps/api` prisma-client export (new subpath export) | Lets `apps/e2e` reuse the *same* generated Prisma Client (Prisma 7's `output`-path client) for DB seed/reset, instead of duplicating the schema or hand-rolling raw SQL | One line added to `apps/api/package.json`'s `exports` map, pointing at `src/generated/prisma` |
+| `mailpit` (existing, `docker-compose.dev.yml`) | SMTP catcher for magic-link emails; also serves E2E as the assertable inbox | Already wired for Fastify's nodemailer client (`SMTP_HOST=mailpit:1025`); E2E test runner reads its REST API on the published `8025` port |
+| CI `e2e` job (new, `ci.yml`) | Gates merge on real browser-driven proof against the actual shipped artifact | New job, `needs: [test, smoke]`, reuses `smoke`'s image-build step (add `cache-from: type=gha` to avoid a second cold build) |
 
 ## Recommended Project Structure
 
 ```
-kurzly/
-├── apps/
-│   ├── web/                      # Vue 3 SPA (dashboard only)
-│   │   ├── src/
-│   │   │   ├── views/            # Links, LinkDetail, Qr, Analytics, Domains, Team
-│   │   │   ├── stores/           # Pinia: auth, links, qr, domains, team, ui(theme/toast)
-│   │   │   ├── api/              # typed fetch client (shares types from packages/shared)
-│   │   │   └── components/
-│   │   └── vite.config.ts
-│   └── api/                      # Fastify backend (single deployable)
-│       ├── src/
-│       │   ├── redirect/         # PUBLIC scope — slug resolution, password/expiry, OG, cache
-│       │   │   ├── plugin.ts
-│       │   │   ├── resolve-slug.ts
-│       │   │   ├── og-inject.ts
-│       │   │   └── hot-cache.ts
-│       │   ├── dashboard/        # AUTHED scope — one folder per resource
-│       │   │   ├── links/
-│       │   │   ├── qr/
-│       │   │   ├── domains/
-│       │   │   ├── analytics/
-│       │   │   └── team/
-│       │   ├── auth/             # better-auth plugin wiring, OIDC config
-│       │   ├── authz/            # domain-authorization service (THE guard, used everywhere)
-│       │   ├── click-tracking/   # event writer + aggregation queries
-│       │   ├── qr-render/        # server-side PNG/SVG generation
-│       │   └── plugins/          # prisma client decoration, cors, rate-limit, etc.
-│       └── prisma/
-│           └── schema.prisma
-├── packages/
-│   └── shared/                   # types shared between web & api (Link, Domain, Qr, Role...)
-├── docker-compose.yml            # postgres, caddy, api (serves /api + redirect), web (static)
-├── Caddyfile
-└── Dockerfile(s)
+apps/
+├── api/                          # existing — unchanged, +1 export line
+│   ├── package.json              # + "exports": { "./prisma-client": "./src/generated/prisma/index.js" }
+│   └── src/generated/prisma/     # existing Prisma 7 client output — now also consumed by apps/e2e
+├── web/                          # existing — unchanged
+└── e2e/                          # NEW workspace package
+    ├── package.json              # @kurzly/e2e, devDep @playwright/test, workspace dep on @kurzly/api (prisma-client only)
+    ├── playwright.config.ts      # projects: setup / chromium-admin / chromium-member; baseURL from PLAYWRIGHT_BASE_URL
+    ├── tsconfig.json
+    ├── global-setup.ts           # one-time: confirm stack reachable, seed baseline fixtures, clear mailpit
+    ├── global-teardown.ts        # close shared Prisma client
+    ├── src/
+    │   ├── db.ts                 # thin PrismaClient wrapper against E2E_DATABASE_URL (published :5433), truncate+reseed helper
+    │   ├── mailpit.ts             # fetch wrapper: list/search/delete against mailpit:8025 REST API
+    │   └── fixtures.ts            # test.extend<>: authenticatedPage(role), resetDb(), mailbox()
+    └── tests/
+        ├── auth.setup.ts          # magic-link login via mailpit-read link; writes playwright/.auth/{admin,member}.json
+        ├── auth/
+        │   ├── magic-link.spec.ts
+        │   └── sso.spec.ts
+        ├── redirect/
+        │   ├── slug-redirect.spec.ts
+        │   ├── password-gate.spec.ts
+        │   ├── expiry.spec.ts
+        │   └── bot-og-render.spec.ts
+        ├── links/
+        │   ├── crud.spec.ts
+        │   └── csv-import.spec.ts
+        ├── qr/
+        │   ├── static.spec.ts
+        │   └── dynamic-remap.spec.ts
+        ├── analytics/
+        │   └── views.spec.ts
+        └── team/
+            ├── invite-roles.spec.ts
+            └── domain-authorization.spec.ts
+
+docker-compose.e2e.yml              # NEW — 3rd overlay, additive to prod + dev
+scripts/e2e-compose.sh              # NEW — boot/run/teardown, mirrors smoke-compose.sh
+.github/workflows/ci.yml            # MODIFIED — + job:e2e (needs: [test, smoke])
+.gitignore                          # MODIFIED — + apps/e2e/playwright/.auth/, apps/e2e/playwright-report/, apps/e2e/test-results/
 ```
 
 ### Structure Rationale
 
-- **Monorepo, two apps (`web`, `api`), one shared package:** the SPA and API have different runtimes and deploy artifacts (static bundle vs Node process), but share types (Link, Domain, Role, Qr) and evolve together for a small OSS project — a monorepo with a shared-types package avoids drift without the overhead of separate repos/publish cycles. This is the standard pattern for Vue+Fastify+Prisma stacks distributed as a single docker-compose project.
-- **`redirect/` vs `dashboard/` as separate Fastify plugin scopes, not separate services (v1):** see "The Critical Split" below — logical separation now, physical separation later if needed, with zero rewrite cost because both scopes already only talk to the DB through the same service layer.
-- **`authz/` is its own module, not scattered per-route:** the spec's hard requirement ("EVERY link/qr/analytics operation must be authorized server-side against `user.domains[]`") is best enforced structurally — one `requireDomainAccess(user, domainId)` helper wired into every dashboard route's `preHandler`, so a missed check is a code-review-visible omission, not a scattered bug class.
-- **`prisma/schema.prisma` lives inside `apps/api`:** the API is the only consumer of the DB; keeping the schema next to its consumer avoids a third "packages/db" package for a single-writer system.
+- **`apps/e2e` as its own workspace package, not a root `playwright.config.ts`:** matches this repo's existing convention — `apps/api` and `apps/web` each own their own `vitest.config.ts`, dependencies, and test scripts. A root-level Playwright config would be the odd one out and would force Playwright's browser-download devDependency onto every workspace install. `pnpm-workspace.yaml`'s `apps/*` glob already covers it — zero workspace-config changes needed.
+- **New DB port (`5433`) instead of reusing the testcontainers harness:** the Vitest harness (`apps/api/test/globalSetup.ts`) is deliberately ephemeral — one throwaway `testcontainers` Postgres per `vitest run` invocation, torn down at the end, with per-test `BEGIN/ROLLBACK`. E2E needs a *long-lived* Postgres that the actual running `app` container talks to over its own connection — a fundamentally different lifecycle. Giving it its own compose service port and (in CI) its own job keeps the two harnesses from ever touching each other, and a fixed `-p kurzly-e2e` project name means a developer can leave `smoke` or `dev` stacks running locally without collision.
+- **Reusing `apps/api`'s generated Prisma Client via a subpath export**, rather than a second schema/generation step in `apps/e2e`: Prisma 7's `output`-path model (per this project's own `.claude/CLAUDE.md` stack notes, and confirmed directly in `apps/api/prisma/schema.prisma`'s `generator client { output = "../src/generated/prisma" }`) means the client already exists at a fixed path after `pnpm run -r build`/`prisma generate`. Duplicating `schema.prisma` into a second package would drift the moment a migration is added; a one-line `exports` addition is the smaller, safer diff.
+- **`docker-compose.e2e.yml` as a third additive overlay, not edits to the existing two files:** `docker-compose.yml` is explicitly documented as the production shape (only `app`+`db`, no Mailpit) and `docker-compose.dev.yml` is explicitly "dev/CI-only... NEVER referenced by the production docker-compose.yml." Both carry load-bearing comments about what they intentionally exclude. A third file preserves those invariants and lets `docker compose -f docker-compose.yml -f docker-compose.dev.yml up` (today's documented dev workflow) keep working completely unchanged.
 
-## The Critical Split: Redirect Handler vs Dashboard API
+## Architectural Patterns
 
-**Recommendation: one Fastify service (one Node process, one docker image), two logically separated route trees — not two separate services for v1.**
+### Pattern 1: Compose `--wait` + healthcheck as the readiness gate (not Playwright's `webServer`)
 
-Reasoning:
-- The redirect path (`GET /:slug` on arbitrary customer domains) and the dashboard API (`/api/*` on the dashboard domain) have very different traffic profiles — redirect is unauthenticated, read-heavy, latency-critical (core value: "muss der Redirect-Handler korrekt und schnell funktionieren"); dashboard API is authenticated, low-volume, CRUD-shaped. This is the same read:write imbalance (~100:1 reads) that public URL-shortener system-design writeups converge on, and the standard mitigation is architectural separation of the hot path from the management path — but *separation of concerns*, not necessarily separation of *deployables*, at self-hosted single-tenant-per-instance scale.
-- Splitting into two Node processes/services in a docker-compose self-hosted product adds real operational cost (two images to build/update, two health checks, inter-service auth for shared Prisma access or a shared DB pool) that is not justified until traffic actually requires independent scaling. Kurzly is one org's self-hosted instance serving that org's own domains — not multi-tenant bit.ly-at-scale. A single Fastify process comfortably serves both if the redirect path is engineered correctly (see below).
-- **Non-negotiable engineering rules to keep the redirect path fast regardless of process topology:**
-  1. The redirect route registers **no** session/auth `preHandler` chain — it must not touch better-auth's session lookup at all.
-  2. Slug resolution goes through an **in-process hot-slug cache** (LRU, e.g. `lru-cache`, keyed by `${host}:${slug}`) in front of Prisma; cache invalidated on link update/delete/expire-toggle. This directly follows the standard "cache-then-DB-fallback" redirect design pattern.
-  3. Click-event writes are **fire-and-forget** (`clickEventService.record(...)` called without `await`ing before the redirect response is sent, wrapped in a try/catch that only logs) — tracking must never add latency or become a failure mode for the redirect itself.
-  4. Password/expiration checks are pure, synchronous-feeling logic against already-cached link data — no extra joins beyond what the slug lookup already fetched.
-  5. OG-tag injection for bots (checking `User-Agent` against a known crawler list — Slackbot, Twitterbot, facebookexternalhit, LinkedInBot, Discordbot, etc.) renders a minimal HTML page with `<meta property="og:*">` tags instead of issuing the 302; human requests get the plain redirect. This branch must not fetch or reveal the real target for password-protected/expired links (explicit spec requirement) — OG injection and password/expiry checks share one gate: resolve → check protected/expired → only then decide "bot → OG page" or "human → 302".
-- **Escape hatch (documented, not built now):** because both scopes already go through the same service layer (`LinkService`, `ClickEventService`) rather than inlined DB calls, splitting the redirect scope into its own Fastify instance/deployable later (e.g. if one customer domain gets slammed) is a deployment change, not a rewrite — same code, mounted under a second `apps/api` entrypoint (`redirect-only.ts`) reusing the `redirect/` plugin.
-- **Caching for hot slugs, concretely:** v1 = in-process LRU per Fastify worker (simplest, zero extra infra, correct for single-instance self-hosted deployments which is the default in the compose file). If/when the deployment scales to multiple API replicas behind a load balancer, swap the LRU for Redis (shared cache) — call this out explicitly as a phase-specific "if you outgrow single-instance" note, not a v1 requirement, since a Redis dependency in the default docker-compose raises the self-hosting bar for no v1 benefit.
+**What:** Let Docker Compose's own `--wait` flag (already used in `scripts/smoke-compose.sh`) block until the `app` service's `HEALTHCHECK` passes, *before* Playwright ever starts. Do not configure Playwright's `webServer.url` option against the compose-published port.
+**When to use:** Any time the target under test is a multi-container compose stack rather than a single local process.
+**Trade-offs:** Slightly more moving parts (a bash script instead of one config block) — but Playwright's `webServer` readiness is a bare TCP/HTTP poll against a port that Compose can open *before* the process inside is actually listening (community-reported race condition, LOW-confidence single-source finding but consistent with this repo's own healthcheck-vs-port-open distinction already called out in `docker-compose.yml`'s comments about `condition: service_healthy`). Reusing the healthcheck this project already ships avoids reintroducing that race.
 
-## Multi-Domain Routing & TLS
+**Example:**
+```bash
+# scripts/e2e-compose.sh (new — mirrors scripts/smoke-compose.sh's shape)
+COMPOSE=(docker compose -p kurzly-e2e \
+  -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.e2e.yml)
+trap 'cleanup' EXIT   # docker compose down -v --remove-orphans, same as smoke script
 
-- **Host-based routing at the edge (Caddy):** the dashboard's own domain (e.g. `app.kurzly.example`) routes to the SPA (static files) + `/api/*`. Every other verified customer domain (`s.meinefirma.de`, `acme.io`, ...) routes to the Fastify redirect scope only — the API never needs to know "which domain routing config" beyond a `domains` table lookup on each request, because host routing happens *before* Fastify (Caddy) or, if Fastify handles multiple hostnames itself, via a single catch-all route that reads `request.hostname` and looks up `domains` in Postgres.
-- **TLS strategy — per-domain certs via On-Demand TLS, not wildcard:** customer domains are arbitrary third-party domains/subdomains the operator doesn't control DNS for as a wildcard zone (`s.meinefirma.de` is *their* subdomain, pointed via CNAME at the Kurzly instance) — wildcard certs are not applicable across domains you don't own. Caddy's **On-Demand TLS** is the fitting pattern: Caddy requests a cert during the *first* TLS handshake for a previously unknown hostname, gated by an internal "ask" endpoint that Caddy calls to confirm the hostname is an actually-registered-and-DNS-verified domain in Kurzly before issuing — this both implements the spec's "TLS wird nach DNS-Verifizierung automatisch ausgestellt" requirement and prevents abuse (anyone pointing a random domain at the server would otherwise burn Let's Encrypt rate limits). The Domains screen's "DNS prüfen" action is exactly the trigger that flips a domain's status to verified/allowed in that ask-endpoint's backing table.
-- **Rate-limit awareness:** Let's Encrypt allows 300 new cert orders per account per 3 hours and 50 certs per registered domain per week — comfortably sufficient for the expected scale of a self-hosted team tool's domain list, but worth a one-line pitfall note (batch-adding hundreds of domains at once would need throttling).
-- **The dashboard domain itself** can use a normal static Caddy TLS entry (automatic HTTPS, not on-demand) since it's known at config time; only customer redirect-domains go through the on-demand path.
-
-## Data Model (Prisma Schema Outline)
-
-```prisma
-// --- better-auth tables (managed via better-auth's Prisma adapter/generator) ---
-model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String?
-  role          Role     @default(MEMBER)   // admin | member — app-level, drives authz
-  status        UserStatus @default(PENDING) // pending until first successful login
-  createdAt     DateTime @default(now())
-
-  sessions      Session[]
-  accounts      Account[]        // better-auth: credential/oidc account links
-  domainAccess  DomainMember[]   // domain scoping for MEMBER role
-}
-
-enum Role { ADMIN MEMBER }
-enum UserStatus { PENDING ACTIVE }
-
-model Session { /* better-auth managed: id, userId, token, expiresAt, ipAddress, userAgent */ }
-model Account { /* better-auth managed: id, userId, providerId, accountId, oidc tokens */ }
-model Verification { /* better-auth managed: magic-link / OTP tokens */ }
-
-// --- domain/link core ---
-model Domain {
-  id         String   @id @default(cuid())
-  hostname   String   @unique               // e.g. "s.meinefirma.de"
-  status     DomainStatus @default(PENDING)  // pending | active
-  createdAt  DateTime @default(now())
-
-  members    DomainMember[]
-  links      Link[]
-}
-enum DomainStatus { PENDING ACTIVE }
-
-model DomainMember {                        // MEMBER-role scoping: user.domains[]
-  id        String  @id @default(cuid())
-  userId    String
-  domainId  String
-  user      User    @relation(fields: [userId], references: [id])
-  domain    Domain  @relation(fields: [domainId], references: [id])
-  @@unique([userId, domainId])
-}
-
-model Link {
-  id            String    @id @default(cuid())
-  domainId      String
-  slug          String
-  target        String
-  createdById   String
-  passwordHash  String?                      // hashed, never the plaintext
-  expiresAt     DateTime?
-  trackingOn    Boolean   @default(true)
-  utmSource     String?
-  utmMedium     String?
-  utmCampaign   String?
-  ogTitle       String?
-  ogDescription String?
-  ogImageUrl    String?
-  createdAt     DateTime  @default(now())
-
-  domain        Domain    @relation(fields: [domainId], references: [id])
-  qrCodes       QrCode[]
-  clickEvents   ClickEvent[]
-  @@unique([domainId, slug])
-  @@index([domainId, slug])                  // hot path lookup
-}
-
-model QrCode {
-  id           String   @id @default(cuid())
-  code         String   @unique              // the /q/:code slug
-  name         String
-  dynamic      Boolean  @default(true)
-  linkId       String?                       // current target link (null for static-only codes)
-  color        String?  @default("#17170f")
-  logoUrl      String?
-  logoEnabled  Boolean  @default(false)
-  roundedModules Boolean @default(false)
-  scans        Int      @default(0)
-  createdAt    DateTime @default(now())
-
-  link         Link?    @relation(fields: [linkId], references: [id])
-  remapHistory QrRemapHistory[]
-}
-
-model QrRemapHistory {
-  id         String   @id @default(cuid())
-  qrCodeId   String
-  fromLinkId String?
-  toLinkId   String
-  changedAt  DateTime @default(now())
-  qrCode     QrCode   @relation(fields: [qrCodeId], references: [id])
-}
-
-model ClickEvent {
-  id         String   @id @default(cuid())
-  linkId     String
-  occurredAt DateTime @default(now())
-  referrer   String?
-  country    String?                          // derived via geoip-lite, no third-party call
-  userAgent  String?
-  link       Link     @relation(fields: [linkId], references: [id])
-  @@index([linkId, occurredAt])                // aggregation queries filter+sort on this
-}
+"${COMPOSE[@]}" up -d --wait          # blocks on app's existing HEALTHCHECK
+pnpm --filter @kurzly/e2e test        # PLAYWRIGHT_BASE_URL defaults to http://localhost:3000
 ```
 
-Notes on the sketch:
-- `User.role` + `DomainMember` is the whole authorization model: `ADMIN` bypasses `DomainMember` entirely; `MEMBER` is scoped to the domains they have a `DomainMember` row for. This directly maps to the spec's two-role, domain-assignment model — no need for a generic RBAC/permissions table, which would be over-engineering for exactly two roles.
-- `better-auth`'s own tables (`Session`, `Account`, `Verification`) are generated/managed by better-auth's Prisma adapter — do not hand-rewrite their shape; run better-auth's schema generator and extend `User` with the app-specific `role`/`status`/`domainAccess` fields it supports as "additional fields."
-- `QrCode.linkId` nullable + `QrRemapHistory` gives the "printed code stays valid, target is swappable" behavior and the remap audit trail the Team/QR screens display.
-- No separate `AggregatedClick`/rollup table in the v1 sketch — see the Click Tracking Pipeline section for why on-read aggregation is the right v1 default and when to add one.
+### Pattern 2: `auth.setup.ts` + `storageState` dependency, once per role per run
 
-## Server-Side Authorization Layer
+**What:** A dedicated Playwright "setup project" logs in once per role (admin, member) via the real magic-link flow — request the link, read it out of Mailpit's REST API, follow it, then `page.context().storageState({ path })`. Every other project declares `dependencies: ['setup']` and `use: { storageState: 'playwright/.auth/<role>.json' }`.
+**When to use:** Every spec that needs an authenticated session and doesn't specifically test the login flow itself (those live in `auth/magic-link.spec.ts` and exercise the real round-trip once).
+**Trade-offs:** Removes the dominant cost in this suite — a magic-link round-trip through a real SMTP catcher is one of the slower operations available, and repeating it per spec file would make the domain-scoped-authorization and team-management suites (which need both an admin and a member session) multiply that cost. The trade-off is that `playwright/.auth/*.json` must be gitignored (it holds live session cookies) and regenerated every run — already accounted for in the `.gitignore` addition above.
 
-**Rule: every dashboard route (links, qr, domains-for-members, analytics, team) resolves the authenticated user, then calls one shared `authz` check before touching Prisma — never trust the UI's domain filter.**
-
+**Example:**
 ```typescript
-// apps/api/src/authz/domain-access.ts
-export async function requireDomainAccess(
-  user: SessionUser,
-  domainId: string,
-  prisma: PrismaClient
-): Promise<void> {
-  if (user.role === 'ADMIN') return; // admins bypass — full access
-  const membership = await prisma.domainMember.findUnique({
-    where: { userId_domainId: { userId: user.id, domainId } },
-  });
-  if (!membership) throw new ForbiddenError('No access to this domain');
-}
+// apps/e2e/tests/auth.setup.ts
+import { test as setup } from '@playwright/test';
+import { readMagicLink } from '../src/mailpit';
 
-// used in every dashboard route's preHandler, e.g.:
-fastify.get('/api/links/:id', {
-  preHandler: [requireSession, resolveDomainOfLink, requireDomainAccessFromParam],
-}, handler);
+setup('authenticate as admin', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(process.env.E2E_ADMIN_EMAIL!);
+  await page.getByRole('button', { name: 'Send magic link' }).click();
+  const link = await readMagicLink(process.env.E2E_ADMIN_EMAIL!);
+  await page.goto(link);
+  await page.context().storageState({ path: 'playwright/.auth/admin.json' });
+});
 ```
 
-- For **list** endpoints (e.g. `GET /api/links`), the authorization layer doesn't filter client-side — the Prisma query itself is scoped: `WHERE domainId IN (adminBypass ? allDomainIds : memberDomainIds)`. A helper `scopedDomainIds(user)` returns either "all" (admin) or the member's `DomainMember` domain list, and every list query for links/qr/analytics is built through that helper — this is what keeps "Mitglied sieht nur zugewiesene Domains" true even for aggregate/analytics endpoints, not just single-resource fetches.
-- For **write/mutate** operations on an existing resource (link/qr update, password change, tracking toggle), resolve the resource's `domainId` first, then call `requireDomainAccess` — never rely on the request body's claimed domain.
-- Team management routes (invite, change role, assign domains) are **admin-only**, enforced by a simple `requireRole('ADMIN')` preHandler, no domain scoping needed there.
-- OIDC-provisioned users default to `MEMBER` with no domain assignments (per spec) — an admin must explicitly grant domain access afterward; this is enforced by setting `role: MEMBER, domains: []` at account-creation time in the better-auth OIDC user-created hook, not left to a default DB column value alone (so the empty-array intent is explicit code, easy to audit).
+### Pattern 3: Truncate-and-reseed per spec file, not `BEGIN/ROLLBACK`
 
-## Click Tracking Pipeline
+**What:** Each spec file's `test.beforeAll` (or a `resetDb()` fixture) truncates mutable tables (`Link`, `QrCode`, `ClickEvent`, `TeamInvite`, etc. — leave `User`/`Domain` baseline fixtures seeded once in global setup) and reseeds the fixtures that spec needs, via the shared Prisma client from `apps/e2e/src/db.ts`.
+**When to use:** Any E2E suite where the app-under-test and the test runner are separate processes with separate DB connections.
+**Trade-offs:** The `apps/api` Vitest integration suite can wrap each test in `BEGIN/ROLLBACK` because the test *is* the one holding the transaction and the same code path executes inside it. E2E can't do that — the real `app` container owns its own Prisma connection, driving a real HTTP request through a real browser, so there is no single transaction to roll back. Truncate/reseed is the standard workaround for exactly this cross-process boundary (cross-checked across multiple general sources, MEDIUM confidence) and is directly analogous to the "per-file cloned-DB isolation" fix this project's *own* Vitest harness already had to adopt for the same underlying reason (nested-transaction/interactive-`$transaction` conflicts) — see `.planning/PROJECT.md`'s Key Decisions table.
 
-**Write path:** on every resolved redirect where `link.trackingOn === true`, fire-and-forget insert into `click_events` (referrer from `Referer` header, country via local IP→country lookup, user agent). If `trackingOn === false`, skip entirely — no event is written, satisfying "bei aus werden keine Klickdaten gespeichert."
+## Data Flow
 
-**Country derivation without third-party services:** use `geoip-lite` (or `geoip-country`) — both bundle a MaxMind-GeoLite2-derived database inside the npm package/on-disk file, so country lookup is a pure in-process function call with zero network calls at request time (no external API dependency, consistent with the "kein Drittanbieter-Tracking" requirement). Trade-off to note: the bundled database is a point-in-time snapshot that ages between package updates — acceptable for country-level accuracy in this product; document a periodic `npm update geoip-lite` (or equivalent DB refresh) as a maintenance task, not a blocker.
-
-**Referrer derivation:** parse the standard `Referer` request header (present when redirected from a link on another page/app; often absent for direct/QR-code scans — bucket those as "Direct").
-
-**Aggregation strategy — on-read for v1, not on-write:** at self-hosted single-org scale (dozens to low-thousands of clicks/day per instance, not internet-scale), aggregating from raw `click_events` at query time (`GROUP BY DATE(occurredAt)`, `GROUP BY country`, `GROUP BY referrer`, filtered by `linkId IN (...)` and a date range) with the `@@index([linkId, occurredAt])` index is fast enough and avoids building a second write path (rollup table + upsert-increment logic) that only pays off past a scale this product isn't targeting. Build it this way for v1; call out an **explicit scaling trigger** for later: if a single instance's `click_events` table grows into the tens of millions of rows and dashboard queries slow down, introduce a nightly/hourly rollup table (`click_daily_stats(linkId, day, country, referrer, count)`) populated by a scheduled job, and have analytics endpoints read from the rollup for historical ranges + raw table for "today." Do not build the rollup path in v1 — it's premature complexity for the stated scale and adds a second source of truth to keep consistent.
-
-## QR Export Architecture
-
-**Recommendation: server-side generation.**
-
-- The Fastify API exposes render endpoints (e.g. `GET /api/qr/:id/export.png`, `GET /api/qr/:id/export.svg`) that take the QR's stored config (color, logo on/off + logoUrl, rounded modules) and generate the file on demand using the `qrcode` npm package (industry-standard, supports `png`/`svg`/`utf8` output and error-correction levels `L/M/Q/H`).
-- **Error correction level H** is used whenever a logo overlay is enabled (per spec: "Fehlerkorrektur-Level entsprechend hoch wählen") — QR codes retain scannability with up to ~30% of modules obscured/incorrect at level H, which is what allows a centered logo to sit "under" the code without breaking decodability.
-- **SVG path:** `qrcode`'s SVG output is markup, so injecting a `<image>` element for the logo and adjusting module `rx`/`ry` for "rounded modules" is straightforward string/DOM manipulation — no extra imaging dependency.
-- **PNG path:** compositing a logo bitmap onto the generated PNG raster needs an imaging library (`sharp` recommended — already a common self-hosted-friendly dependency, faster and lighter than `node-canvas` which needs native Cairo bindings that complicate Docker images) to draw the QR PNG, then the logo PNG centered on top, then flatten to one PNG buffer.
-- **Why server-side over client-side:** (1) consistent, print-quality output regardless of browser/canvas quirks; (2) the same generation code produces both the on-screen QR-Studio preview and the downloadable export — no drift between preview and file; (3) keeps the SPA free of imaging dependencies/bundle size; (4) server-side is what "echter Export" in the spec's Assets note calls for (prototype fakes exports, production needs a real library) — client-only generation would still need a QR *library* in the browser anyway, so centralizing in the API is strictly less duplication.
-- The **QR-Studio preview** in the Vue SPA can call the same `export` endpoint with query params reflecting live control state (debounced) and render the returned image inline — one code path, no duplicate client-side QR rendering logic.
-
-## Suggested Build Order / Component Dependencies
+### Request Flow (E2E run)
 
 ```
-1. Prisma schema + migrations + better-auth Prisma adapter wiring
-      └─▶ 2. better-auth plugin: magic-link login, session middleware
-              └─▶ 3. Domains: CRUD + status (pending/active) + Caddy on-demand
-                     "ask" endpoint stub (DNS-verify can be simulated first,
-                     real DNS lookup + Caddy wiring can follow)
-                        │
-                        ├─▶ 4. Authorization layer (authz/domain-access.ts) +
-                        │      DomainMember model — build this BEFORE any
-                        │      link/qr/analytics route, since every one of
-                        │      those routes depends on it (core spec requirement)
-                        │
-                        └─▶ 5. Links CRUD (create/list/detail) — gated by (4)
-                               │
-                               ├─▶ 6. Redirect handler (slug→target, hot-cache,
-                               │      password check, expiry→410, OG injection
-                               │      for bots) — THIS is the core-value path;
-                               │      build and harden it right after Links
-                               │      CRUD exists, ahead of QR/analytics polish
-                               │
-                               ├─▶ 7. Click-tracking write path (fire-and-forget
-                               │      on redirect) + on-read aggregation queries
-                               │      + Analytics screens (global + per-link)
-                               │
-                               ├─▶ 8. QR codes: schema + server-side render
-                               │      endpoints + remap + history — depends on
-                               │      Links existing (QR maps to a Link)
-                               │
-                               └─▶ 9. UTM builder + OG-tag custom fields — pure
-                                      Link metadata + Vue form additions, low
-                                      risk, can be done in parallel with 7/8
-
-10. Team management (invite, roles, domain assignment UI) — depends on (4)
-       └─▶ 11. OIDC/SSO integration (optional, additive) — depends on (2) & (10)
-              (defaultRole/organizationProvisioning wiring for new SSO users)
-
-12. Vue SPA shell + all 12 screens — can start in parallel from step 1 against
-    a mocked API client, but each screen's *real* data wiring is gated by its
-    corresponding backend step above (Links screen needs 5, Redirect-adjacent
-    password/expiry public pages need 6, Analytics needs 7, QR needs 8, Team
-    needs 10/11).
+scripts/e2e-compose.sh
+    ↓ docker compose -p kurzly-e2e up -d --wait
+[db healthy] → [app: entrypoint.sh runs migrate deploy → node dist/server.js] → [mailpit up]
+    ↓
+pnpm --filter @kurzly/e2e test
+    ↓
+global-setup.ts → seed baseline (Domain, admin/member Users) via @kurzly/api prisma-client @ :5433
+    ↓
+project:setup (auth.setup.ts) → real magic-link round trip → mailpit REST API :8025 → storageState written
+    ↓
+spec projects (chromium-admin / chromium-member) → browser → app :3000 (real HTTP, real Fastify, real Postgres)
+    ↓ (per file) resetDb() truncate+reseed
+[assertions against rendered DOM / redirect Location headers / HTTP status codes]
+    ↓
+global-teardown.ts → close Prisma client
+    ↓
+scripts/e2e-compose.sh trap → docker compose down -v --remove-orphans
 ```
 
-Key dependency takeaways for roadmap phasing:
-- **Authorization (step 4) is a hard blocker for steps 5, 7, 8, 10** — do not schedule any link/qr/analytics/team phase before the domain-scoping guard exists, or those phases will need rework to retrofit checks (exactly the failure mode the spec explicitly warns against: "nicht nur UI-seitig ausblenden").
-- **The redirect handler (step 6) is the product's stated core value** and has the fewest upstream dependencies (just Links existing) — it should be treated as an early, dedicated phase rather than bundled into general "Links feature" work, so its correctness/performance gets focused attention and testing (password-protection, expiration→410, OG-bot-detection, cache invalidation on link edit are each nontrivial edge cases worth their own test suite).
-- **Click tracking (7) and QR (8) are independent of each other** and can be parallelized once (5)/(4) land.
-- **OIDC (11) is strictly additive** on top of magic-link auth and Team management — safe to schedule last without blocking anything else.
+### Key Data Flows
 
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Splitting redirect and dashboard into separate services on day one
-**What people do:** Reach for a "microservices from the start" design because system-design writeups about bit.ly-scale services describe separate redirect/API services with Kafka-based analytics pipelines.
-**Why it's wrong:** Adds Docker images, inter-service networking, and duplicated Prisma clients/connections for a self-hosted single-tenant product that will never see bit.ly-scale traffic; slows down v1 delivery for no measurable benefit.
-**Instead:** One Fastify process, two plugin scopes, a shared service layer designed so the split is *possible* later without a rewrite (see "Critical Split" section).
-
-### Anti-Pattern 2: UI-only domain filtering for MEMBER role
-**What people do:** Filter the domain dropdown/tabs client-side and assume the API "obviously" only returns what the UI asked for.
-**Why it's wrong:** Any direct API call (curl, modified request) from a MEMBER account would read/write another domain's links, QR codes, or analytics — a real data-leak/privilege-escalation bug, and the spec explicitly calls this out as a must-not-happen.
-**Instead:** Every dashboard route enforces `requireDomainAccess`/`scopedDomainIds` server-side, independent of what the client requested; treat the UI filter as UX convenience only.
-
-### Anti-Pattern 3: Awaiting click-event writes before responding to the redirect
-**What people do:** `await prisma.clickEvent.create(...)` before sending the 302, because it's the simplest code to write.
-**Why it's wrong:** Couples the product's core-value latency (the redirect) to database write latency and to tracking being enabled/healthy at all — a slow or failing analytics write should never slow down or break a redirect.
-**Instead:** Fire-and-forget the write (call it, don't await it before responding; catch/log errors separately) — or, if stronger durability is desired later, push to an in-memory queue flushed on an interval, but never block the redirect on it.
-
-### Anti-Pattern 4: Building a wildcard-cert / single shared cert strategy for customer domains
-**What people do:** Try to get one certificate to cover all customer domains to "simplify" TLS.
-**Why it's wrong:** Customer domains are arbitrary third-party domains the operator doesn't control DNS for as a single wildcard zone — a wildcard cert only covers `*.onedomain.tld`, not unrelated domains brought by different customers.
-**Instead:** Per-domain certs via Caddy On-Demand TLS, gated by an ask-endpoint tied to the `Domain.status === ACTIVE` check that the "DNS prüfen" flow sets.
+1. **Magic-link email retrieval:** `app` (nodemailer) → SMTP :1025 → `mailpit` → E2E test runner polls `mailpit`'s HTTP API (:8025) for the message addressed to the test email, extracts the link, navigates to it. No real email provider is ever involved.
+2. **DB seed/reset:** E2E test runner (host process) ↔ `db` service directly, over the *published* `5433` port — bypassing `app` entirely for setup/teardown, so fixtures are planted without ever exercising the very HTTP layer under test; only real user-facing requests exercise `app`'s own DB connection.
 
 ## Scaling Considerations
 
-| Concern | Single self-hosted instance (v1 target) | Growing team / many domains | Heavy public-facing redirect traffic |
-|---------|------------------------------------------|------------------------------|----------------------------------------|
-| Redirect caching | In-process LRU cache | Same, tuned cache size | Add Redis as shared cache across replicas |
-| DB | Single Postgres container in compose | Same, add read replica only if needed | Connection pooling (PgBouncer), consider read replica |
-| Click aggregation | On-read `GROUP BY` queries | Same, watch query latency | Add scheduled rollup table (`click_daily_stats`) |
-| Redirect vs API | One Fastify process, two plugin scopes | Same | Split redirect scope into its own replica set behind Caddy, keep dashboard API separate |
-| TLS | Caddy On-Demand TLS, one instance | Same | Multiple Caddy/edge replicas sharing cert storage (Caddy supports distributed storage backends) |
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| Current suite (~7 flow areas per milestone scope) | Single compose stack, single Chromium project per role, sequential CI job — no need for sharding yet |
+| Suite grows to 50+ spec files | Turn on Playwright's built-in test sharding (`--shard`) across multiple CI runners, each against its own `-p kurzly-e2e-${shard}` stack (distinct project name/port already established, so this is a config change, not a re-architecture) |
+| Suite needs cross-browser (Firefox/WebKit) matrix | Add projects, not new infrastructure — the compose stack and DB reset story are browser-agnostic |
 
-Realistically, for a self-hosted team tool, the first bottleneck (if any) is dashboard analytics query latency on the raw `click_events` table once a link accumulates a very large history — mitigated by the index already in the schema sketch and, if needed later, the rollup table. The redirect path itself, with an in-process cache, will comfortably outperform what a single self-hosted team's traffic requires.
+### Scaling Priorities
+
+1. **First bottleneck:** compose stack boot time (image build + `--wait` healthcheck ~30-60s) dominates wall-clock for a small suite. Mitigate with `cache-from: type=gha` on the E2E job's image build (already the pattern the `release` job uses) so most runs reuse cached layers.
+2. **Second bottleneck (only once the suite is large):** a single shared Postgres serialized across all spec files. Truncate/reseed per file is fine at today's scale; if parallel workers start fighting over the same tables, revisit with per-worker DB schemas (`search_path`) before reaching for per-worker containers.
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Running E2E against Vite dev server + `tsx watch` Fastify as the CI-gating target
+
+**What people do:** Point Playwright at `vite dev` (proxying `/api` to a locally-run Fastify process) because it's faster to boot than a Docker image.
+**Why it's wrong:** This project's Core Value is the redirect handler behaving correctly *as deployed* — the dev-server split never exercises `@fastify/static` single-origin serving, `@fastify/helmet`'s CSP, the migration-on-boot entrypoint, or the exact bot-OG-rendering code path the way the shipped image does. A passing E2E suite against dev servers proves less than this project's own `smoke-compose.sh` already proves for a plain boot.
+**Do this instead:** Make the built-image/compose stack the canonical, CI-gating target (`PLAYWRIGHT_BASE_URL=http://localhost:3000` from the compose stack). Dev servers remain a legitimate *local-iteration* convenience — override `PLAYWRIGHT_BASE_URL` when hand-writing a new spec against `pnpm --filter @kurzly/api dev` + `pnpm --filter @kurzly/web dev` (whose Vite proxy already forwards `/api` and `/health`) — but never the merge-gating path.
+
+### Anti-Pattern 2: Sharing the Vitest testcontainers Postgres (or its port) with E2E
+
+**What people do:** Try to reuse the same ephemeral testcontainers instance the Vitest suite already stands up, to "avoid running two Postgres instances."
+**Why it's wrong:** The testcontainers Postgres exists only for the lifetime of one `vitest run` invocation, on a random host port, with no persistent volume, and is torn down the instant that job's process exits — it's gone long before an E2E job (which needs the real `app` container's own long-running connection) would even start, and even if timing lined up, `vitest`'s per-test `BEGIN/ROLLBACK` isolation would fight with the real app's own concurrent connection.
+**Do this instead:** A separate, purpose-built `db` service (already exists in `docker-compose.yml`) with its own fixed port published only in the `e2e` overlay, run in a separate CI job (`needs: [test, smoke]`) so the two harnesses never overlap in time or process.
+
+### Anti-Pattern 3: Checking `playwright/.auth/*.json` into git "to speed up CI"
+
+**What people do:** Commit the generated storageState files so CI can skip the `auth.setup.ts` project entirely.
+**Why it's wrong:** These files hold live session cookies/tokens for whatever account they were generated against — committing them is a credential leak (and stale sessions/cookie rotation will make them useless within days anyway, per better-auth's session expiry).
+**Do this instead:** Regenerate them every run via the `setup` project; gitignore the directory. The cost is one magic-link round trip per role per run, not per spec file (Pattern 2 above already amortizes this).
 
 ## Integration Points
 
@@ -377,35 +230,26 @@ Realistically, for a self-hosted team tool, the first bottleneck (if any) is das
 
 | Service | Integration Pattern | Notes |
 |---------|---------------------|-------|
-| SMTP (for magic-link email) | better-auth's email hook → `nodemailer` transport configured via ENV vars | Provider-neutral per spec; no vendor lock-in |
-| OIDC provider (Keycloak/Authentik/Azure AD, optional) | better-auth generic-OIDC/SSO plugin, `organizationProvisioning.defaultRole` for new users | Callback path `/api/auth/callback/oidc` per spec |
-| Let's Encrypt | Caddy On-Demand TLS + ACME, gated by internal "ask" endpoint | Respect LE rate limits (300 orders/3h, 50 certs/domain/week) |
+| Mailpit (`docker-compose.dev.yml`, existing) | `app`'s nodemailer client → SMTP `mailpit:1025` (compose-internal DNS name); E2E test runner → REST API `http://localhost:8025/api/v1/messages` (published port) | Must clear the inbox (`DELETE /api/v1/messages`) in global setup and/or per-file, or a later spec's "find the magic-link email" query can match a stale message from an earlier spec |
+| Postgres (`db` service, existing + e2e-overlay port) | E2E test runner → direct Prisma connection on published `5433`; `app` → internal `db:5432` (unchanged) | Two separate connections to the *same* container are fine (Postgres handles concurrent connections natively) — this is not the same risk as sharing the ephemeral testcontainers instance |
+| OIDC/SSO IdP (deferred — flagged, not solved here) | Target feature list includes an OIDC/SSO login E2E spec, but `docker-compose.yml`/`.env.example` assume a real external IdP (Keycloak/Authentik/Azure AD) — no mock IdP exists in this repo today | **Research flag for whichever phase plans the OIDC/SSO spec:** evaluate a mock-OIDC-provider compose service (e.g. a small mock-OAuth2-server image) as a 4th overlay addition before planning that spec; do not attempt to hit a real external IdP from CI |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| Vue SPA ↔ Fastify dashboard API | REST/JSON over `/api/*`, session cookie from better-auth | Typed via shared `packages/shared` types |
-| Redirect scope ↔ shared service layer | Direct in-process function calls (same Node process) | Never route through `/api/*` internally — no self-HTTP-calls |
-| Fastify ↔ Prisma/Postgres | Prisma Client, one pool shared by both scopes | Redirect-path queries must be indexed/cache-fronted; dashboard queries can be less latency-sensitive |
-| Caddy ↔ Fastify (ask endpoint) | Internal HTTP call, not exposed publicly | Should live under an internal-only route, not `/api/*` public surface |
+| `apps/e2e` ↔ `apps/api` | Workspace dependency (`workspace:*`) on the *published subpath export only* (`@kurzly/api/prisma-client`) — never imports API route/business logic | Keeps E2E a true black-box consumer of the running HTTP service; the only "white-box" reach-through is the DB seed/reset helper, which is explicitly a test-infrastructure concern, not a shortcut around the HTTP layer |
+| `apps/e2e` ↔ `packages/shared` | Optional — reuse existing DTO types (e.g. link/QR/domain shapes) for typing seed fixtures and response assertions, same as `apps/web` already does | Avoids a third hand-written copy of these shapes |
+| CI `e2e` job ↔ `smoke` job | Sequential (`needs: [test, smoke]`), not merged into one job | `smoke` proves a bare boot + one canary write; `e2e` proves full user-facing flows. Keeping them separate means a `smoke` failure fails fast without ever installing Playwright's browsers, and `e2e`'s (heavier) browser download only runs once `smoke` has already proven the image itself is sound |
 
 ## Sources
 
-- [Better Auth — SSO plugin (organizationProvisioning.defaultRole)](https://better-auth.com/docs/plugins/sso) — MEDIUM confidence (web search, cross-checked against multiple better-auth doc pages)
-- [Better Auth — Generic OAuth plugin](https://better-auth.com/docs/plugins/generic-oauth) — MEDIUM confidence
-- [Caddy — On-Demand TLS](https://caddyserver.com/on-demand-tls) — MEDIUM confidence (official Caddy docs, corroborated by multiple independent write-ups)
-- [Caddy — Automatic HTTPS](https://caddyserver.com/docs/automatic-https) — MEDIUM confidence
-- [Caddy Community — On-Demand TLS multi-container multi-domain reverse proxy](https://caddy.community/t/on-demand-tls-multi-container-reverse-proxy-with-different-domains-to-be-validated/23000) — MEDIUM confidence
-- [Honeybadger — How to serve secure custom domains with Caddy](https://www.honeybadger.io/blog/secure-custom-domains-caddy/) — MEDIUM confidence
-- [npm — qrcode (soldair/node-qrcode)](https://www.npmjs.com/package/qrcode) — MEDIUM confidence
-- [GitHub — soldair/node-qrcode](https://github.com/soldair/node-qrcode) — MEDIUM confidence
-- [Hello Interview — Design a URL Shortener Like Bitly](https://www.hellointerview.com/learn/system-design/problem-breakdowns/bitly) — MEDIUM confidence (general system-design pattern, adapted down for self-hosted single-tenant scale — see Anti-Pattern 1)
-- [System Design Handbook — Design a URL Shortener Like Bit.ly](https://www.systemdesignhandbook.com/guides/design-bitly/) — MEDIUM confidence
-- [npm — geoip-lite](https://github.com/geoip-lite/node-geoip) / [geoip-country](https://www.npmjs.com/package/geoip-country) — MEDIUM confidence
-- Project spec: `design_handoff_url_shortener/README.md` (authoritative product requirements, HIGH confidence — primary source)
-- Project context: `.planning/PROJECT.md` (authoritative project constraints, HIGH confidence — primary source)
+- This repository's own prior art (HIGH confidence, first-party, directly inspected this session): `docker-compose.yml`, `docker-compose.dev.yml`, `scripts/smoke-compose.sh`, `apps/api/test/globalSetup.ts`, `apps/api/vitest.config.ts`, `apps/api/prisma/schema.prisma`, `Dockerfile`, `.github/workflows/ci.yml`, `pnpm-workspace.yaml`, `.env.example`, `apps/web/vite.config.ts`, `.planning/PROJECT.md`
+- [Playwright official docs: Authentication (storageState / auth.setup.ts pattern)](https://playwright.dev/docs/auth) — MEDIUM confidence, cross-checked across multiple independent write-ups
+- [BrowserStack: Using Playwright's storageState](https://www.browserstack.com/guide/playwright-storage-state) — MEDIUM confidence
+- [Kyrre Gjerstad: Setting Up E2E Testing with Playwright — Monorepo vs Standard Repository](https://www.kyrre.dev/blog/end-to-end-testing-setup) — MEDIUM confidence (monorepo package-boundary rationale)
+- General web search synthesis on Playwright + Docker Compose `webServer`/race-condition behavior and Postgres truncate-vs-transaction reset strategies for cross-process E2E — LOW/MEDIUM confidence, single-pass web search only (no MCP docs provider available this session); flagged for re-verification against Playwright's own docs at implementation time
 
 ---
-*Architecture research for: self-hosted URL shortener (Kurzly) — Vue 3 + Fastify + PostgreSQL/Prisma + better-auth, docker-compose deployment*
-*Researched: 2026-07-10*
+*Architecture research for: Kurzly v1.1 — Playwright E2E integration*
+*Researched: 2026-07-24*
