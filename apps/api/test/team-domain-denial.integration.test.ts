@@ -247,6 +247,17 @@ describe("TEAM-06 exhaustive domain-scoped denial suite (D-09-08)", () => {
         expectedStatus: 404,
         note: "PATCH /api/links/:id",
       },
+      {
+        method: "PATCH",
+        url: `/api/links/${linkId}`,
+        payload: {
+          utmSource: "attacker-source",
+          utmMedium: "attacker-medium",
+          utmCampaign: "attacker-campaign",
+        },
+        expectedStatus: 404,
+        note: "PATCH /api/links/:id (UTM trio — denied identically to other Link fields, D-08-01/D-08-05 seam through TEAM-06)",
+      },
       { method: "DELETE", url: `/api/links/${linkId}`, expectedStatus: 404, note: "DELETE /api/links/:id" },
       {
         method: "POST",
