@@ -5,16 +5,16 @@ milestone_name: E2E Test Coverage
 current_phase: 11
 current_phase_name: Playwright E2E Infrastructure & Fixtures
 status: executing
-stopped_at: Phase 11 Plan 04 (E2E DB helper, Mailpit REST client, global-setup/teardown wiring, INFRA-02/03 smoke specs) complete. Ready to execute 11-05.
-last_updated: "2026-07-24T14:30:09.828Z"
+stopped_at: Phase 11 Plan 05 (auth.setup.ts, storageState fixture, chromium-admin/chromium-member projects, storage-state.spec.ts) complete. Ready to execute 11-06.
+last_updated: "2026-07-24T14:38:48.235Z"
 last_activity: 2026-07-24
-last_activity_desc: "Plan 11-03 complete: docker-compose.e2e.yml, scripts/e2e-compose.sh, and boot.spec.ts proving the suite hits the built Fastify image at :3000"
+last_activity_desc: "Plan 11-05 complete: apps/e2e/tests/auth.setup.ts (per-role magic-link round trip, storageState fixture), playwright.config.ts (setup/chromium-admin/chromium-member projects), apps/e2e/tests/authed/storage-state.spec.ts (fresh-context reuse proof, role-specific UI assertion)"
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 4
-  percent: 0
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 11 of 17 (Playwright E2E Infrastructure & Fixtures) — first phase of milestone v1.1
-Plan: 4 of 6 complete (11-04: E2E DB helper, Mailpit REST client, global-setup/teardown wiring, INFRA-02/03 smoke specs)
-Status: In progress — 2 plans remaining in Phase 11
-Last activity: 2026-07-24 — Plan 11-04 complete: apps/e2e/src/db.ts (resetDb/seedBaseline), apps/e2e/src/mailpit.ts (recipient-scoped findMagicLinkUrl), global-setup.ts/global-teardown.ts, and two smoke specs proving zero P2002 + zero cross-worker email theft
+Plan: 5 of 6 complete (11-05: auth.setup.ts storageState fixture, chromium-admin/chromium-member projects, storage-state.spec.ts)
+Status: In progress — 1 plan remaining in Phase 11
+Last activity: 2026-07-24 — Plan 11-05 complete: apps/e2e/tests/auth.setup.ts (per-role magic-link round trip, storageState fixture), playwright.config.ts (setup/chromium-admin/chromium-member projects), apps/e2e/tests/authed/storage-state.spec.ts (fresh-context reuse proof, role-specific UI assertion)
 
-Progress: [███████░░░] 67%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ Progress: [███████░░░] 67%
 | Phase 11 P02 | 12min | 2 tasks | 2 files |
 | Phase 11 P03 | 25min | 3 tasks | 3 files |
 | Phase 11 P04 | 27min | 3 tasks | 9 files |
+| Phase 11 P05 | 15min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,8 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 11]: scripts/e2e-compose.sh derives E2E_DATABASE_URL Postgres credentials from the bootstrapped .env at runtime (fallback kurzly/changeme/kurzly), not a hardcoded string
 - [Phase 11]: better-auth 1.6.23's magic-link verify URL confirmed empirically from installed source as /api/auth/magic-link/verify?token= (basePath default /api/auth), closing RESEARCH A2/OQ-2 with certainty
 - [Phase 11]: resetDb() wraps its TRUNCATE+reseed in pg_advisory_lock/unlock so parallel fullyParallel worker files never interleave; db-isolation.spec.ts uses cryptographically-random per-test slugs so a real P2002 is structurally impossible regardless of scheduling
+- [Phase 11]: auth.setup.ts requests magic links via direct request.post (mirroring 11-04's mailpit-wiring pattern) rather than driving the LoginView UI form — the UI login flow itself is Phase 13 scope; keeps the auth fixture focused on establishing a real session
+- [Phase 11]: storage-state.spec.ts detects role via testInfo.project.name in a single shared spec file instead of two near-duplicate per-role files — one assertion body proves both "reaches an authenticated route" and "correct role's session was captured" (T-11-08) for chromium-admin and chromium-member alike
 
 ### Pending Todos
 
@@ -111,6 +114,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T14:30:09.822Z
-Stopped at: Phase 11 Plan 04 (E2E DB helper, Mailpit REST client, global-setup/teardown wiring, INFRA-02/03 smoke specs) complete. Ready to execute 11-05.
+Last session: 2026-07-24T14:38:32.447Z
+Stopped at: Phase 11 Plan 05 (auth.setup.ts, storageState fixture, chromium-admin/chromium-member projects, storage-state.spec.ts) complete. Ready to execute 11-06.
 Resume file: None
