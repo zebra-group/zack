@@ -1,3 +1,11 @@
+## [1.0.1](https://github.com/zebra-group/zack/compare/v1.0.0...v1.0.1) (2026-07-24)
+
+
+### Bug Fixes
+
+* **quick-260724-qrlogo:** stop the decorative logo tile from masking a real saved logo ([702cbcd](https://github.com/zebra-group/zack/commit/702cbcdcfd041c5b2fc22938b69fef89b984309e))
+* **quick-260724-qrname:** make QR code names editable in the Studio panel ([e7f205f](https://github.com/zebra-group/zack/commit/e7f205ff4f990e99e57a1d2768d13a427109fa70))
+
 # 1.0.0 (2026-07-24)
 
 
