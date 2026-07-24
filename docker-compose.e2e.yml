@@ -1,0 +1,42 @@
+# Dev/CI-only additive overlay (INFRA-01, phase 11 plan 03) - boots the
+# built `app` image in production shape for the Playwright E2E suite. Purely
+# additive on top of docker-compose.yml + docker-compose.dev.yml: adds a new
+# host port for `db` and pins deterministic test env on `app`. NEVER
+# referenced by docker-compose.yml or docker-compose.dev.yml themselves, and
+# never used outside dev/CI.
+#
+# Usage: docker compose -p kurzly-e2e \
+#          -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.e2e.yml \
+#          up -d --wait
+# (see scripts/e2e-compose.sh for the full boot/run/always-teardown flow)
+
+services:
+  db:
+    ports:
+      # Distinct host port from the app's internal 5432 (INFRA-03) so the
+      # host Playwright test runner can connect directly for seed/reset,
+      # separate from docker-compose.yml's `db` service (no published port
+      # in prod) and from apps/api's own ephemeral Vitest testcontainers.
+      - "5433:5432"
+
+  app:
+    environment:
+      # Route the built image's nodemailer client at the existing
+      # dev-overlay Mailpit instance (never a real SMTP provider, never a
+      # second Mailpit) so magic-link emails are host-readable via
+      # Mailpit's REST API on :8025.
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      SMTP_FROM: no-reply@e2e.kurzly.local
+      # Host-followable magic-link URLs - the built image is published on
+      # :3000, the same origin the host Playwright browser/request context
+      # talks to.
+      BASE_URL: http://localhost:3000
+      # Deterministic first-admin bootstrap so auth.setup.ts's seeded admin
+      # row passes the invite-only allowlist (isEmailAllowed).
+      INITIAL_ADMIN_EMAIL: admin@e2e.kurzly.local
+      # Narrow rate-limit bypass secret (INFRA-06, T-11-01) - interpolated
+      # from the script's/CI's own environment, NEVER a literal default
+      # here and NEVER present in docker-compose.yml/prod.
+      E2E_RATE_LIMIT_BYPASS_SECRET: ${E2E_RATE_LIMIT_BYPASS_SECRET}
