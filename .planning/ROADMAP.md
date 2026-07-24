@@ -166,7 +166,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 | 9. Team Mgmt & Domain-Scoped Authz | v1.0 | 7/7 | Complete | 2026-07-23 |
 | 10. OIDC/SSO Integration | v1.0 | 5/5 | Complete | 2026-07-23 |
 | 11. Playwright E2E Infrastructure & Fixtures | v1.1 | 6/6 | Complete    | 2026-07-24 |
-| 12. Redirect Handler E2E (Core Value) | v1.1 | 5/5 | Complete   | 2026-07-24 |
+| 12. Redirect Handler E2E (Core Value) | v1.1 | 5/5 | Complete    | 2026-07-24 |
 | 13. Authentication & Session E2E | v1.1 | 0/TBD | Not started | - |
 | 14. Links & CSV Import E2E | v1.1 | 0/TBD | Not started | - |
 | 15. QR Studio E2E | v1.1 | 0/TBD | Not started | - |
