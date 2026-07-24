@@ -95,7 +95,16 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
   4. An invited-but-not-yet-activated magic-link account that first signs in via SSO is correctly merged into a single account. [AUTH-E2E-05]
   5. Logout ends the session and unauthenticated access to dashboard routes redirects to login; a magic-link resend that trips the rate limit surfaces a clear UI message rather than failing silently. [AUTH-E2E-06, AUTH-E2E-07]
 
-**Plans**: TBD
+**Plans**: 8 plans
+
+- [ ] 13-01-PLAN.md — Mock OIDC IdP service (oidc-provider@9.10.0) + docker-compose.e2e.yml wiring (Wave 0)
+- [ ] 13-02-PLAN.md — E2E harness scaffolding: mock-IdP client, User fixtures, standalone `auth` project (Wave 0)
+- [ ] 13-03-PLAN.md — AUTH-E2E-01 magic-link round trip + AUTH-E2E-02 token rejection (Wave 1)
+- [ ] 13-04-PLAN.md — AUTH-E2E-03 non-invited email denial (Wave 1)
+- [ ] 13-05-PLAN.md — AUTH-E2E-06 logout + route guard (Wave 1)
+- [ ] 13-06-PLAN.md — AUTH-E2E-07 rate-limit UI copy, real limiter (Wave 1)
+- [ ] 13-07-PLAN.md — AUTH-E2E-04 SSO round trip + least-privilege (Wave 1)
+- [ ] 13-08-PLAN.md — AUTH-E2E-05 SSO-after-invite merge + auth.ts accountLinking fix, TDD RED→GREEN (Wave 2)
 
 ### Phase 14: Links & CSV Import E2E
 
