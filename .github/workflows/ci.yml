@@ -78,6 +78,71 @@ jobs:
       - name: Persistence smoke test (INFRA-03 — data survives down/up without -v)
         run: ./scripts/smoke-persistence.sh
 
+  # Playwright E2E suite (11-06-PLAN.md, INFRA-05). Sequenced after `smoke`
+  # (not merged into it) so the heavier Playwright browser install only pays
+  # once `smoke` already proved the built image itself boots cleanly.
+  # Exercises the entire suite from Phase 11's Plans 01-05 (fixtures,
+  # storageState, DB/Mailpit isolation) plus this plan's own rate-limit
+  # bypass proof, against the SAME built app image via
+  # scripts/e2e-compose.sh. Report/trace artifacts are only uploaded on
+  # failure to avoid noise on green runs.
+  e2e:
+    name: Playwright E2E suite
+    runs-on: ubuntu-latest
+    needs: [test, smoke]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Fresh browser install every run (11-RESEARCH.md Pitfall 7) —
+      # deliberately no ~/.cache/ms-playwright cache step, since a stale
+      # cache pinned to an old Chromium build is a documented footgun.
+      - name: Install Playwright browsers
+        run: pnpm --filter @kurzly/e2e exec playwright install --with-deps chromium
+
+      - name: Build the app image
+        run: docker compose -f docker-compose.yml build app
+
+      # Generated fresh every run, scoped to this job's own env only
+      # (T-11-01) — never a fixed/committed literal, never bare
+      # github.run_id. scripts/e2e-compose.sh would generate its own
+      # fallback if this were unset, but CI injects an explicit one so the
+      # secret's provenance for this job is visible directly in this
+      # workflow file.
+      - name: Generate E2E rate-limit bypass secret
+        id: bypass-secret
+        run: echo "value=$(openssl rand -hex 32)" >> "$GITHUB_OUTPUT"
+
+      - name: Run Playwright E2E suite
+        run: ./scripts/e2e-compose.sh
+        env:
+          E2E_RATE_LIMIT_BYPASS_SECRET: ${{ steps.bypass-secret.outputs.value }}
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/e2e/playwright-report/
+          retention-days: 7
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: apps/e2e/test-results/
+          retention-days: 7
+
   # `release` lives in this same workflow file (not a separate
   # release-publish.yml) because gating on CI success via `needs:` only
   # works between jobs in the same workflow - a separate file would need
