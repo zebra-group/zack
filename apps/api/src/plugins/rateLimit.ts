@@ -158,9 +158,29 @@ export const QR_RENDER_RATE_LIMIT = {
 } as const;
 
 export async function registerRateLimit(app: FastifyInstance): Promise<void> {
+  // INFRA-06 (11-02-PLAN.md): a narrow, env-gated E2E-only bypass — NOT a
+  // blanket disable. Read directly from `process.env` (mirrors
+  // `routes/domains.ts`'s `computeVerificationTarget` precedent) rather than
+  // adding it to `env.ts`'s `envSchema`, so it is structurally impossible to
+  // set via `.env`/`.env.example`/production config (T-11-01 mitigation,
+  // proven by the schema-absence guard test in
+  // test/rate-limit-bypass.test.ts). `allowList`'s function form, set once
+  // here at global registration, covers the global default bucket AND every
+  // named per-route override (`MAGIC_LINK_RATE_LIMIT`, etc.) per the
+  // plugin's own documented encapsulation-scope behavior — no per-route
+  // edits needed (RESEARCH "Don't Hand-Roll").
+  const bypassSecret = process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
+
   await app.register(rateLimit, {
     global: true,
     max: 100,
     timeWindow: "15 minutes",
+    // Omitted entirely (not just falsy) when `bypassSecret` is unset, so
+    // production/dev behavior is byte-identical to before this change
+    // (T-11-01: a leaked `x-e2e-bypass` header bypasses nothing without a
+    // configured secret).
+    allowList: bypassSecret
+      ? (request) => request.headers["x-e2e-bypass"] === bypassSecret
+      : undefined,
   });
 }
