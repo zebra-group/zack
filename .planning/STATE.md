@@ -5,15 +5,15 @@ milestone_name: E2E Test Coverage
 current_phase: 11
 current_phase_name: Playwright E2E Infrastructure & Fixtures
 status: executing
-stopped_at: Phase 11 Plan 03 (compose E2E overlay, boot script, boot smoke spec) complete. Ready to execute 11-04.
-last_updated: "2026-07-24T14:15:09.482Z"
+stopped_at: Phase 11 Plan 04 (E2E DB helper, Mailpit REST client, global-setup/teardown wiring, INFRA-02/03 smoke specs) complete. Ready to execute 11-05.
+last_updated: "2026-07-24T14:30:09.828Z"
 last_activity: 2026-07-24
-last_activity_desc: "Plan 11-03 complete: docker-compose.e2e.yml additive overlay, scripts/e2e-compose.sh boot/run/teardown entrypoint, and boot.spec.ts proving the suite hits the built Fastify image at :3000"
+last_activity_desc: "Plan 11-03 complete: docker-compose.e2e.yml, scripts/e2e-compose.sh, and boot.spec.ts proving the suite hits the built Fastify image at :3000"
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 11 of 17 (Playwright E2E Infrastructure & Fixtures) — first phase of milestone v1.1
-Plan: 3 of 6 complete (11-03: compose E2E overlay, boot script, boot smoke spec)
-Status: In progress — 3 plans remaining in Phase 11
-Last activity: 2026-07-24 — Plan 11-03 complete: docker-compose.e2e.yml, scripts/e2e-compose.sh, and boot.spec.ts proving the suite hits the built Fastify image at :3000
+Plan: 4 of 6 complete (11-04: E2E DB helper, Mailpit REST client, global-setup/teardown wiring, INFRA-02/03 smoke specs)
+Status: In progress — 2 plans remaining in Phase 11
+Last activity: 2026-07-24 — Plan 11-04 complete: apps/e2e/src/db.ts (resetDb/seedBaseline), apps/e2e/src/mailpit.ts (recipient-scoped findMagicLinkUrl), global-setup.ts/global-teardown.ts, and two smoke specs proving zero P2002 + zero cross-worker email theft
 
-Progress: [█████░░░░░] 50%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -47,7 +47,7 @@ Progress: [█████░░░░░] 50%
 
 | Phase | Plans | Status |
 |-------|-------|--------|
-| 11 | 3/6 | In progress |
+| 11 | 4/6 | In progress |
 | 12 | TBD | Not started |
 | 13 | TBD | Not started |
 | 14 | TBD | Not started |
@@ -69,6 +69,7 @@ Progress: [█████░░░░░] 50%
 *Updated after each plan completion*
 | Phase 11 P02 | 12min | 2 tasks | 2 files |
 | Phase 11 P03 | 25min | 3 tasks | 3 files |
+| Phase 11 P04 | 27min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,8 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 11]: allowList (not a custom keyGenerator hack) is the correct @fastify/rate-limit mechanism for full request exclusion — set once at global registration, covers global bucket + every named per-route override
 - [Phase 11]: E2E_RATE_LIMIT_BYPASS_SECRET is read directly from process.env in registerRateLimit, never added to envSchema/.env.example — structurally impossible to set via production config, proven by a dedicated schema-absence test
 - [Phase 11]: scripts/e2e-compose.sh derives E2E_DATABASE_URL Postgres credentials from the bootstrapped .env at runtime (fallback kurzly/changeme/kurzly), not a hardcoded string
+- [Phase 11]: better-auth 1.6.23's magic-link verify URL confirmed empirically from installed source as /api/auth/magic-link/verify?token= (basePath default /api/auth), closing RESEARCH A2/OQ-2 with certainty
+- [Phase 11]: resetDb() wraps its TRUNCATE+reseed in pg_advisory_lock/unlock so parallel fullyParallel worker files never interleave; db-isolation.spec.ts uses cryptographically-random per-test slugs so a real P2002 is structurally impossible regardless of scheduling
 
 ### Pending Todos
 
@@ -108,6 +111,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T14:15:09.475Z
-Stopped at: Phase 11 Plan 03 (compose E2E overlay, boot script, boot smoke spec) complete. Ready to execute 11-04.
+Last session: 2026-07-24T14:30:09.822Z
+Stopped at: Phase 11 Plan 04 (E2E DB helper, Mailpit REST client, global-setup/teardown wiring, INFRA-02/03 smoke specs) complete. Ready to execute 11-05.
 Resume file: None
