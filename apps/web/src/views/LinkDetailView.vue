@@ -302,6 +302,8 @@ async function handleEditSubmit(payload: {
   expiresAt?: string | null;
   /** Phase 5 (D-12): `undefined` keeps the current value. */
   forwardQuery?: boolean;
+  /** Phase 6 (TRACK-01/D-15): `undefined` keeps the current value. */
+  trackingEnabled?: boolean;
   /**
    * Phase 8 (08-06, D-08-05, META-01/02): forwarded EXACTLY as received —
    * `undefined` keeps, `null` is an explicit clear that must reach the
@@ -327,6 +329,7 @@ async function handleEditSubmit(payload: {
       password: payload.password,
       expiresAt: payload.expiresAt,
       forwardQuery: payload.forwardQuery,
+      trackingEnabled: payload.trackingEnabled,
       utmSource: payload.utmSource,
       utmMedium: payload.utmMedium,
       utmCampaign: payload.utmCampaign,
@@ -555,6 +558,7 @@ loadDomains();
     :initial-password-protected="link.passwordProtected"
     :initial-expires-at="link.expiresAt ? link.expiresAt.slice(0, 10) : null"
     :initial-forward-query="link.forwardQuery"
+    :initial-tracking-enabled="link.trackingEnabled"
     :initial-utm-source="link.utmSource ?? undefined"
     :initial-utm-medium="link.utmMedium ?? undefined"
     :initial-utm-campaign="link.utmCampaign ?? undefined"
