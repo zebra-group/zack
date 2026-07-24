@@ -50,7 +50,8 @@ export type QrCodeErrorCode =
   | "UNAUTHORIZED_DOMAIN"
   | "NOT_DYNAMIC"
   | "CODE_GENERATION_EXHAUSTED"
-  | "INVALID_LOGO";
+  | "INVALID_LOGO"
+  | "QR_ALREADY_EXISTS";
 
 /**
  * Resolves `linkId`'s owning Domain and checks `requireDomainAccess` —
@@ -165,6 +166,17 @@ export async function createQrCode(
   const validated = await validateQrCodeInput(prisma, input);
   if (!validated.ok) return validated;
 
+  // WR-09 friendly-fast-path pre-check (mirrors createLink's `resolveSlug`
+  // pre-check in lib/links.ts): the DB's partial unique index
+  // (`QrCode_linkId_static_key`, WHERE variant='static') is the real
+  // guarantee — this is only a friendly error for the common non-race case.
+  if (validated.data.variant === "static") {
+    const existingStatic = await prisma.qrCode.findFirst({
+      where: { linkId: validated.data.linkId, variant: "static" },
+    });
+    if (existingStatic) return { ok: false, error: "QR_ALREADY_EXISTS" };
+  }
+
   let code: string | null = null;
   if (validated.data.variant === "dynamic") {
     const codeResult = await resolveDynamicCode(prisma);
@@ -186,12 +198,20 @@ export async function createQrCode(
     });
     return { ok: true, qrCode };
   } catch (err) {
-    // Defense-in-depth against a race between resolveDynamicCode's
-    // pre-check and this insert (mirrors createLink's SLUG_TAKEN P2002
-    // catch) — a randomly-generated code has no "friendly rename" retry
-    // path a caller can act on, so this maps to the same exhaustion error.
+    // Two DISTINCT P2002 causes can reach this catch, disambiguated by
+    // variant: a `static` create can only collide on the
+    // `QrCode_linkId_static_key` partial unique index (a race after the
+    // pre-check above — the real guarantee) -> QR_ALREADY_EXISTS. A
+    // `dynamic` create can only collide on `code`'s own unique constraint (a
+    // race after resolveDynamicCode's pre-check, mirrors createLink's
+    // SLUG_TAKEN P2002 catch) -> a randomly-generated code has no "friendly
+    // rename" retry path a caller can act on, so this maps to the same
+    // exhaustion error as before.
     if (isUniqueConstraintViolation(err)) {
-      return { ok: false, error: "CODE_GENERATION_EXHAUSTED" };
+      return {
+        ok: false,
+        error: validated.data.variant === "static" ? "QR_ALREADY_EXISTS" : "CODE_GENERATION_EXHAUSTED",
+      };
     }
     throw err;
   }
@@ -391,6 +411,8 @@ export function statusForQrError(error: QrCodeErrorCode): number {
       return 503;
     case "INVALID_LOGO":
       return 400;
+    case "QR_ALREADY_EXISTS":
+      return 409;
     default: {
       const exhaustive: never = error;
       return exhaustive;
