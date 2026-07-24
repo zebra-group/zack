@@ -32,6 +32,21 @@ export default defineConfig({
     {
       name: "smoke",
       testMatch: /smoke\/.*\.spec\.ts$/,
+      // WR-02 (11-REVIEW.md): `smoke`'s own `mailpit-wiring.spec.ts` and
+      // `setup`'s `auth.setup.ts` both request magic-link emails for the
+      // exact same ADMIN_EMAIL/MEMBER_EMAIL addresses. Without this
+      // dependency, Playwright is free to run `smoke` and `setup`
+      // concurrently, letting either side's `findMagicLinkUrl` call
+      // non-deterministically consume the OTHER project's in-flight
+      // message (both requests target the same seeded, allowlisted
+      // addresses — unlike other smoke specs' dedicated/unseeded probe
+      // emails, these two genuinely must reuse the seeded baseline users
+      // to get a real email sent at all, per `lib/allowlist.ts`'s
+      // User-row-existence gate). Depending on `setup` here forces `smoke`
+      // to run only once `setup`'s magic-link round trips have fully
+      // resolved, removing the race without inventing a second seeded
+      // recipient pair.
+      dependencies: ["setup"],
     },
     {
       name: "setup",
