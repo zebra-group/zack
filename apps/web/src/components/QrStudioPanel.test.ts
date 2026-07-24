@@ -20,14 +20,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import QrStudioPanel from "./QrStudioPanel.vue";
 import { ApiError } from "../api";
 
-const { fetchQrRenderBlob, updateQrCode } = vi.hoisted(() => ({
+const { deleteQrCode, fetchQrRenderBlob, updateQrCode } = vi.hoisted(() => ({
+  deleteQrCode: vi.fn(),
   fetchQrRenderBlob: vi.fn(),
   updateQrCode: vi.fn(),
 }));
 
 vi.mock("../api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api")>();
-  return { ...actual, fetchQrRenderBlob, updateQrCode };
+  return { ...actual, deleteQrCode, fetchQrRenderBlob, updateQrCode };
 });
 
 /** jsdom-safe stand-in for the browser `Image` preloader — resolves `onload` on the next microtask. */
@@ -69,6 +70,7 @@ async function waitOutDebounce(): Promise<void> {
 }
 
 beforeEach(() => {
+  deleteQrCode.mockReset();
   fetchQrRenderBlob.mockReset();
   updateQrCode.mockReset();
   vi.stubGlobal("Image", FakeImage);
@@ -455,5 +457,52 @@ describe("QrStudioPanel", () => {
     await flushPromises();
 
     expect(wrapper.emitted("toast")?.[0]).toEqual(["Export fehlgeschlagen. Bitte erneut versuchen."]);
+  });
+
+  describe("delete action (WR-07)", () => {
+    it("clicking the delete button opens the confirm dialog", async () => {
+      const wrapper = mountPanel(makeQrCode());
+      expect(wrapper.find(".delete-dialog").exists()).toBe(false);
+
+      await wrapper.find(".studio-delete-button").trigger("click");
+
+      expect(wrapper.find(".delete-dialog").exists()).toBe(true);
+    });
+
+    it("confirming calls deleteQrCode with the qr id, emits deleted + toast, and closes the dialog", async () => {
+      deleteQrCode.mockResolvedValue(undefined);
+      const wrapper = mountPanel(makeQrCode());
+
+      await wrapper.find(".studio-delete-button").trigger("click");
+      await wrapper.find(".delete-confirm-button").trigger("click");
+      await flushPromises();
+
+      expect(deleteQrCode).toHaveBeenCalledWith("qr1");
+      expect(wrapper.emitted("deleted")?.[0]).toEqual(["qr1"]);
+      expect(wrapper.emitted("toast")?.[0]).toEqual(["QR-Code gelöscht"]);
+      expect(wrapper.find(".delete-dialog").exists()).toBe(false);
+    });
+
+    it("cancelling the dialog calls deleteQrCode zero times and closes the dialog", async () => {
+      const wrapper = mountPanel(makeQrCode());
+
+      await wrapper.find(".studio-delete-button").trigger("click");
+      await wrapper.find(".cancel-button").trigger("click");
+
+      expect(deleteQrCode).not.toHaveBeenCalled();
+      expect(wrapper.find(".delete-dialog").exists()).toBe(false);
+    });
+
+    it("a failed delete toasts the failure message, keeps the card (no deleted emit)", async () => {
+      deleteQrCode.mockRejectedValue(new ApiError(500, "Internal Server Error"));
+      const wrapper = mountPanel(makeQrCode());
+
+      await wrapper.find(".studio-delete-button").trigger("click");
+      await wrapper.find(".delete-confirm-button").trigger("click");
+      await flushPromises();
+
+      expect(wrapper.emitted("toast")?.[0]).toEqual(["QR-Code konnte nicht gelöscht werden."]);
+      expect(wrapper.emitted("deleted")).toBeFalsy();
+    });
   });
 });

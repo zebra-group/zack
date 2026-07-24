@@ -11,18 +11,22 @@ import type { LinkDTO, QrCodeDTO, QrRemapHistoryEntryDTO } from "@kurzly/shared"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 import QrCodesView from "./QrCodesView.vue";
+import QrStudioPanel from "../components/QrStudioPanel.vue";
 
-const { createQrCode, getQrRemapHistory, listLinks, listQrCodes, remapQrCode } = vi.hoisted(() => ({
-  createQrCode: vi.fn(),
-  getQrRemapHistory: vi.fn(),
-  listLinks: vi.fn(),
-  listQrCodes: vi.fn(),
-  remapQrCode: vi.fn(),
-}));
+const { createQrCode, deleteQrCode, getQrRemapHistory, listLinks, listQrCodes, remapQrCode } = vi.hoisted(
+  () => ({
+    createQrCode: vi.fn(),
+    deleteQrCode: vi.fn(),
+    getQrRemapHistory: vi.fn(),
+    listLinks: vi.fn(),
+    listQrCodes: vi.fn(),
+    remapQrCode: vi.fn(),
+  }),
+);
 
 vi.mock("../api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api")>();
-  return { ...actual, createQrCode, getQrRemapHistory, listLinks, listQrCodes, remapQrCode };
+  return { ...actual, createQrCode, deleteQrCode, getQrRemapHistory, listLinks, listQrCodes, remapQrCode };
 });
 
 function makeLink(overrides: Partial<LinkDTO> = {}): LinkDTO {
@@ -77,6 +81,7 @@ function makeRouter() {
 
 beforeEach(() => {
   createQrCode.mockReset();
+  deleteQrCode.mockReset();
   getQrRemapHistory.mockReset();
   listLinks.mockReset();
   listQrCodes.mockReset();
@@ -362,5 +367,48 @@ describe("QrCodesView", () => {
 
     expect(wrapper.find(".history-line").text()).toBe("Historie: /alt ➜ /neu (gerade geändert)");
     expect(wrapper.find(".verlauf-expander").exists()).toBe(false);
+  });
+
+  describe("delete flow (WR-07)", () => {
+    it("removes the card from the list and reselects the first remaining card when the studio panel emits deleted", async () => {
+      const links = [makeLink({ id: "l1", slug: "abc123" })];
+      const qrCodes = [
+        makeQrCode({ id: "qr1", linkId: "l1", name: "First" }),
+        makeQrCode({ id: "qr2", linkId: "l1", name: "Second" }),
+      ];
+      listQrCodes.mockResolvedValue(qrCodes);
+      listLinks.mockResolvedValue(links);
+
+      const { wrapper } = await mountQrCodesView("/qr-codes?selected=qr1");
+      await flushPromises();
+
+      expect(wrapper.findAll(".qr-card")).toHaveLength(2);
+
+      const studioPanel = wrapper.findComponent(QrStudioPanel);
+      studioPanel.vm.$emit("deleted", "qr1");
+      await flushPromises();
+
+      const cards = wrapper.findAll(".qr-card");
+      expect(cards).toHaveLength(1);
+      expect(cards[0]?.text()).toContain("Second");
+      expect(cards[0]?.classes()).toContain("selected");
+    });
+
+    it("reselects null (no studio panel) when the last remaining card is deleted", async () => {
+      const links = [makeLink({ id: "l1", slug: "abc123" })];
+      const qrCodes = [makeQrCode({ id: "qr1", linkId: "l1", name: "Only" })];
+      listQrCodes.mockResolvedValue(qrCodes);
+      listLinks.mockResolvedValue(links);
+
+      const { wrapper } = await mountQrCodesView("/qr-codes?selected=qr1");
+      await flushPromises();
+
+      const studioPanel = wrapper.findComponent(QrStudioPanel);
+      studioPanel.vm.$emit("deleted", "qr1");
+      await flushPromises();
+
+      expect(wrapper.findAll(".qr-card")).toHaveLength(0);
+      expect(wrapper.findComponent(QrStudioPanel).exists()).toBe(false);
+    });
   });
 });
