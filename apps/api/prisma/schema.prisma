@@ -326,6 +326,16 @@ enum QrCodeVariant {
 /// object-storage dependency — bounded by the 2 MB upload cap enforced in
 /// 07-05. Deleting the bound/target Link cascade-deletes the QrCode (a QR
 /// code has no meaning without a link to encode).
+/// A PARTIAL UNIQUE INDEX (`QrCode_linkId_static_key` on ("linkId") WHERE
+/// variant='static') is enforced by the raw-SQL migration
+/// `20260724074120_enforce_one_static_qr_per_link` (WR-09,
+/// 260724-d72-PLAN.md) — at most one `static` QrCode per Link, at the
+/// database layer. It is intentionally NOT representable here: Prisma's
+/// `@@unique` cannot express a `WHERE` clause, and a plain
+/// `@@unique([linkId])` would be WRONG (it would also forbid multiple
+/// `dynamic` QrCode rows sharing a linkId, which IS allowed). A future
+/// `prisma migrate dev` run must PRESERVE this index rather than treat it as
+/// schema drift — do not add `@@unique([linkId])` to "fix" the drift.
 model QrCode {
   id             String        @id @default(cuid())
   variant        QrCodeVariant
