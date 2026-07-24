@@ -37,17 +37,16 @@ test.describe("REDIRECT-E2E-04: bot/OG branching, gate-respect, no-leak", () => 
       // Link-table truncates can wipe this row between creation and the
       // first HTTP request — retry with a fresh fixture on an unexpected
       // status.
-      let slug = "";
+      const linkFixture = {
+        targetUrl: "https://real-target.example.com/",
+        ogTitle: "Sommeraktion",
+        ogDescription: "Bis zu 50% sparen",
+        ogImageUrl: "https://cdn.example.com/og/sommer.png",
+      };
       const botResponse = await fetchWithFixtureRaceRetry(
         async () => {
-          slug = `redirect-bot-og-${randomUUID()}`;
-          await createE2eLink(prisma, {
-            slug,
-            targetUrl: "https://real-target.example.com/",
-            ogTitle: "Sommeraktion",
-            ogDescription: "Bis zu 50% sparen",
-            ogImageUrl: "https://cdn.example.com/og/sommer.png",
-          });
+          const slug = `redirect-bot-og-${randomUUID()}`;
+          await createE2eLink(prisma, { slug, ...linkFixture });
           return request.get(`/${slug}`, {
             headers: { host: BASELINE_DOMAIN_HOSTNAME, "user-agent": BOT_UA },
             maxRedirects: 0,
@@ -64,11 +63,24 @@ test.describe("REDIRECT-E2E-04: bot/OG branching, gate-respect, no-leak", () => 
       expect(botBody).toContain('og:image" content="https://cdn.example.com/og/sommer.png"');
       assertNoLeak(botBody, botResponse.headers(), "https://real-target.example.com/");
 
-      // Same slug, browser UA -> the real human 302 branch.
-      const browserResponse = await request.get(`/${slug}`, {
-        headers: { host: BASELINE_DOMAIN_HOSTNAME, "user-agent": BROWSER_UA },
-        maxRedirects: 0,
-      });
+      // Same link config, browser UA -> the real human 302 branch. This
+      // creates its OWN fresh fixture (12-REVIEW.md WR-01) rather than
+      // reusing the bot request's slug — the browser request above used to
+      // run entirely unprotected against the exact same truncate race the
+      // bot request is guarded against, just with a slightly later window.
+      // Proves the same bot/browser branching behavior on an equivalent
+      // link, not literally the identical row.
+      const browserResponse = await fetchWithFixtureRaceRetry(
+        async () => {
+          const slug = `redirect-bot-og-${randomUUID()}`;
+          await createE2eLink(prisma, { slug, ...linkFixture });
+          return request.get(`/${slug}`, {
+            headers: { host: BASELINE_DOMAIN_HOSTNAME, "user-agent": BROWSER_UA },
+            maxRedirects: 0,
+          });
+        },
+        (r) => r.status() === 302,
+      );
       expect(browserResponse.status()).toBe(302);
       expect(browserResponse.headers()["location"]).toBe("https://real-target.example.com/");
     } finally {

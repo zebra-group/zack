@@ -28,7 +28,6 @@
  * `fullyParallel` safety.
  */
 import { expect } from "@playwright/test";
-import type { APIResponse } from "@playwright/test";
 import bcrypt from "bcryptjs";
 import type { Prisma, PrismaClient } from "@kurzly/api/prisma-client";
 import { ADMIN_EMAIL, BASELINE_DOMAIN_HOSTNAME } from "./db.js";
@@ -177,16 +176,23 @@ export function assertNoLeak(body: string, headers: Record<string, string>, cana
  * pragmatic, connection-agnostic fix: each attempt's `create` closure mints
  * its own random slug, so a retry can never collide with the previous
  * attempt's (possibly-truncated) row.
+ *
+ * Generic over `T` (12-REVIEW.md WR-01) rather than pinned to Playwright's
+ * `APIResponse`, so this same helper protects BOTH request-context calls
+ * (`request.get`/`page.request.post`, which resolve `APIResponse`) AND real
+ * browser navigations (`page.goto`, which resolves `playwright.Response |
+ * null`) — `redirect-password-gate.spec.ts` needs the latter shape and,
+ * before this change, had no compatible overload to reach for.
  */
-export async function fetchWithFixtureRaceRetry(
-  attempt: () => Promise<APIResponse>,
-  isExpected: (response: APIResponse) => boolean,
+export async function fetchWithFixtureRaceRetry<T>(
+  attempt: () => Promise<T>,
+  isExpected: (response: T) => boolean,
   maxAttempts = 3,
-): Promise<APIResponse> {
-  let response: APIResponse | undefined;
+): Promise<T> {
+  let response: T | undefined;
   for (let i = 0; i < maxAttempts; i++) {
     response = await attempt();
     if (isExpected(response)) return response;
   }
-  return response as APIResponse;
+  return response as T;
 }

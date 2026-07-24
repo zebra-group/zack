@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import { createE2ePrisma, BASELINE_DOMAIN_HOSTNAME } from "../../src/db.js";
-import { createE2eLink, CANARY_TARGET, BROWSER_UA } from "../../src/links.js";
+import { createE2eLink, CANARY_TARGET, BROWSER_UA, fetchWithFixtureRaceRetry } from "../../src/links.js";
 
 /**
  * REDIRECT-E2E-02 (12-05-PLAN.md) — re-proves `routes/redirect.ts`'s
@@ -156,16 +156,32 @@ test.describe("REDIRECT-E2E-02: password gate over a real browser page + cookie 
   }) => {
     const prisma = createE2ePrisma();
     try {
-      const slug = `pw-gate-hostres-${randomUUID()}`;
-      await createE2eLink(prisma, {
-        slug,
-        targetUrl: CANARY_TARGET,
-        password: "correct-horse-battery",
-      });
+      // Wrapped in fetchWithFixtureRaceRetry (12-REVIEW.md WR-01): this
+      // file's own header comment documents the exact db-isolation.spec.ts
+      // truncate race every other feature spec is already protected
+      // against — this file previously had NO protection at all, despite
+      // being exactly as exposed (create-then-immediately-page.goto against
+      // an unguarded `createE2eLink` call). `body` is captured via closure
+      // and re-assigned on every attempt so the assertions below always
+      // reflect the attempt `isExpected` actually accepted.
+      let body = "";
+      const navResponse = await fetchWithFixtureRaceRetry(
+        async () => {
+          const slug = `pw-gate-hostres-${randomUUID()}`;
+          await createE2eLink(prisma, {
+            slug,
+            targetUrl: CANARY_TARGET,
+            password: "correct-horse-battery",
+          });
 
-      await page.goto(`${TARGET_ORIGIN}/${slug}`);
+          const response = await page.goto(`${TARGET_ORIGIN}/${slug}`);
+          body = await page.content();
+          return response;
+        },
+        (response) => response !== null && response.status() === 200 && body.includes("Dieser Link ist geschützt"),
+      );
 
-      const body = await page.content();
+      expect(navResponse?.status()).toBe(200);
       // Can ONLY render if the browser reached the redirect engine on
       // e2e.kurzly.local via the host-resolver rule above — not the CR-07
       // SPA fallback (which would serve the app's own dashboard shell for
@@ -184,60 +200,84 @@ test.describe("REDIRECT-E2E-02: password gate over a real browser page + cookie 
   }) => {
     const prisma = createE2ePrisma();
     try {
-      const slug = `pw-gate-flow-${randomUUID()}`;
       // In-stack, always-reachable target (12-RESEARCH.md Environment
       // Availability) — the visitor's own connection follows the final
       // 302, not the app container, so this keeps the test hermetic
       // regardless of outbound internet access from the compose stack.
       const target = `${TARGET_ORIGIN}/health`;
-      await createE2eLink(prisma, {
-        slug,
-        targetUrl: target,
-        password: "correct-horse-battery",
-      });
 
-      // 1. Initial GET via the REAL browser -> password page, target absent (no leak).
-      await page.goto(`${TARGET_ORIGIN}/${slug}`);
-      const initialBody = await page.content();
+      // This entire 4-step flow (create fixture -> initial GET -> wrong
+      // verify -> correct verify -> cookie-carried GET) reads the SAME
+      // just-created Link row across several real HTTP round-trips —
+      // db-isolation.spec.ts's concurrent Link-table truncates (this file's
+      // header comment) can wipe that row at ANY point in the sequence, not
+      // only before the first request. 12-REVIEW.md WR-01 flagged this file
+      // as having NO protection at all; wrapping only the first step would
+      // leave steps 2-4 exactly as exposed, so the WHOLE flow is wrapped in
+      // fetchWithFixtureRaceRetry and re-run end to end (fresh slug, fresh
+      // link, fresh navigation) whenever the final step doesn't land on the
+      // expected unlocked target. Each intermediate response/body is
+      // captured via closure and re-assigned on every attempt, so the
+      // assertions below always reflect the attempt that actually matched
+      // (or, on final exhaustion, the last attempt made).
+      let initialBody = "";
+      let wrongBody = "";
+      let correctResponse: Awaited<ReturnType<typeof page.request.post>> | undefined;
+
+      const carriedResponse = await fetchWithFixtureRaceRetry(
+        async () => {
+          const slug = `pw-gate-flow-${randomUUID()}`;
+          await createE2eLink(prisma, {
+            slug,
+            targetUrl: target,
+            password: "correct-horse-battery",
+          });
+
+          // 1. Initial GET via the REAL browser -> password page, target absent (no leak).
+          await page.goto(`${TARGET_ORIGIN}/${slug}`);
+          initialBody = await page.content();
+
+          // 2. Wrong password -> the LOCKED inline error, still no leak.
+          //
+          // Submitted via page.request (this file's header comment explains
+          // why: a literal DOM <form>/fetch() submit is unconditionally CSP-
+          // blocked on this plain-HTTP, non-"localhost" origin). page.request
+          // shares the SAME BrowserContext cookie jar as `page`, so this is
+          // still the real browser session's own store, not a bare API test.
+          const wrongResponse = await page.request.post(`${LOCAL_ORIGIN}/${slug}/verify`, {
+            headers: { host: BASELINE_DOMAIN_HOSTNAME },
+            form: { password: "wrong-guess" },
+          });
+          wrongBody = await wrongResponse.text();
+
+          // 3. Correct password -> unlocked: 302 to the exact target, Set-Cookie present.
+          correctResponse = await page.request.post(`${LOCAL_ORIGIN}/${slug}/verify`, {
+            headers: { host: BASELINE_DOMAIN_HOSTNAME },
+            form: { password: "correct-horse-battery" },
+            maxRedirects: 0,
+          });
+
+          // 4. Same shared-jar request to the slug -> straight through, no
+          // re-prompt: proves the signed, httpOnly, path-scoped unlock cookie
+          // the browser session's own cookie store now holds is honored on the
+          // very next request. Assert on the response OUTCOME only — never
+          // attempt to read the cookie's raw (httpOnly, signed) value.
+          return page.request.get(`${LOCAL_ORIGIN}/${slug}`, {
+            headers: { host: BASELINE_DOMAIN_HOSTNAME },
+            maxRedirects: 0,
+          });
+        },
+        (response) => response.status() === 302 && response.headers()["location"] === target,
+      );
+
       expect(initialBody).toContain("Dieser Link ist geschützt");
       expect(initialBody).not.toContain(target);
-
-      // 2. Wrong password -> the LOCKED inline error, still no leak.
-      //
-      // Submitted via page.request (this file's header comment explains
-      // why: a literal DOM <form>/fetch() submit is unconditionally CSP-
-      // blocked on this plain-HTTP, non-"localhost" origin). page.request
-      // shares the SAME BrowserContext cookie jar as `page`, so this is
-      // still the real browser session's own store, not a bare API test.
-      const wrongResponse = await page.request.post(`${LOCAL_ORIGIN}/${slug}/verify`, {
-        headers: { host: BASELINE_DOMAIN_HOSTNAME },
-        form: { password: "wrong-guess" },
-      });
-      expect(wrongResponse.status()).toBe(200);
-      const wrongBody = await wrongResponse.text();
       expect(wrongBody).toContain("Dieser Link ist geschützt");
       expect(wrongBody).toContain("Falsches Passwort. Bitte erneut versuchen.");
       expect(wrongBody).not.toContain(target);
-
-      // 3. Correct password -> unlocked: 302 to the exact target, Set-Cookie present.
-      const correctResponse = await page.request.post(`${LOCAL_ORIGIN}/${slug}/verify`, {
-        headers: { host: BASELINE_DOMAIN_HOSTNAME },
-        form: { password: "correct-horse-battery" },
-        maxRedirects: 0,
-      });
-      expect(correctResponse.status()).toBe(302);
-      expect(correctResponse.headers()["location"]).toBe(target);
-      expect(correctResponse.headers()["set-cookie"]).toBeDefined();
-
-      // 4. Same shared-jar request to the slug -> straight through, no
-      // re-prompt: proves the signed, httpOnly, path-scoped unlock cookie
-      // the browser session's own cookie store now holds is honored on the
-      // very next request. Assert on the response OUTCOME only — never
-      // attempt to read the cookie's raw (httpOnly, signed) value.
-      const carriedResponse = await page.request.get(`${LOCAL_ORIGIN}/${slug}`, {
-        headers: { host: BASELINE_DOMAIN_HOSTNAME },
-        maxRedirects: 0,
-      });
+      expect(correctResponse?.status()).toBe(302);
+      expect(correctResponse?.headers()["location"]).toBe(target);
+      expect(correctResponse?.headers()["set-cookie"]).toBeDefined();
       expect(carriedResponse.status()).toBe(302);
       expect(carriedResponse.headers()["location"]).toBe(target);
     } finally {
