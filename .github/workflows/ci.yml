@@ -59,8 +59,15 @@ jobs:
 
       # Spins up testcontainers Postgres per D-09 (one shared container per
       # Vitest run, each test wrapped in a rolled-back transaction).
+      #
+      # @kurzly/e2e is explicitly excluded here (CR-01): its own "test"
+      # script runs the full Playwright suite, which requires installed
+      # browsers and a live app server — neither of which exist in this
+      # job. That suite runs in the dedicated `e2e` job below via
+      # scripts/e2e-compose.sh (pnpm --filter @kurzly/e2e test), against
+      # the built app image, once browsers are installed.
       - name: Test
-        run: pnpm run -r test
+        run: pnpm run -r --filter='!@kurzly/e2e' test
 
   smoke:
     name: Compose boot & persistence smoke tests
