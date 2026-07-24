@@ -80,6 +80,15 @@ COPY --from=build --chown=node:node /usr/src/app/apps/web/dist /prod/api/public
 # default (/prod/api/geo/dbip-country-lite.mmdb) - country resolution works
 # offline out of the box; the DB refreshes only on image rebuild.
 COPY --from=build --chown=node:node /usr/src/app/geo /prod/api/geo
+# Deployed-version UI (AppShell.vue sidebar footer, GET /api/version): the
+# ROOT package.json, not apps/api's own (which stays pinned at 0.0.0 -
+# only the root one is bumped by semantic-release/@semantic-release/npm).
+# By the time this build stage runs, semantic-release has already bumped
+# and committed it earlier in the SAME CI job (ci.yml's release job runs
+# `semantic-release` before the docker build steps) - so this is always
+# exactly the version of the image actually running. Lands exactly at
+# lib/version.ts's resolveAppVersion() default (/prod/api/root-package.json).
+COPY --from=build --chown=node:node /usr/src/app/package.json /prod/api/root-package.json
 COPY --chown=node:node apps/api/entrypoint.sh /prod/api/entrypoint.sh
 RUN chmod +x /prod/api/entrypoint.sh
 

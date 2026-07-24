@@ -10,14 +10,33 @@
  * Nav active state uses --chip (NOT --accent — accent is reserved for
  * primary actions, per UI-SPEC "Explizit NICHT-Accent").
  */
-import { computed } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { getVersion } from "../api";
 import { useAuthSessionStore } from "../stores/authSession";
 import { useThemeStore } from "../stores/theme";
 
 const router = useRouter();
 const authSession = useAuthSessionStore();
 const theme = useThemeStore();
+
+/**
+ * Was a hardcoded "v0.1.0" literal that never matched the actual deployed
+ * release — fetched from `GET /api/version` instead (root `package.json`'s
+ * version, baked into the image at build time by the SAME CI job that cuts
+ * the semantic-release tag; see `apps/api/src/lib/version.ts`). `null`
+ * (still loading, or the fetch failed) simply renders no version segment
+ * rather than a misleading fallback literal.
+ */
+const version = ref<string | null>(null);
+
+onMounted(async () => {
+  try {
+    version.value = (await getVersion()).version;
+  } catch {
+    // Stays null — the sidebar footer just omits the version segment.
+  }
+});
 
 const navItems = [
   { label: "Dashboard", to: { name: "dashboard" } },
@@ -79,7 +98,7 @@ async function handleLogout(): Promise<void> {
           </span>
         </button>
 
-        <div class="version-text">v0.1.0 · self-hosted</div>
+        <div class="version-text">{{ version ? `v${version} · self-hosted` : "self-hosted" }}</div>
 
         <div class="user-row">
           <div class="avatar">{{ userInitial }}</div>

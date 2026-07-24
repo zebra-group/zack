@@ -16,7 +16,7 @@
  *      redirect engine's link-bound unlock cookie, `lib/unlockCookie.ts`;
  *      NOT a second session system, better-auth still owns its own cookies
  *      independently via its own handler).
- *   5. API routes under the `/api` prefix (canary).
+ *   5. API routes under the `/api` prefix (canary, version).
  *   6. The better-auth catch-all `GET/POST /api/auth/*` (NEW — registered
  *      directly on `app`, not nested in the `/api`-prefixed scope above,
  *      since its own route urls already include the `/api/auth` segment —
@@ -85,6 +85,7 @@ import { redirectRoute } from "./routes/redirect.js";
 import { ssoRoute } from "./routes/sso.js";
 import { teamRoute } from "./routes/team.js";
 import { tlsCheckRoute } from "./routes/tlsCheck.js";
+import { versionRoute } from "./routes/version.js";
 import { registerCors } from "./plugins/cors.js";
 import { registerHelmet } from "./plugins/helmet.js";
 import { registerRateLimit } from "./plugins/rateLimit.js";
@@ -163,6 +164,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(
     async (apiScope) => {
       await apiScope.register(canaryRoute(prisma));
+      await apiScope.register(versionRoute);
     },
     { prefix: "/api" },
   );
