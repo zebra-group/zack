@@ -11,3 +11,4 @@ apps/api/src/generated/
 
 # Coverage
 coverage/
+.planning/research/.cache/
