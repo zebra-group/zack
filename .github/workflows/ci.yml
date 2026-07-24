@@ -78,30 +78,92 @@ jobs:
       - name: Persistence smoke test (INFRA-03 — data survives down/up without -v)
         run: ./scripts/smoke-persistence.sh
 
-  # `publish` lives in this same workflow file (not a separate
-  # docker-publish.yml) because gating on CI success via `needs:` only
+  # `release` lives in this same workflow file (not a separate
+  # release-publish.yml) because gating on CI success via `needs:` only
   # works between jobs in the same workflow - a separate file would need
   # the more fragile `workflow_run` trigger (default-branch workflow
   # definition, ref/SHA ambiguity). Mirrors the `smoke needs: test` shape.
-  publish:
-    name: Publish image to GHCR
+  #
+  # This single job both cuts the release (semantic-release, analyzing
+  # conventional commits since the last tag) AND, only when a release was
+  # actually cut this run, builds/pushes the versioned GHCR image. A plain
+  # push-triggered job has no release-event context to learn "did a
+  # release just happen?" from, so the job detects it itself with a git
+  # tag diff: capture the latest tag before running semantic-release,
+  # re-fetch tags after (semantic-release pushes the new tag to the
+  # remote), and compare. Only a differing/non-empty post tag flips
+  # `released=true`, which gates every docker step below - a no-op run
+  # (e.g. a docs-only commit) builds nothing. No PAT, no extra package,
+  # no separate workflow: every step here authenticates with the one
+  # built-in GITHUB_TOKEN.
+  release:
+    name: Release and publish image to GHCR
     runs-on: ubuntu-latest
     needs: [test, smoke]
-    # Fork-safety guard (mitigates T-fmm-01): skipped on all pull_request
+    # Fork-safety guard (mitigates T-gsf-02): skipped on all pull_request
     # events and all non-main branch pushes, so a fork PR never reaches a
-    # step that could hold GHCR push credentials.
+    # step that could hold this job's write-scoped GITHUB_TOKEN.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
-      contents: read
+      contents: write
+      issues: write
+      pull-requests: write
       packages: write
     steps:
+      # Default credential persistence is required (not disabled) so
+      # @semantic-release/git's push of the release tag + write-back
+      # commit authenticates with the built-in GITHUB_TOKEN.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Capture pre-release tag
+        id: pre
+        run: echo "tag=$(git tag --sort=-v:refname | head -n1)" >> "$GITHUB_OUTPUT"
+
+      - name: Release
+        run: pnpm exec semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Capture post-release tag
+        id: post
+        run: |
+          git fetch --tags --force
+          echo "tag=$(git tag --sort=-v:refname | head -n1)" >> "$GITHUB_OUTPUT"
+
+      - name: Check for new release
+        id: check
+        run: |
+          if [ -n "${{ steps.post.outputs.tag }}" ] && [ "${{ steps.post.outputs.tag }}" != "${{ steps.pre.outputs.tag }}" ]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            version="${{ steps.post.outputs.tag }}"
+            version="${version#v}"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+            IFS=. read -r major minor patch <<< "$version"
+            echo "major=$major" >> "$GITHUB_OUTPUT"
+            echo "minor=$minor" >> "$GITHUB_OUTPUT"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
 
       # Required because the Dockerfile uses BuildKit features
       # (--mount=type=cache and # syntax=docker/dockerfile:1.7).
       - uses: docker/setup-buildx-action@v4
+        if: steps.check.outputs.released == 'true'
 
       - uses: docker/login-action@v4
+        if: steps.check.outputs.released == 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -109,16 +171,19 @@ jobs:
 
       - name: Extract image metadata
         id: meta
+        if: steps.check.outputs.released == 'true'
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            type=sha
+            type=raw,value=${{ steps.check.outputs.version }}
+            type=raw,value=${{ steps.check.outputs.major }}.${{ steps.check.outputs.minor }}
+            type=raw,value=${{ steps.check.outputs.major }}
+            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v7
+        if: steps.check.outputs.released == 'true'
         with:
           context: .
           push: true
