@@ -64,6 +64,7 @@ function makeQrCode(overrides: Partial<QrCodeDTO> = {}): QrCodeDTO {
     color: "#17170f",
     roundedModules: false,
     logoEnabled: false,
+    hasLogo: false,
     lifetimeScans: 0,
     createdBy: "u1",
     createdAt: "2026-07-21T00:00:00.000Z",

@@ -366,7 +366,9 @@ export async function getQrRemapHistory(
  * dates, JSON-boundary convention, mirrors `toLinkDto`). `logoData`/
  * `logoMimeType` are intentionally NEVER read onto this object
  * (T-07-DTO-LEAK) — only the derived `logoEnabled` boolean crosses the
- * JSON boundary.
+ * JSON boundary, plus `hasLogo` (also just a boolean, never the bytes)
+ * so a client can distinguish "toggle on, nothing uploaded" from
+ * "toggle on, real logo already stored".
  */
 export function toQrCodeDto(qrCode: QrCode) {
   return {
@@ -378,6 +380,7 @@ export function toQrCodeDto(qrCode: QrCode) {
     color: qrCode.color,
     roundedModules: qrCode.roundedModules,
     logoEnabled: qrCode.logoEnabled,
+    hasLogo: qrCode.logoData !== null,
     lifetimeScans: qrCode.lifetimeScans,
     createdBy: qrCode.createdBy,
     createdAt: qrCode.createdAt.toISOString(),

@@ -55,6 +55,7 @@ function makeQrCode(overrides: Partial<QrCodeDTO> = {}): QrCodeDTO {
     color: "#17170f",
     roundedModules: false,
     logoEnabled: false,
+    hasLogo: false,
     lifetimeScans: 0,
     createdBy: "u1",
     createdAt: "2026-07-21T00:00:00.000Z",
@@ -353,6 +354,23 @@ describe("QrStudioPanel", () => {
     await flushPromises();
 
     expect(wrapper.find(".logo-overlay").exists()).toBe(true);
+  });
+
+  /**
+   * Regression: `hasCustomLogo` (session-local upload tracking) always
+   * starts `false` on a fresh mount/reselect, and `QrCodeDTO.logoEnabled`
+   * alone can't tell "toggle on, nothing uploaded" apart from "toggle on,
+   * real logo already stored" (T-07-DTO-LEAK — bytes never cross the
+   * JSON boundary). Without `hasLogo` in the check, reselecting a QR that
+   * genuinely has a saved logo redrew the decorative brand-K tile OVER
+   * the real server-composited preview — the user's actual uploaded logo
+   * was still saved, but visually hidden behind a generic placeholder,
+   * reading as "my custom logo didn't save".
+   */
+  it("does NOT show the placeholder overlay for a QR that already has a real stored logo (hasLogo: true)", () => {
+    const wrapper = mountPanel(makeQrCode({ logoEnabled: true, hasLogo: true }));
+
+    expect(wrapper.find(".logo-overlay").exists()).toBe(false);
   });
 
   it("rejects an oversized logo file inline and never calls updateQrCode", async () => {
