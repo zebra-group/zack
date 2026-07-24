@@ -109,6 +109,72 @@ describe("QrStudioPanel", () => {
     expect(srcAfter).not.toBe(srcBefore);
   });
 
+  it("renders the QR code's current name in an editable input", () => {
+    const wrapper = mountPanel(makeQrCode({ name: "Sommer-Kampagne" }));
+    const input = wrapper.find("input.name-input");
+    expect(input.exists()).toBe(true);
+    expect((input.element as HTMLInputElement).value).toBe("Sommer-Kampagne");
+  });
+
+  it("persists a renamed QR code via updateQrCode on blur", async () => {
+    updateQrCode.mockResolvedValue(makeQrCode({ name: "Neuer Name" }));
+    const wrapper = mountPanel(makeQrCode());
+
+    const input = wrapper.find("input.name-input");
+    await input.setValue("Neuer Name");
+    await input.trigger("blur");
+    await flushPromises();
+
+    expect(updateQrCode).toHaveBeenCalledWith("qr1", { name: "Neuer Name" });
+  });
+
+  it("trims whitespace before persisting a renamed QR code", async () => {
+    updateQrCode.mockResolvedValue(makeQrCode({ name: "Getrimmt" }));
+    const wrapper = mountPanel(makeQrCode());
+
+    const input = wrapper.find("input.name-input");
+    await input.setValue("  Getrimmt  ");
+    await input.trigger("blur");
+    await flushPromises();
+
+    expect(updateQrCode).toHaveBeenCalledWith("qr1", { name: "Getrimmt" });
+  });
+
+  it("does not call updateQrCode when the name is unchanged on blur", async () => {
+    const wrapper = mountPanel(makeQrCode({ name: "Unverändert" }));
+
+    const input = wrapper.find("input.name-input");
+    await input.trigger("blur");
+    await flushPromises();
+
+    expect(updateQrCode).not.toHaveBeenCalled();
+  });
+
+  it("rejects a blank name and reverts to the last persisted value", async () => {
+    const wrapper = mountPanel(makeQrCode({ name: "Original" }));
+
+    const input = wrapper.find("input.name-input");
+    await input.setValue("   ");
+    await input.trigger("blur");
+    await flushPromises();
+
+    expect(updateQrCode).not.toHaveBeenCalled();
+    expect((input.element as HTMLInputElement).value).toBe("Original");
+  });
+
+  it("reverts the name and toasts when updateQrCode fails", async () => {
+    updateQrCode.mockRejectedValue(new ApiError(500, "Internal Server Error"));
+    const wrapper = mountPanel(makeQrCode({ name: "Original" }));
+
+    const input = wrapper.find("input.name-input");
+    await input.setValue("Fehlerhaft");
+    await input.trigger("blur");
+    await flushPromises();
+
+    expect((input.element as HTMLInputElement).value).toBe("Original");
+    expect(wrapper.emitted("toast")).toBeTruthy();
+  });
+
   it("toggling 'Runde Module' persists roundedModules via updateQrCode", async () => {
     updateQrCode.mockResolvedValue(makeQrCode({ roundedModules: true }));
     const wrapper = mountPanel(makeQrCode());
