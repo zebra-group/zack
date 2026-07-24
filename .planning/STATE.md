@@ -4,17 +4,17 @@ milestone: v1.1
 milestone_name: E2E Test Coverage
 current_phase: 12
 current_phase_name: Redirect Handler E2E (Core Value
-status: executing
-stopped_at: Completed 12-04-PLAN.md
-last_updated: "2026-07-24T20:49:21.972Z"
+status: verifying
+stopped_at: Completed 12-05-PLAN.md (final plan of Phase 12)
+last_updated: "2026-07-24T21:35:59.546Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 12 execution started
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 11
-  completed_plans: 10
-  percent: 14
+  completed_plans: 11
+  percent: 29
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 Phase: 12 (Redirect Handler E2E (Core Value)) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-24 — Phase 12 execution started
 
 Progress: [██████████] 100%
@@ -76,6 +76,7 @@ Progress: [██████████] 100%
 | Phase 12 P02 | 25min | 2 tasks | 4 files |
 | Phase 12 P03 | 35min | 2 tasks | 3 files |
 | Phase 12 P04 | 20min | 2 tasks | 2 files |
+| Phase 12 P05 | 95min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,8 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 12]: REDIRECT-E2E-01/03 proven over real HTTP against the built compose image; fetchWithFixtureRaceRetry added to apps/e2e/src/links.ts to close a cross-file DB race between db-isolation.spec.ts's concurrent Link-table truncates and a fixture-creating real-HTTP test's read-back
 - [Phase 12]: Bot-vs-human test reuses the SAME slug/Link for both the bot-UA and browser-UA requests, proving the branch is driven purely by User-Agent, not by any incidental fixture difference between two separate Links
 - [Phase 12]: REDIRECT-E2E-04/REDIRECT-E2E-05 required zero changes to apps/e2e/src/links.ts -- the existing createE2eLink/BOT_UA/BROWSER_UA/CANARY_TARGET/assertNoLeak/fetchWithFixtureRaceRetry vocabulary from 12-02/12-03 covered every fixture and assertion verbatim
+- [Phase ?]: [Phase 12, Rule 1 bug FIXED] renderPasswordPage's real-browser form encoding (application/x-www-form-urlencoded) was never parseable by POST /:slug/verify -- fastify.inject's JSON-only payload shape had hidden this since v1.0. Fixed with a plugin-scoped addContentTypeParser inside registerRedirectRoute, proven via RED->GREEN TDD.
+- [Phase ?]: [Phase 12] A real Chromium page navigation cannot exercise a Secure-flagged cookie (NODE_ENV=production forces Secure) over the plain-HTTP, non-localhost e2e.kurzly.local origin -- Chromium withholds it regardless of CSP. page.request (shares the same BrowserContext cookie jar as page, but bypasses CSP form-action + Secure-cookie enforcement) is the closest achievable real-cookie-jar proof given this deliberate architecture; documented as a follow-up consideration, not actioned.
 
 ### Pending Todos
 
@@ -127,6 +130,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T20:49:21.966Z
-Stopped at: Completed 12-04-PLAN.md
+Last session: 2026-07-24T21:35:59.539Z
+Stopped at: Completed 12-05-PLAN.md (final plan of Phase 12)
 Resume file: None

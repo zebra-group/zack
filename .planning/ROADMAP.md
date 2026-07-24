@@ -30,7 +30,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 **Milestone Goal:** Add a real Playwright E2E suite covering every critical v1.0 user flow, run against the built Docker image in production shape, complementing the existing 540 API + 256 web Vitest tests. No new product features — the "requirement" grain is E2E test scenario. Sequenced infrastructure-first so shared foundation bugs (email polling, DB isolation, rate-limiting) are solved once before any flow coverage is written.
 
 - [x] **Phase 11: Playwright E2E Infrastructure & Fixtures** - Stable Playwright harness against the built image: Mailpit capture, DB isolation, per-role storageState fixtures, CI job, rate-limit bypass (completed 2026-07-24)
-- [ ] **Phase 12: Redirect Handler E2E (Core Value)** - End-to-end proof of the redirect handler across every state (happy path, password gate, 410 expiry, bot/OG, UTM), auth-independent
+- [x] **Phase 12: Redirect Handler E2E (Core Value)** - End-to-end proof of the redirect handler across every state (happy path, password gate, 410 expiry, bot/OG, UTM), auth-independent (completed 2026-07-24)
 - [ ] **Phase 13: Authentication & Session E2E** - Magic-link and OIDC/SSO login round-trips, session lifecycle, and route guarding — unlocks all dashboard-authenticated suites
 - [ ] **Phase 14: Links & CSV Import E2E** - Canonical link CRUD journey plus the two-step CSV bulk-import (preview → commit) flow
 - [ ] **Phase 15: QR Studio E2E** - Static QR with customization (decode round-trip), dynamic `/q/:code` remapping, and PNG/SVG export
@@ -74,13 +74,13 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
   4. A request with a pinned bot User-Agent receives the link's configured custom OG values — never the real target — and still respects the password/expiry gates; a request with a pinned browser UA is redirected. [REDIRECT-E2E-04]
   5. Owner-configured UTM parameters and request-time query params appear correctly merged on the final redirect URL. [REDIRECT-E2E-05]
 
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans complete
 
 - [x] 12-01-PLAN.md — Wave 0 host-header spike: prove APIRequestContext delivers a caller-supplied Host header to Fastify [Wave 1]
 - [x] 12-02-PLAN.md — Wave 0 fixture helper apps/e2e/src/links.ts (bcrypt hash + UTC end-of-day expiry) + shared vocabulary, TDD RED→GREEN [Wave 1]
 - [x] 12-03-PLAN.md — Happy-path redirect + reflected-XSS guard + expiry 410/no-leak (REDIRECT-E2E-01, REDIRECT-E2E-03) [Wave 2]
 - [x] 12-04-PLAN.md — Bot/OG branching + gate-respect + UTM/query merge (REDIRECT-E2E-04, REDIRECT-E2E-05) [Wave 2]
-- [ ] 12-05-PLAN.md — Password gate via real browser cookie jar + host-resolution (REDIRECT-E2E-02) [Wave 2]
+- [x] 12-05-PLAN.md — Password gate via real browser cookie jar + host-resolution (REDIRECT-E2E-02) [Wave 2]
 
 ### Phase 13: Authentication & Session E2E
 
@@ -166,7 +166,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 | 9. Team Mgmt & Domain-Scoped Authz | v1.0 | 7/7 | Complete | 2026-07-23 |
 | 10. OIDC/SSO Integration | v1.0 | 5/5 | Complete | 2026-07-23 |
 | 11. Playwright E2E Infrastructure & Fixtures | v1.1 | 6/6 | Complete    | 2026-07-24 |
-| 12. Redirect Handler E2E (Core Value) | v1.1 | 4/5 | In Progress|  |
+| 12. Redirect Handler E2E (Core Value) | v1.1 | 5/5 | Complete   | 2026-07-24 |
 | 13. Authentication & Session E2E | v1.1 | 0/TBD | Not started | - |
 | 14. Links & CSV Import E2E | v1.1 | 0/TBD | Not started | - |
 | 15. QR Studio E2E | v1.1 | 0/TBD | Not started | - |
