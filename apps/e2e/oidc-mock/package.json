@@ -1,0 +1,8 @@
+{
+  "name": "kurzly-oidc-mock",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "oidc-provider": "9.10.0"
+  }
+}
