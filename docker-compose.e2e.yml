@@ -19,7 +19,43 @@ services:
       # in prod) and from apps/api's own ephemeral Vitest testcontainers.
       - "5433:5432"
 
+  # Mock OIDC Identity Provider (13-01-PLAN.md, AUTH-E2E-04/05) -- the
+  # repo's first mock IdP. Host-published (unlike `db`'s dev-only 5433/
+  # mailpit's 8025) because ONE hop of the OAuth dance -- the browser's
+  # authorization redirect -- is genuinely browser-driven, not
+  # server-to-server; the discovery-document rewrite inside
+  # apps/e2e/oidc-mock/server.mjs is what lets `app` (server-to-server
+  # discovery/token/userinfo) and the host browser (authorization redirect
+  # only) each reach the same IdP over their own correct network path.
+  # NEVER add this service (or the app's OIDC_* env below) to
+  # docker-compose.yml/docker-compose.dev.yml -- SSO stays structurally
+  # absent from every real config surface, mirroring E2E_COMPOSE_OVERLAY.
+  oidc-mock:
+    build: ./apps/e2e/oidc-mock
+    ports:
+      - "9000:9000"
+    environment:
+      OIDC_MOCK_PORT: "9000"
+      # What `app` fetches discovery/token/userinfo from (Docker-internal).
+      OIDC_MOCK_INTERNAL_URL: "http://oidc-mock:9000"
+      # What the host browser is redirected to for the authorization hop.
+      OIDC_MOCK_PUBLIC_URL: "http://localhost:9000"
+      OIDC_MOCK_CLIENT_ID: "kurzly-e2e-oidc-client"
+      OIDC_MOCK_CLIENT_SECRET: "kurzly-e2e-oidc-secret"
+      # MUST equal ssoConfig.ts's ssoCallbackPath("http://localhost:3000")
+      # for provider id "oidc" (D-10-06) -- both sides derive the same
+      # genericOAuth callback path.
+      OIDC_MOCK_REDIRECT_URI: "http://localhost:3000/api/auth/oauth2/callback/oidc"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/.well-known/openid-configuration"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
   app:
+    depends_on:
+      oidc-mock:
+        condition: service_healthy
     environment:
       # CR-05 (11-REVIEW.md iteration 2) — a fixed literal, NOT interpolated
       # from the script's/CI's own environment (unlike
@@ -52,3 +88,13 @@ services:
       # from the script's/CI's own environment, NEVER a literal default
       # here and NEVER present in docker-compose.yml/prod.
       E2E_RATE_LIMIT_BYPASS_SECRET: ${E2E_RATE_LIMIT_BYPASS_SECRET}
+      # All-three-present (D-10-07) so readSsoConfig() returns non-null ->
+      # genericOAuth registers -> /api/auth/sign-in/oauth2 exists and the
+      # login view's SSO button appears. app-container-facing issuer
+      # (Docker-internal) -- matches ssoDiscoveryUrl()'s fetch origin
+      # (D-10-03). NEVER add these three keys to docker-compose.yml,
+      # docker-compose.dev.yml, or .env.example -- SSO stays structurally
+      # absent from every real config surface.
+      OIDC_ISSUER_URL: "http://oidc-mock:9000"
+      OIDC_CLIENT_ID: "kurzly-e2e-oidc-client"
+      OIDC_CLIENT_SECRET: "kurzly-e2e-oidc-secret"
