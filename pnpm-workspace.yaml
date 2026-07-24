@@ -34,3 +34,6 @@ allowBuilds:
   # "no blanket lifecycle-script enablement" rationale as cpu-features/
   # protobufjs/ssh2 above (threat T-01-02).
   better-sqlite3: false
+
+minimumReleaseAgeExclude:
+  - '@semantic-release/git@11.0.1'
