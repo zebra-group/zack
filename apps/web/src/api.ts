@@ -27,7 +27,7 @@ import type {
   UpdateMemberRoleInput,
   UpdateQrCodeInput,
 } from "@kurzly/shared";
-import type { CanaryResult } from "@kurzly/shared";
+import type { CanaryResult, VersionInfo } from "@kurzly/shared";
 
 /**
  * Thrown by `parseJsonOrThrow` (and any manual non-ok checks below) on a
@@ -182,6 +182,12 @@ export async function getCanary(): Promise<CanaryStatus> {
 export async function createCanary(): Promise<CanaryResult> {
   const response = await fetch("/api/canary", { method: "POST" });
   return parseJsonOrThrow<CanaryResult>(response);
+}
+
+/** `GET /api/version` — the actual deployed release version (AppShell.vue's sidebar footer), never a hardcoded UI literal. */
+export async function getVersion(): Promise<VersionInfo> {
+  const response = await fetch("/api/version", { method: "GET" });
+  return parseJsonOrThrow<VersionInfo>(response);
 }
 
 /**

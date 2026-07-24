@@ -7,6 +7,11 @@ export type HealthStatus = {
   status: "ok";
 };
 
+/** `GET /api/version` response — the actual deployed release version (root `package.json`'s semantic-release-bumped version), never a hardcoded UI literal. */
+export type VersionInfo = {
+  version: string;
+};
+
 export type CanaryResult = {
   token: string;
   total: number;
