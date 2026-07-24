@@ -53,6 +53,16 @@ test.describe("REDIRECT-E2E-04: bot/OG branching, gate-respect, no-leak", () => 
           });
         },
         (r) => r.status() === 200,
+        3,
+        {
+          label: "bot-og-normal",
+          // 12-REVIEW.md WR-03: a discarded intermediate attempt is still
+          // checked for a canary leak — a real leak on a failed attempt must
+          // never be able to hide behind a later, matching retry.
+          onDiscardedAttempt: async (r) => {
+            assertNoLeak(await r.text(), r.headers(), "https://real-target.example.com/");
+          },
+        },
       );
 
       expect(botResponse.status()).toBe(200);
@@ -108,6 +118,15 @@ test.describe("REDIRECT-E2E-04: bot/OG branching, gate-respect, no-leak", () => 
           });
         },
         (r) => r.status() === 200,
+        3,
+        {
+          label: "bot-og-protected",
+          // 12-REVIEW.md WR-03: check every discarded attempt for the
+          // canary too, not only the one that finally matched.
+          onDiscardedAttempt: async (r) => {
+            assertNoLeak(await r.text(), r.headers(), CANARY_TARGET);
+          },
+        },
       );
 
       expect(response.status()).toBe(200);
@@ -141,6 +160,15 @@ test.describe("REDIRECT-E2E-04: bot/OG branching, gate-respect, no-leak", () => 
           });
         },
         (r) => r.status() === 200,
+        3,
+        {
+          label: "bot-og-expired",
+          // 12-REVIEW.md WR-03: check every discarded attempt for the
+          // canary too, not only the one that finally matched.
+          onDiscardedAttempt: async (r) => {
+            assertNoLeak(await r.text(), r.headers(), CANARY_TARGET);
+          },
+        },
       );
 
       expect(response.status()).toBe(200);

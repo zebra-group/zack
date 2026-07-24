@@ -183,16 +183,72 @@ export function assertNoLeak(body: string, headers: Record<string, string>, cana
  * browser navigations (`page.goto`, which resolves `playwright.Response |
  * null`) — `redirect-password-gate.spec.ts` needs the latter shape and,
  * before this change, had no compatible overload to reach for.
+ *
+ * `options.onDiscardedAttempt` and the `console.warn` below close
+ * 12-REVIEW.md WR-03: previously a failed attempt's response was silently
+ * thrown away, which meant (a) a retry firing because of a genuinely NEW,
+ * unrelated regression looked identical in CI output to the documented
+ * truncate race firing, and (b) for the no-leak specs specifically, a
+ * discarded intermediate response's body/headers were never inspected — a
+ * real leak on attempt 1 could hide behind a clean attempt 2. `console.warn`
+ * always surfaces a retry (attempt number + best-effort status); passing
+ * `onDiscardedAttempt` lets a caller (e.g. `assertNoLeak`) additionally run
+ * its OWN checks against every discarded attempt, not only the one that
+ * finally matched `isExpected`.
  */
 export async function fetchWithFixtureRaceRetry<T>(
   attempt: () => Promise<T>,
   isExpected: (response: T) => boolean,
   maxAttempts = 3,
+  options?: {
+    /**
+     * Invoked for every attempt that does NOT match `isExpected`, right
+     * after that attempt is discarded (including the final, exhausted
+     * attempt). Use this to still assert security-sensitive invariants
+     * (e.g. `assertNoLeak`) against a response this function itself never
+     * returns to the caller.
+     */
+    onDiscardedAttempt?: (response: T, attemptNumber: number) => void | Promise<void>;
+    /** Included in the `console.warn` emitted on every retry, so multi-callsite CI output is attributable to a specific spec/test. */
+    label?: string;
+  },
 ): Promise<T> {
   let response: T | undefined;
   for (let i = 0; i < maxAttempts; i++) {
     response = await attempt();
     if (isExpected(response)) return response;
+
+    const attemptNumber = i + 1;
+    const willRetry = attemptNumber < maxAttempts;
+    // WR-03: log every discarded attempt so CI output can distinguish "the
+    // documented db-isolation truncate race fired" from a genuinely
+    // flaky/regressed response, instead of silently swallowing it.
+    console.warn(
+      `[fetchWithFixtureRaceRetry${options?.label ? `:${options.label}` : ""}] attempt ${attemptNumber}/${maxAttempts} returned status ${describeResponseStatus(response)}, not the expected response — ${
+        willRetry ? "retrying with a fresh fixture" : "exhausted retries, returning the last response"
+      }`,
+    );
+    if (options?.onDiscardedAttempt) {
+      await options.onDiscardedAttempt(response, attemptNumber);
+    }
   }
   return response as T;
+}
+
+/**
+ * Best-effort status extraction for the `console.warn` above. Every real
+ * caller passes a Playwright `APIResponse` or page-navigation `Response`
+ * (both expose a synchronous `.status()`), but this stays defensive against
+ * `null` (a real, documented `page.goto` return type) or any other shape
+ * rather than throwing from inside a diagnostic log line.
+ */
+function describeResponseStatus(response: unknown): string {
+  if (response && typeof (response as { status?: unknown }).status === "function") {
+    try {
+      return String((response as { status: () => number }).status());
+    } catch {
+      return "<status() threw>";
+    }
+  }
+  return "<no status()>";
 }
