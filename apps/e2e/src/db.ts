@@ -139,13 +139,47 @@ export async function seedBaseline(prisma: PrismaClient): Promise<void> {
  * it landing on a different connection.
  */
 export async function resetDb(prisma: PrismaClient): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${RESET_DB_ADVISORY_LOCK_KEY})`);
-    await tx.$executeRawUnsafe(
-      'TRUNCATE "QrRemapHistory", "QrCode", "ClickEvent", "Link", "DomainMembership" RESTART IDENTITY CASCADE',
-    );
-    await reseedBaselineDomainMembership(tx);
+  await withResetDbLock(prisma, async () => {
+    /* no-op: callers that only need the reset itself (no additional work
+     * that must share the lock's critical section) pass no callback. */
   });
+}
+
+/**
+ * Widened critical-section variant of `resetDb` (CR-04, 11-REVIEW.md) — for
+ * callers where the reset alone is not enough: `resetDb()`'s lock only ever
+ * covered the truncate+reseed itself, not whatever the caller does
+ * afterwards. When multiple fully-parallel tests each call `resetDb()` then
+ * separately create+read their own rows (e.g. `db-isolation.spec.ts`),
+ * nothing stops a *different* test's `resetDb()` truncate from firing
+ * between the first test's reset and its own create/read, wiping the first
+ * test's rows out from under it. `withResetDbLock` holds the same
+ * transaction-scoped `pg_advisory_xact_lock` for the ENTIRE duration of
+ * `callback` (not just the truncate), so a concurrently-running caller's
+ * `resetDb()`/`withResetDbLock()` call blocks until this one's callback —
+ * truncate, reseed, AND the caller's own writes/reads — has fully committed.
+ */
+export async function withResetDbLock<T>(
+  prisma: PrismaClient,
+  callback: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  return prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${RESET_DB_ADVISORY_LOCK_KEY})`);
+      await tx.$executeRawUnsafe(
+        'TRUNCATE "QrRemapHistory", "QrCode", "ClickEvent", "Link", "DomainMembership" RESTART IDENTITY CASCADE',
+      );
+      await reseedBaselineDomainMembership(tx);
+      return callback(tx);
+    },
+    // Default interactive-transaction timeout (5s) is too tight once every
+    // concurrent test's full create+read cycle is serialized through this
+    // single critical section (CONCURRENT_TEST_COUNT tests, each queued
+    // behind the previous one) — widen it well past the worst-case queue
+    // depth so contention alone never trips Prisma's own transaction
+    // timeout independent of the test's real logic.
+    { timeout: 30_000 },
+  );
 }
 
 /**
