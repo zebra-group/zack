@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import { createE2ePrisma, BASELINE_DOMAIN_HOSTNAME } from "../../src/db.js";
-import { createE2eLink, BROWSER_UA } from "../../src/links.js";
+import { createE2eLink, BROWSER_UA, fetchWithFixtureRaceRetry } from "../../src/links.js";
 
 /**
  * REDIRECT-E2E-01 (12-03-PLAN.md Task 1) — re-proves `routes/redirect.ts`'s
@@ -21,16 +21,24 @@ test.describe("REDIRECT-E2E-01: slug -> target happy-path redirect", () => {
   test("returns 302 with the exact stored target and Cache-Control: no-store", async ({ request }) => {
     const prisma = createE2ePrisma();
     try {
-      const slug = `redirect-happy-${randomUUID()}`;
-      await createE2eLink(prisma, {
-        slug,
-        targetUrl: "https://destination.example.com/landing",
-      });
-
-      const response = await request.get(`/${slug}`, {
-        headers: { host: BASELINE_DOMAIN_HOSTNAME, "user-agent": BROWSER_UA },
-        maxRedirects: 0,
-      });
+      // Wrapped in fetchWithFixtureRaceRetry (12-03-PLAN.md deviation, Rule
+      // 1): db-isolation.spec.ts's concurrent Link-table truncates can wipe
+      // this row between creation and the HTTP GET — retry with a fresh
+      // fixture on an unexpected status.
+      const response = await fetchWithFixtureRaceRetry(
+        async () => {
+          const slug = `redirect-happy-${randomUUID()}`;
+          await createE2eLink(prisma, {
+            slug,
+            targetUrl: "https://destination.example.com/landing",
+          });
+          return request.get(`/${slug}`, {
+            headers: { host: BASELINE_DOMAIN_HOSTNAME, "user-agent": BROWSER_UA },
+            maxRedirects: 0,
+          });
+        },
+        (r) => r.status() === 302,
+      );
 
       expect(response.status()).toBe(302);
       expect(response.headers()["location"]).toBe("https://destination.example.com/landing");
