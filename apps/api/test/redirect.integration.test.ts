@@ -178,6 +178,44 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       expect(response.statusCode).toBe(404);
       expect(response.body).toContain("Dieser Kurzlink existiert nicht");
     });
+
+    // CR-07 (11-REVIEW.md, discovered via live E2E testing against the
+    // built image): the dashboard's OWN host (BASE_URL, "localhost" in this
+    // test env — see vitest.config.ts) is never a registered redirect
+    // Domain. A request for a single-segment SPA route (e.g. "/team") on
+    // that host used to fall into this same `!domain` branch and get the
+    // redirect engine's branded "not found" page instead of falling
+    // through to app.ts's setNotFoundHandler (which serves the SPA's
+    // index.html) — silently breaking a hard reload/direct navigation to
+    // any dashboard sub-route.
+    it("falls through to the SPA (setNotFoundHandler) for the app's own host, never the branded redirect 404", async () => {
+      const app = await buildApp({ prisma });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/team",
+        headers: { host: "localhost:3000", "user-agent": BROWSER_UA },
+      });
+
+      // setNotFoundHandler (app.ts) sends `reply.sendFile("index.html")`
+      // for any non-/api path — fastify.inject reports this as a 200 with
+      // an HTML body, never the redirect engine's 404 page.
+      expect(response.statusCode).toBe(200);
+      expect(response.body).not.toContain("Dieser Kurzlink existiert nicht");
+    });
+
+    it("still returns the branded 404 for a genuinely unregistered THIRD-PARTY host (CR-07 does not weaken REDIR-02)", async () => {
+      const app = await buildApp({ prisma });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/team",
+        headers: { host: "some-random-attacker-host.example.com", "user-agent": BROWSER_UA },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.body).toContain("Dieser Kurzlink existiert nicht");
+    });
   });
 
   describe("REDIR-03: expired link -> 410, no Location, no leak", () => {
