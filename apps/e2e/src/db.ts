@@ -36,10 +36,10 @@ export const MEMBER_EMAIL = "member@e2e.kurzly.local";
 export const BASELINE_DOMAIN_HOSTNAME = "e2e.kurzly.local";
 
 /**
- * Fixed integer key for `pg_advisory_lock`/`pg_advisory_unlock` around
- * `resetDb`'s truncate+reseed sequence (RESEARCH Pitfall 4) — arbitrary but
- * stable across the whole E2E suite so two parallel worker spec files can
- * never interleave their truncate/reseed against each other.
+ * Fixed integer key for `pg_advisory_xact_lock` around
+ * `withResetDbLock`'s truncate+reseed sequence (RESEARCH Pitfall 4) —
+ * arbitrary but stable across the whole E2E suite so two parallel worker
+ * spec files can never interleave their truncate/reseed against each other.
  */
 const RESET_DB_ADVISORY_LOCK_KEY = 424_242;
 
@@ -115,14 +115,25 @@ export async function seedBaseline(prisma: PrismaClient): Promise<void> {
 }
 
 /**
- * FK-safe truncate + reseed of the file-scoped mutable tables (RESEARCH
- * Pattern 3): `QrRemapHistory -> QrCode -> ClickEvent -> Link ->
- * DomainMembership`, `RESTART IDENTITY CASCADE`. Deliberately never
+ * FK-safe, advisory-locked truncate + reseed of the file-scoped mutable
+ * tables (RESEARCH Pattern 3): `QrRemapHistory -> QrCode -> ClickEvent ->
+ * Link -> DomainMembership`, `RESTART IDENTITY CASCADE`. Deliberately never
  * truncates `User`/`Domain`/`Session`/`Account`/`Verification` — truncating
  * `Session` mid-run would invalidate every spec project's saved
  * `storageState` (T-11-06). Uses the reused Prisma client's own
  * `$executeRawUnsafe` (no second `pg` driver dependency, per RESEARCH
  * "Don't Hand-Roll").
+ *
+ * IN-02 (11-REVIEW.md iteration 2): this used to be a separate `resetDb()`
+ * export with its own truncate-only critical section, plus this function as
+ * a "widened" variant for callers needing to also cover their own
+ * create/read (CR-04). The CR-04 fix rewrote `db-isolation.spec.ts` — the
+ * ONLY caller either function ever had — to always need the widened
+ * critical section, leaving the truncate-only `resetDb()` with zero callers
+ * anywhere in the codebase. Removed rather than kept as unused public API;
+ * reintroduce a narrower truncate-only export here if a future spec
+ * genuinely needs the reset without sharing the lock's critical section
+ * with its own writes.
  *
  * Wrapped in a single `$transaction` using `pg_advisory_xact_lock`
  * (CR-03, 11-REVIEW.md) — the previous implementation issued
@@ -137,27 +148,15 @@ export async function seedBaseline(prisma: PrismaClient): Promise<void> {
  * for the transaction's lifetime, and the lock is released automatically
  * on commit/rollback — no separate unlock call needed, no possibility of
  * it landing on a different connection.
- */
-export async function resetDb(prisma: PrismaClient): Promise<void> {
-  await withResetDbLock(prisma, async () => {
-    /* no-op: callers that only need the reset itself (no additional work
-     * that must share the lock's critical section) pass no callback. */
-  });
-}
-
-/**
- * Widened critical-section variant of `resetDb` (CR-04, 11-REVIEW.md) — for
- * callers where the reset alone is not enough: `resetDb()`'s lock only ever
- * covered the truncate+reseed itself, not whatever the caller does
- * afterwards. When multiple fully-parallel tests each call `resetDb()` then
- * separately create+read their own rows (e.g. `db-isolation.spec.ts`),
- * nothing stops a *different* test's `resetDb()` truncate from firing
- * between the first test's reset and its own create/read, wiping the first
- * test's rows out from under it. `withResetDbLock` holds the same
- * transaction-scoped `pg_advisory_xact_lock` for the ENTIRE duration of
- * `callback` (not just the truncate), so a concurrently-running caller's
- * `resetDb()`/`withResetDbLock()` call blocks until this one's callback —
- * truncate, reseed, AND the caller's own writes/reads — has fully committed.
+ *
+ * Holds the lock for the ENTIRE duration of `callback` (not just the
+ * truncate) — CR-04, 11-REVIEW.md: when multiple fully-parallel tests each
+ * reset then separately create+read their own rows (e.g.
+ * `db-isolation.spec.ts`), nothing would otherwise stop a *different*
+ * test's reset from firing between this one's reset and its own
+ * create/read, wiping this test's rows out from under it. Serializing the
+ * whole reset+create+read cycle through one held transaction closes that
+ * race.
  */
 export async function withResetDbLock<T>(
   prisma: PrismaClient,
@@ -183,12 +182,12 @@ export async function withResetDbLock<T>(
 }
 
 /**
- * Re-applies the baseline Member's DomainMembership after `resetDb`'s
- * truncate — `DomainMembership` is file-scoped/truncated (specs may create
- * their own memberships), but every spec still expects the seeded Member
- * to hold its baseline least-privilege membership unless it deliberately
- * mutates it. `User`/`Domain` rows are never truncated, so they always
- * exist by the time this runs.
+ * Re-applies the baseline Member's DomainMembership after
+ * `withResetDbLock`'s truncate — `DomainMembership` is file-scoped/truncated
+ * (specs may create their own memberships), but every spec still expects
+ * the seeded Member to hold its baseline least-privilege membership unless
+ * it deliberately mutates it. `User`/`Domain` rows are never truncated, so
+ * they always exist by the time this runs.
  */
 async function reseedBaselineDomainMembership(
   prisma: PrismaClient | Prisma.TransactionClient,
