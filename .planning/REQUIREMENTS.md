@@ -9,7 +9,7 @@
 
 ### E2E-Infrastruktur
 
-- [ ] **INFRA-01**: Playwright ist als eigenes pnpm-Workspace-Paket (`apps/e2e`) eingerichtet und läuft gegen das gebaute Docker-Image (nicht gegen separate Dev-Server)
+- [x] **INFRA-01**: Playwright ist als eigenes pnpm-Workspace-Paket (`apps/e2e`) eingerichtet und läuft gegen das gebaute Docker-Image (nicht gegen separate Dev-Server)
 - [ ] **INFRA-02**: Mailpit läuft als SMTP-Catcher-Service in `docker-compose.dev.yml`, per HTTP-API aus Playwright-Tests auslesbar (Magic-Link-/Invite-Mails)
 - [ ] **INFRA-03**: E2E-Testlauf hat eine isolierte, wiederherstellbare Postgres-Instanz (getrennt vom bestehenden Vitest-Testcontainers-Setup), inkl. Reset-/Seed-Strategie zwischen Testdateien
 - [ ] **INFRA-04**: Ein wiederverwendbares `storageState`-Auth-Fixture (pro Rolle: Admin/Mitglied) erspart jeder nachgelagerten Test-Suite einen erneuten Login-Roundtrip
@@ -83,7 +83,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 11 | Pending |
+| INFRA-01 | Phase 11 | Complete |
 | INFRA-02 | Phase 11 | Pending |
 | INFRA-03 | Phase 11 | Pending |
 | INFRA-04 | Phase 11 | Pending |

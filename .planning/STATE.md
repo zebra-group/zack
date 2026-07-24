@@ -1,15 +1,19 @@
 ---
-gsd_state_version: '1.0'
+gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: E2E Test Coverage
-status: planning
-last_updated: "2026-07-24T13:00:00.000Z"
+current_phase: 11
+current_phase_name: Playwright E2E Infrastructure & Fixtures
+status: executing
+stopped_at: Phase 11 Plan 01 (Playwright E2E workspace scaffold + Prisma-subpath spike) complete.
+last_updated: "2026-07-24T13:57:03.000Z"
 last_activity: 2026-07-24
+last_activity_desc: Plan 11-01 complete — @kurzly/e2e workspace scaffolded, apps/api ./prisma-client subpath export proven under Playwright's runtime
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 6
+  completed_plans: 1
   percent: 0
 ---
 
@@ -25,24 +29,25 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 11 of 17 (Playwright E2E Infrastructure & Fixtures) — first phase of milestone v1.1
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-07-24 — Roadmap created for v1.1 (7 phases, 32 requirements, 100% mapped)
+Plan: 01 of 6 complete (11-01: Playwright E2E workspace scaffold + Prisma-subpath spike)
+Status: In progress — 5 plans remaining in Phase 11
+Last activity: 2026-07-24 — Plan 11-01 complete: @kurzly/e2e scaffolded, apps/api ./prisma-client subpath export proven under Playwright's runtime
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 17%
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed (v1.0): 65
 - Average duration: ~8 min
-- v1.1 plans completed: 0
+- v1.1 plans completed: 1
 
 **By Phase (v1.1):**
 
 | Phase | Plans | Status |
 |-------|-------|--------|
-| 11 | TBD | Not started |
+| 11 | 1/6 | In progress |
 | 12 | TBD | Not started |
 | 13 | TBD | Not started |
 | 14 | TBD | Not started |
@@ -51,8 +56,15 @@ Progress: [░░░░░░░░░░] 0%
 | 17 | TBD | Not started |
 
 **Recent Trend:**
-- v1.0 shipped 2026-07-23 (10 phases, 65 plans); v1.1 not yet started
+
+- v1.0 shipped 2026-07-23 (10 phases, 65 plans); v1.1 started 2026-07-24 with Phase 11 Plan 01
 - Trend: -
+
+**Recent Plans:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 11 P01 | 10min | 3 tasks | 6 files |
 
 *Updated after each plan completion*
 
@@ -66,6 +78,7 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - E2E Postgres is a separate long-lived instance (published port 5433), distinct from the Vitest testcontainers harness; per-file truncate/reseed, not `BEGIN/ROLLBACK` (cross-process boundary).
 - Sequence infra-first: shared foundation bugs (Mailpit inbox scoping, DB isolation, rate-limit 429s, CI healthchecks/shm) solved once in Phase 11 before any flow coverage.
 - Domain-scoped authz E2E complements, does NOT re-run, the v1.0 integration Denial-Suite — only representative UI-layer proof per resource type.
+- [Phase 11]: Raw-.ts Prisma-client subpath export (apps/api/package.json exports['./prisma-client']) resolves directly under Playwright's runtime — RESEARCH OQ-1/A1 closed green, no compiled-artifact fallback needed.
 
 ### Pending Todos
 
@@ -74,6 +87,7 @@ None yet.
 ### Blockers/Concerns
 
 Research flags to resolve during phase planning:
+
 - Phase 11: DB-isolation mechanism (per-worker DB vs. unique-ID generation) needs a short spike; finalize rate-limit bypass mechanism.
 - Phase 12: review actual bot-detection UA implementation before writing bot/OG specs; confirm custom-domain testing approach (/etc/hosts vs. host-header).
 - Phase 13: mock OIDC IdP (oidc-provider) + better-auth genericOAuth callback specifics need planning validation; confirm where better-auth stores session (cookies vs. sessionStorage) before trusting storageState.
@@ -89,6 +103,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-24 13:00
-Stopped at: Roadmap and requirements traceability written for milestone v1.1; STATE initialized at Phase 11 ready-to-plan.
+Last session: 2026-07-24T13:57:03.000Z
+Stopped at: Phase 11 Plan 01 complete (Playwright E2E workspace scaffold + Prisma-subpath spike). Ready to execute 11-02.
 Resume file: None
