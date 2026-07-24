@@ -29,7 +29,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 
 **Milestone Goal:** Add a real Playwright E2E suite covering every critical v1.0 user flow, run against the built Docker image in production shape, complementing the existing 540 API + 256 web Vitest tests. No new product features — the "requirement" grain is E2E test scenario. Sequenced infrastructure-first so shared foundation bugs (email polling, DB isolation, rate-limiting) are solved once before any flow coverage is written.
 
-- [ ] **Phase 11: Playwright E2E Infrastructure & Fixtures** - Stable Playwright harness against the built image: Mailpit capture, DB isolation, per-role storageState fixtures, CI job, rate-limit bypass
+- [x] **Phase 11: Playwright E2E Infrastructure & Fixtures** - Stable Playwright harness against the built image: Mailpit capture, DB isolation, per-role storageState fixtures, CI job, rate-limit bypass (completed 2026-07-24)
 - [ ] **Phase 12: Redirect Handler E2E (Core Value)** - End-to-end proof of the redirect handler across every state (happy path, password gate, 410 expiry, bot/OG, UTM), auth-independent
 - [ ] **Phase 13: Authentication & Session E2E** - Magic-link and OIDC/SSO login round-trips, session lifecycle, and route guarding — unlocks all dashboard-authenticated suites
 - [ ] **Phase 14: Links & CSV Import E2E** - Canonical link CRUD journey plus the two-step CSV bulk-import (preview → commit) flow
@@ -52,14 +52,14 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
   4. A fresh browser context loaded from saved `storageState` reaches an authenticated dashboard route without re-login, for both the Admin and the Member role fixtures. [INFRA-04]
   5. CI runs the Playwright suite as its own job after the existing test/build jobs, uploads report/trace artifacts on failure, and one dedicated spec still trips a real 429 while the rest of the suite runs unthrottled via a narrow test-only bypass (not a blanket disable). [INFRA-05, INFRA-06]
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans complete
 
 - [x] 11-01-PLAN.md — E2E workspace scaffold + Prisma-client subpath export & spike (INFRA-01) [Wave 1]
 - [x] 11-02-PLAN.md — Rate-limit test-only bypass mechanism + unit tests (INFRA-06) [Wave 1]
 - [x] 11-03-PLAN.md — E2E compose overlay, boot script & built-image boot smoke (INFRA-01) [Wave 2]
 - [x] 11-04-PLAN.md — DB reset/seed + Mailpit client + global setup + isolation/wiring smokes (INFRA-02, INFRA-03) [Wave 3]
 - [x] 11-05-PLAN.md — Per-role storageState auth fixture + reuse smoke (INFRA-04) [Wave 4]
-- [ ] 11-06-PLAN.md — Rate-limit bypass E2E proof + CI e2e job (INFRA-05, INFRA-06) [Wave 5]
+- [x] 11-06-PLAN.md — Rate-limit bypass E2E proof + CI e2e job (INFRA-05, INFRA-06) [Wave 5]
 
 ### Phase 12: Redirect Handler E2E (Core Value)
 
@@ -159,7 +159,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 | 8. UTM Builder + Custom OG Metadata | v1.0 | 6/6 | Complete | 2026-07-23 |
 | 9. Team Mgmt & Domain-Scoped Authz | v1.0 | 7/7 | Complete | 2026-07-23 |
 | 10. OIDC/SSO Integration | v1.0 | 5/5 | Complete | 2026-07-23 |
-| 11. Playwright E2E Infrastructure & Fixtures | v1.1 | 5/6 | In Progress|  |
+| 11. Playwright E2E Infrastructure & Fixtures | v1.1 | 6/6 | Complete   | 2026-07-24 |
 | 12. Redirect Handler E2E (Core Value) | v1.1 | 0/TBD | Not started | - |
 | 13. Authentication & Session E2E | v1.1 | 0/TBD | Not started | - |
 | 14. Links & CSV Import E2E | v1.1 | 0/TBD | Not started | - |

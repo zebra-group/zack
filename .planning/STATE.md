@@ -5,16 +5,16 @@ milestone_name: E2E Test Coverage
 current_phase: 11
 current_phase_name: Playwright E2E Infrastructure & Fixtures
 status: executing
-stopped_at: Phase 11 Plan 05 (auth.setup.ts, storageState fixture, chromium-admin/chromium-member projects, storage-state.spec.ts) complete. Ready to execute 11-06.
-last_updated: "2026-07-24T14:38:48.235Z"
+stopped_at: Phase 11 Plan 06 (rate-limit-bypass.spec.ts INFRA-06 E2E proof, CI e2e job INFRA-05) complete. Phase 11 (Playwright E2E Infrastructure & Fixtures) is fully complete — all 6 plans done.
+last_updated: "2026-07-24T14:46:57.920Z"
 last_activity: 2026-07-24
-last_activity_desc: "Plan 11-05 complete: apps/e2e/tests/auth.setup.ts (per-role magic-link round trip, storageState fixture), playwright.config.ts (setup/chromium-admin/chromium-member projects), apps/e2e/tests/authed/storage-state.spec.ts (fresh-context reuse proof, role-specific UI assertion)"
+last_activity_desc: "Plan 11-06 complete: apps/e2e/tests/smoke/rate-limit-bypass.spec.ts (real 429 without x-e2e-bypass header, all-pass with it — INFRA-06 E2E proof), .github/workflows/ci.yml e2e job (needs: [test, smoke], fresh browser install, per-run generated E2E_RATE_LIMIT_BYPASS_SECRET, failure-only report/trace artifacts — INFRA-05). Phase 11 is fully complete."
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 6
+  percent: 14
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 11 of 17 (Playwright E2E Infrastructure & Fixtures) — first phase of milestone v1.1
-Plan: 5 of 6 complete (11-05: auth.setup.ts storageState fixture, chromium-admin/chromium-member projects, storage-state.spec.ts)
-Status: In progress — 1 plan remaining in Phase 11
-Last activity: 2026-07-24 — Plan 11-05 complete: apps/e2e/tests/auth.setup.ts (per-role magic-link round trip, storageState fixture), playwright.config.ts (setup/chromium-admin/chromium-member projects), apps/e2e/tests/authed/storage-state.spec.ts (fresh-context reuse proof, role-specific UI assertion)
+Plan: 6 of 6 complete (11-06: rate-limit-bypass.spec.ts INFRA-06 E2E proof, CI e2e job INFRA-05)
+Status: Phase 11 complete — ready to plan Phase 12
+Last activity: 2026-07-24 — Plan 11-06 complete: apps/e2e/tests/smoke/rate-limit-bypass.spec.ts (real 429 without x-e2e-bypass header, all-pass with it), .github/workflows/ci.yml e2e job (needs: [test, smoke], fresh browser install, per-run generated E2E_RATE_LIMIT_BYPASS_SECRET, failure-only report/trace artifacts)
 
-Progress: [████████░░] 83%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -41,13 +41,13 @@ Progress: [████████░░] 83%
 
 - Total plans completed (v1.0): 65
 - Average duration: ~8 min
-- v1.1 plans completed: 3
+- v1.1 plans completed: 6
 
 **By Phase (v1.1):**
 
 | Phase | Plans | Status |
 |-------|-------|--------|
-| 11 | 4/6 | In progress |
+| 11 | 6/6 | Complete |
 | 12 | TBD | Not started |
 | 13 | TBD | Not started |
 | 14 | TBD | Not started |
@@ -71,6 +71,7 @@ Progress: [████████░░] 83%
 | Phase 11 P03 | 25min | 3 tasks | 3 files |
 | Phase 11 P04 | 27min | 3 tasks | 9 files |
 | Phase 11 P05 | 15min | 2 tasks | 3 files |
+| Phase 11 P06 | 10min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,8 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 11]: resetDb() wraps its TRUNCATE+reseed in pg_advisory_lock/unlock so parallel fullyParallel worker files never interleave; db-isolation.spec.ts uses cryptographically-random per-test slugs so a real P2002 is structurally impossible regardless of scheduling
 - [Phase 11]: auth.setup.ts requests magic links via direct request.post (mirroring 11-04's mailpit-wiring pattern) rather than driving the LoginView UI form — the UI login flow itself is Phase 13 scope; keeps the auth fixture focused on establishing a real session
 - [Phase 11]: storage-state.spec.ts detects role via testInfo.project.name in a single shared spec file instead of two near-duplicate per-role files — one assertion body proves both "reaches an authenticated route" and "correct role's session was captured" (T-11-08) for chromium-admin and chromium-member alike
+- [Phase 11]: rate-limit-bypass.spec.ts runs the negative burst before the positive burst against the same probe IP so the positive burst proves the bypass overrides an already-tripped bucket
+- [Phase 11]: CI's e2e job generates E2E_RATE_LIMIT_BYPASS_SECRET itself via a dedicated openssl rand -hex 32 step (id: bypass-secret) rather than relying solely on scripts/e2e-compose.sh's own fallback, making per-run provenance explicit in ci.yml
 
 ### Pending Todos
 
@@ -114,6 +117,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T14:38:32.447Z
-Stopped at: Phase 11 Plan 05 (auth.setup.ts, storageState fixture, chromium-admin/chromium-member projects, storage-state.spec.ts) complete. Ready to execute 11-06.
+Last session: 2026-07-24T14:46:57.913Z
+Stopped at: Phase 11 Plan 06 (rate-limit-bypass.spec.ts INFRA-06 E2E proof, CI e2e job INFRA-05) complete. Phase 11 (Playwright E2E Infrastructure & Fixtures) is fully complete — all 6 plans done.
 Resume file: None
