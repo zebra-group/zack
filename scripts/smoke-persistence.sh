@@ -38,10 +38,26 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v openssl >/dev/null 2>&1; then
+  echo "FAIL: openssl is required to run this smoke test" >&2
+  exit 1
+fi
+
 if [ ! -f .env ]; then
   echo "==> No .env found - creating one from .env.example for this smoke run"
   cp .env.example .env
   ENV_FILE_CREATED=1
+  # .env.example ships BETTER_AUTH_SECRET as the literal placeholder
+  # "changeme-generate-a-real-32-plus-char-secret", which
+  # apps/api/src/env.ts's fail-fast validator (WR-06) rejects by design -
+  # copying it as-is crashes the app container at boot. Generate a real
+  # secret here. `|` is used as the sed delimiter (not the default `/`)
+  # because the base64 secret can itself contain `/`, but never `|`, `&`,
+  # or `\`, so no replacement-side escaping is needed.
+  generated_secret=$(openssl rand -base64 32)
+  sed -i.bak "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=${generated_secret}|" .env
+  rm -f .env.bak
+  echo "==> Generated a random BETTER_AUTH_SECRET for this smoke run"
 fi
 
 echo "==> docker compose up -d --wait (first boot)"
