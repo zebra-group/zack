@@ -9,10 +9,14 @@ import { defineConfig } from "@playwright/test";
  * directly via Prisma against the published `:5433` E2E Postgres; teardown
  * closes its own Prisma connection cleanly.
  *
- * Only the `smoke` project exists at this stage — the `setup` /
- * `chromium-admin` / `chromium-member` projects (with their storageState
- * dependency chain) are added by later plans in this phase once the
- * auth fixture exists. See RESEARCH.md "Recommended Project Structure".
+ * `setup` (11-05-PLAN.md, INFRA-04) performs one real magic-link round trip
+ * per role and snapshots `storageState` to `playwright/.auth/<role>.json`.
+ * `chromium-admin`/`chromium-member` each declare `dependencies: ["setup"]`
+ * and reuse the saved state via `use.storageState` — every downstream
+ * authenticated suite (Phase 13 onward) consumes these two projects instead
+ * of repeating the login round trip per spec file (RESEARCH Pattern 2).
+ * Both are scoped to `tests/authed/**` via `testMatch` so they never run the
+ * unauthenticated `smoke` project's specs (and vice versa).
  */
 export default defineConfig({
   testDir: "./tests",
@@ -28,6 +32,26 @@ export default defineConfig({
     {
       name: "smoke",
       testMatch: /smoke\/.*\.spec\.ts$/,
+    },
+    {
+      name: "setup",
+      testMatch: /auth\.setup\.ts$/,
+    },
+    {
+      name: "chromium-admin",
+      testMatch: /authed\/.*\.spec\.ts$/,
+      dependencies: ["setup"],
+      use: {
+        storageState: "playwright/.auth/admin.json",
+      },
+    },
+    {
+      name: "chromium-member",
+      testMatch: /authed\/.*\.spec\.ts$/,
+      dependencies: ["setup"],
+      use: {
+        storageState: "playwright/.auth/member.json",
+      },
     },
   ],
 });
