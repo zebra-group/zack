@@ -108,6 +108,7 @@ const showDeleteDialog = ref(false);
  * the watch below re-syncs whenever it hands down an authoritative one.
  */
 const local = reactive({
+  name: props.qr.name,
   color: props.qr.color,
   roundedModules: props.qr.roundedModules,
   logoEnabled: props.qr.logoEnabled,
@@ -116,6 +117,7 @@ const local = reactive({
 watch(
   () => props.qr,
   (qr) => {
+    local.name = qr.name;
     local.color = qr.color;
     local.roundedModules = qr.roundedModules;
     local.logoEnabled = qr.logoEnabled;
@@ -208,6 +210,33 @@ async function persistStyle(patch: UpdateQrCodeInput): Promise<QrCodeDTO | null>
   emit("styled", updated);
   scheduleRender();
   return updated;
+}
+
+/**
+ * Fires on the name input's blur/Enter (not per-keystroke, unlike the
+ * color swatches — a text field shouldn't PATCH on every keypress). Blank
+ * input is rejected client-side (mirrors the server's non-empty name
+ * requirement) and reverts to the last persisted value rather than
+ * silently keeping an invalid local edit.
+ */
+async function commitName(): Promise<void> {
+  const trimmed = local.name.trim();
+  if (!trimmed) {
+    local.name = props.qr.name;
+    return;
+  }
+  if (trimmed === props.qr.name) {
+    local.name = trimmed;
+    return;
+  }
+  const prev = props.qr.name;
+  local.name = trimmed;
+  try {
+    await persistStyle({ name: trimmed });
+  } catch {
+    local.name = prev;
+    emit("toast", SAVE_FAILED_MESSAGE);
+  }
 }
 
 async function setColor(color: string): Promise<void> {
@@ -368,6 +397,14 @@ async function exportFile(format: "png" | "svg"): Promise<void> {
       <span class="studio-code">{{ studioCode }}</span>
       <button type="button" class="studio-delete-button" @click="requestDelete">🗑</button>
     </div>
+
+    <input
+      class="name-input"
+      type="text"
+      v-model="local.name"
+      @blur="commitName"
+      @keyup.enter="($event.target as HTMLInputElement).blur()"
+    />
 
     <div class="preview-frame">
       <div class="preview-card">
@@ -575,6 +612,22 @@ async function exportFile(format: "png" | "svg"): Promise<void> {
 
 .delete-confirm-button:hover {
   opacity: 0.85;
+}
+
+.name-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.name-input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .preview-frame {
