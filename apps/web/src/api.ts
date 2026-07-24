@@ -442,6 +442,14 @@ export async function remapQrCode(id: string, targetLinkId: string): Promise<QrC
   return parseJsonOrThrow<QrCodeDTO>(response);
 }
 
+/** `DELETE /api/qr-codes/:id` — IDOR-guarded (WR-07); 204 No Content on success. Mirrors `deleteLink`. */
+export async function deleteQrCode(id: string): Promise<void> {
+  const response = await fetch(`/api/qr-codes/${id}`, { method: "DELETE" });
+  if (!response.ok) {
+    throw new ApiError(response.status, response.statusText);
+  }
+}
+
 /** `GET /api/qr-codes/:id/remap-history` — full history, oldest-first (QR-04). */
 export async function getQrRemapHistory(id: string): Promise<QrRemapHistoryEntryDTO[]> {
   const response = await fetch(`/api/qr-codes/${id}/remap-history`, { method: "GET" });

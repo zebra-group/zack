@@ -40,7 +40,7 @@
  */
 import { computed, onUnmounted, reactive, ref, watch } from "vue";
 import type { QrCodeDTO, UpdateQrCodeInput } from "@kurzly/shared";
-import { fetchQrRenderBlob, mapQrFormError, qrRenderPngUrl, updateQrCode } from "../api";
+import { deleteQrCode, fetchQrRenderBlob, mapQrFormError, qrRenderPngUrl, updateQrCode } from "../api";
 
 type QrStudioPanelProps = {
   qr: QrCodeDTO;
@@ -52,6 +52,8 @@ const emit = defineEmits<{
   /** Fired after every successful style/logo mutation so QrCodesView.vue can sync its list + bust the matching thumbnail's cache. */
   styled: [updated: QrCodeDTO];
   toast: [message: string];
+  /** Fired after a successful delete (WR-07) so QrCodesView.vue can remove the card + reselect. */
+  deleted: [id: string];
 }>();
 
 /** LOCKED product QR-module colors (07-UI-SPEC.md) — an independent product color system, never `--accent`. */
@@ -63,6 +65,10 @@ const SAVE_FAILED_MESSAGE = "Speichern fehlgeschlagen. Bitte erneut versuchen.";
 const LOGO_FORMAT_ERROR = "Nur PNG oder SVG erlaubt.";
 const LOGO_SIZE_ERROR = "Datei zu groß (max. 1,4 MB).";
 const EXPORT_FAILED_MESSAGE = "Export fehlgeschlagen. Bitte erneut versuchen.";
+// WR-07: reuses LinkDetailView.vue's Link-delete confirm dialog copy
+// verbatim with "Link" -> "QR-Code" (04-05's copy-lock convention).
+const DELETE_SUCCESS_MESSAGE = "QR-Code gelöscht";
+const DELETE_FAILED_MESSAGE = "QR-Code konnte nicht gelöscht werden.";
 /**
  * Must stay BELOW the server's effective cap, never above it. The server
  * caps the base64 `logoData` STRING at 1,900,000 chars
@@ -87,6 +93,7 @@ const logoFileName = ref<string | null>(null);
 const hasCustomLogo = ref(false);
 const logoError = ref<string | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
+const showDeleteDialog = ref(false);
 
 /**
  * Optimistic mirror of the three styleable DTO fields this panel edits.
@@ -318,6 +325,25 @@ async function removeLogo(): Promise<void> {
   }
 }
 
+function requestDelete(): void {
+  showDeleteDialog.value = true;
+}
+
+function cancelDelete(): void {
+  showDeleteDialog.value = false;
+}
+
+async function confirmDelete(): Promise<void> {
+  try {
+    await deleteQrCode(props.qr.id);
+    showDeleteDialog.value = false;
+    emit("deleted", props.qr.id);
+    emit("toast", DELETE_SUCCESS_MESSAGE);
+  } catch {
+    emit("toast", DELETE_FAILED_MESSAGE);
+  }
+}
+
 async function exportFile(format: "png" | "svg"): Promise<void> {
   try {
     const blob = await fetchQrRenderBlob(props.qr.id, format);
@@ -340,6 +366,7 @@ async function exportFile(format: "png" | "svg"): Promise<void> {
     <div class="studio-header">
       <h2 class="studio-title">QR-Studio</h2>
       <span class="studio-code">{{ studioCode }}</span>
+      <button type="button" class="studio-delete-button" @click="requestDelete">🗑</button>
     </div>
 
     <div class="preview-frame">
@@ -416,6 +443,20 @@ async function exportFile(format: "png" | "svg"): Promise<void> {
       <button type="button" class="export-button export-svg" @click="exportFile('svg')">SVG ⬇</button>
     </div>
   </div>
+
+  <div v-if="showDeleteDialog" class="delete-dialog-overlay" @click="cancelDelete">
+    <div class="delete-dialog" @click.stop>
+      <h3 class="delete-title">QR-Code löschen?</h3>
+      <p class="delete-body">
+        {{ studioCode || props.qr.name }} wird gelöscht. Bestehende Aufrufe dieses QR-Codes leiten
+        danach nicht mehr weiter.
+      </p>
+      <div class="delete-footer">
+        <button type="button" class="cancel-button" @click="cancelDelete">Abbrechen</button>
+        <button type="button" class="delete-confirm-button" @click="confirmDelete">Löschen</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -447,6 +488,93 @@ async function exportFile(format: "png" | "svg"): Promise<void> {
   font-size: 11.5px;
   color: var(--mut);
   font-family: "Geist Mono", monospace;
+}
+
+/* Delete action (WR-07) — mirrors LinkDetailView.vue's .action-button.delete hover treatment. */
+.studio-delete-button {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--mut);
+  font-size: 12.5px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.studio-delete-button:hover {
+  border-color: #e5484d;
+  color: #e5484d;
+  background: var(--panel);
+}
+
+/* Delete confirmation dialog (reused shell, mirrors LinkDetailView.vue's dialog verbatim). */
+.delete-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.delete-dialog {
+  width: 380px;
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 26px 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.delete-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+}
+
+.delete-body {
+  font-size: 12.5px;
+  color: var(--mut);
+  margin: 0;
+}
+
+.delete-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancel-button {
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cancel-button:hover {
+  background: var(--hover);
+}
+
+.delete-confirm-button {
+  padding: 9px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #e5484d;
+  color: #f1f1ec;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.delete-confirm-button:hover {
+  opacity: 0.85;
 }
 
 .preview-frame {

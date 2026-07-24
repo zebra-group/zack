@@ -103,6 +103,18 @@ function handleStyled(updated: QrCodeDTO): void {
   renderVersions.value[updated.id] = (renderVersions.value[updated.id] ?? 0) + 1;
 }
 
+/**
+ * QrStudioPanel's `@deleted` handler (WR-07) — removes the card from the
+ * list and reselects the first remaining card (or `null` for an empty
+ * list), mirroring `resolveInitialSelection`'s first-or-null shape. The
+ * panel already emits its own success toast via the existing `@toast`
+ * binding — no second toast here.
+ */
+function handleDeleted(id: string): void {
+  qrCodes.value = qrCodes.value.filter((qr) => qr.id !== id);
+  selectedQrId.value = qrCodes.value[0]?.id ?? null;
+}
+
 /** Newest-first history for one QR (empty for a static QR or one with no remaps yet). */
 function historyFor(qr: QrCodeDTO): QrRemapHistoryEntryDTO[] {
   return historyByQr.value[qr.id] ?? [];
@@ -367,7 +379,13 @@ loadAll();
         </div>
       </div>
 
-      <QrStudioPanel v-if="selectedQr" :qr="selectedQr" @styled="handleStyled" @toast="showToast" />
+      <QrStudioPanel
+        v-if="selectedQr"
+        :qr="selectedQr"
+        @styled="handleStyled"
+        @deleted="handleDeleted"
+        @toast="showToast"
+      />
     </div>
   </div>
 
