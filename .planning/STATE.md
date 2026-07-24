@@ -5,15 +5,15 @@ milestone_name: E2E Test Coverage
 current_phase: 11
 current_phase_name: Playwright E2E Infrastructure & Fixtures
 status: executing
-stopped_at: Phase 11 Plan 01 (Playwright E2E workspace scaffold + Prisma-subpath spike) complete.
-last_updated: "2026-07-24T14:02:42.661Z"
+stopped_at: Phase 11 Plan 03 (compose E2E overlay, boot script, boot smoke spec) complete. Ready to execute 11-04.
+last_updated: "2026-07-24T14:15:09.482Z"
 last_activity: 2026-07-24
-last_activity_desc: "Plan 11-01 complete: @kurzly/e2e scaffolded, apps/api ./prisma-client subpath export proven under Playwright's runtime"
+last_activity_desc: "Plan 11-03 complete: docker-compose.e2e.yml additive overlay, scripts/e2e-compose.sh boot/run/teardown entrypoint, and boot.spec.ts proving the suite hits the built Fastify image at :3000"
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 11 of 17 (Playwright E2E Infrastructure & Fixtures) — first phase of milestone v1.1
-Plan: 2 of 6 complete (11-01: Playwright E2E workspace scaffold + Prisma-subpath spike)
-Status: In progress — 5 plans remaining in Phase 11
-Last activity: 2026-07-24 — Plan 11-01 complete: @kurzly/e2e scaffolded, apps/api ./prisma-client subpath export proven under Playwright's runtime
+Plan: 3 of 6 complete (11-03: compose E2E overlay, boot script, boot smoke spec)
+Status: In progress — 3 plans remaining in Phase 11
+Last activity: 2026-07-24 — Plan 11-03 complete: docker-compose.e2e.yml, scripts/e2e-compose.sh, and boot.spec.ts proving the suite hits the built Fastify image at :3000
 
-Progress: [██░░░░░░░░] 17%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -41,13 +41,13 @@ Progress: [██░░░░░░░░] 17%
 
 - Total plans completed (v1.0): 65
 - Average duration: ~8 min
-- v1.1 plans completed: 1
+- v1.1 plans completed: 3
 
 **By Phase (v1.1):**
 
 | Phase | Plans | Status |
 |-------|-------|--------|
-| 11 | 1/6 | In progress |
+| 11 | 3/6 | In progress |
 | 12 | TBD | Not started |
 | 13 | TBD | Not started |
 | 14 | TBD | Not started |
@@ -68,6 +68,7 @@ Progress: [██░░░░░░░░] 17%
 
 *Updated after each plan completion*
 | Phase 11 P02 | 12min | 2 tasks | 2 files |
+| Phase 11 P03 | 25min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,7 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 11]: Raw-.ts Prisma-client subpath export (apps/api/package.json exports['./prisma-client']) resolves directly under Playwright's runtime — RESEARCH OQ-1/A1 closed green, no compiled-artifact fallback needed.
 - [Phase 11]: allowList (not a custom keyGenerator hack) is the correct @fastify/rate-limit mechanism for full request exclusion — set once at global registration, covers global bucket + every named per-route override
 - [Phase 11]: E2E_RATE_LIMIT_BYPASS_SECRET is read directly from process.env in registerRateLimit, never added to envSchema/.env.example — structurally impossible to set via production config, proven by a dedicated schema-absence test
+- [Phase 11]: scripts/e2e-compose.sh derives E2E_DATABASE_URL Postgres credentials from the bootstrapped .env at runtime (fallback kurzly/changeme/kurzly), not a hardcoded string
 
 ### Pending Todos
 
@@ -106,6 +108,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-24T14:02:02.491Z
-Stopped at: Phase 11 Plan 01 complete (Playwright E2E workspace scaffold + Prisma-subpath spike). Ready to execute 11-02.
+Last session: 2026-07-24T14:15:09.475Z
+Stopped at: Phase 11 Plan 03 (compose E2E overlay, boot script, boot smoke spec) complete. Ready to execute 11-04.
 Resume file: None
