@@ -323,6 +323,55 @@ describe("QrCode core (QR-02/03/04, single-write-path)", () => {
       expect(dto.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
       expect(dto.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
     });
+
+    it("WR-09: a second static QR for the same Link returns QR_ALREADY_EXISTS; the FIRST call still succeeds", async () => {
+      const owner = await seedUser();
+      const domainId = await seedOwnedDomain(owner.id);
+      const link = await seedLink(owner.id, domainId);
+
+      const first = await createQrCode(prisma, {
+        userId: owner.id,
+        variant: "static",
+        linkId: link.id,
+        name: "First static",
+        color: "#000000",
+      });
+      expect(first.ok).toBe(true);
+
+      const second = await createQrCode(prisma, {
+        userId: owner.id,
+        variant: "static",
+        linkId: link.id,
+        name: "Second static",
+        color: "#000000",
+      });
+      expect(second.ok).toBe(false);
+      if (!second.ok) expect(second.error).toBe("QR_ALREADY_EXISTS");
+    });
+
+    it("WR-09: a dynamic QR on the same Link as an existing static QR still succeeds (constraint is variant-scoped)", async () => {
+      const owner = await seedUser();
+      const domainId = await seedOwnedDomain(owner.id);
+      const link = await seedLink(owner.id, domainId);
+
+      const staticQr = await createQrCode(prisma, {
+        userId: owner.id,
+        variant: "static",
+        linkId: link.id,
+        name: "Static",
+        color: "#000000",
+      });
+      expect(staticQr.ok).toBe(true);
+
+      const dynamicQr = await createQrCode(prisma, {
+        userId: owner.id,
+        variant: "dynamic",
+        linkId: link.id,
+        name: "Dynamic on same link",
+        color: "#000000",
+      });
+      expect(dynamicQr.ok).toBe(true);
+    });
   });
 
   describe("remapQrCode (QR-03 headline correctness: re-pointing NEVER changes `code`)", () => {
@@ -759,6 +808,32 @@ describe("POST /api/qr-codes (route layer, QR-01)", () => {
     const body = smuggled.json();
     expect(body.code).not.toBe("ATTACKR");
     expect(body.lifetimeScans).toBe(0);
+    await app.close();
+  });
+
+  it("WR-09: POSTing the same static { variant, linkId, name } twice returns 201 then 409 QR_ALREADY_EXISTS", async () => {
+    const app = await buildApp({ prisma });
+    const cookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const userId = await resolveSessionUserId(app, cookie);
+    const domainId = await seedOwnedDomainForRoute(userId, "qr-route-post-static-dup.example.com");
+    const linkId = await seedLinkForRoute(userId, domainId);
+
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/qr-codes",
+      headers: { cookie },
+      payload: { variant: "static", linkId, name: "Static QR" },
+    });
+    expect(first.statusCode).toBe(201);
+
+    const second = await app.inject({
+      method: "POST",
+      url: "/api/qr-codes",
+      headers: { cookie },
+      payload: { variant: "static", linkId, name: "Static QR again" },
+    });
+    expect(second.statusCode).toBe(409);
+    expect(second.json().error).toBe("QR_ALREADY_EXISTS");
     await app.close();
   });
 });

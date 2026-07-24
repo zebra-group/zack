@@ -160,3 +160,83 @@ describe("Schema push: QrCode + QrRemapHistory models (QR-02/03/04/07, T-07-SCHE
     expect(remainingRemap).toBeNull();
   });
 });
+
+/**
+ * DB-constraint proof (WR-09, 260724-d72-PLAN.md): the partial unique index
+ * `QrCode_linkId_static_key` (migration
+ * `20260724074120_enforce_one_static_qr_per_link`) is the AUTHORITATIVE
+ * one-static-QR-per-link guarantee — exercised here via direct prisma calls
+ * (no lib/qrCodes.ts, no HTTP), against the real Postgres schema globalSetup
+ * applies via `prisma migrate deploy`.
+ */
+describe("DB constraint: QrCode_linkId_static_key (WR-09, T-d72-01)", () => {
+  async function seedDomainAndLink(hostnameSuffix: string) {
+    const domain = await prisma.domain.create({
+      data: {
+        hostname: `qr-static-unique-${hostnameSuffix}.test.kurzly`,
+        type: "subdomain",
+        status: "active",
+        verificationTarget: "shortener.kurzly.local",
+      },
+    });
+    const link = await prisma.link.create({
+      data: {
+        domainId: domain.id,
+        slug: `qr-static-unique-${hostnameSuffix}`,
+        targetUrl: `https://example.com/qr-static-unique-${hostnameSuffix}`,
+      },
+    });
+    return link;
+  }
+
+  it("rejects a second static QrCode for a Link that already has one (P2002)", async () => {
+    const link = await seedDomainAndLink("dup");
+
+    await prisma.qrCode.create({
+      data: { variant: "static", linkId: link.id, name: "First static", color: "#000000" },
+    });
+
+    await expect(
+      prisma.qrCode.create({
+        data: { variant: "static", linkId: link.id, name: "Second static", color: "#000000" },
+      }),
+    ).rejects.toMatchObject({ code: "P2002" });
+  });
+
+  it("still allows a dynamic QrCode on the SAME linkId as an existing static QrCode", async () => {
+    const link = await seedDomainAndLink("dyn-same-link");
+
+    await prisma.qrCode.create({
+      data: { variant: "static", linkId: link.id, name: "Static", color: "#000000" },
+    });
+
+    const dynamic = await prisma.qrCode.create({
+      data: {
+        variant: "dynamic",
+        linkId: link.id,
+        code: "qr-static-unique-dyn-code",
+        name: "Dynamic on same link",
+        color: "#000000",
+      },
+    });
+
+    expect(dynamic.linkId).toBe(link.id);
+    expect(dynamic.variant).toBe("dynamic");
+  });
+
+  it("still allows a static QrCode on a DIFFERENT linkId", async () => {
+    const linkA = await seedDomainAndLink("diff-a");
+    const linkB = await seedDomainAndLink("diff-b");
+
+    await prisma.qrCode.create({
+      data: { variant: "static", linkId: linkA.id, name: "Static A", color: "#000000" },
+    });
+
+    const staticB = await prisma.qrCode.create({
+      data: { variant: "static", linkId: linkB.id, name: "Static B", color: "#000000" },
+    });
+
+    expect(staticB.linkId).toBe(linkB.id);
+    expect(staticB.variant).toBe("static");
+  });
+});
