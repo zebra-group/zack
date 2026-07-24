@@ -19,7 +19,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@kurzly/api/prisma-client";
+import { Prisma, PrismaClient } from "@kurzly/api/prisma-client";
 
 /** Seeded admin User (accountRole "admin"). Matches
  * `docker-compose.e2e.yml`'s `INITIAL_ADMIN_EMAIL` so this row also passes
@@ -124,23 +124,28 @@ export async function seedBaseline(prisma: PrismaClient): Promise<void> {
  * `$executeRawUnsafe` (no second `pg` driver dependency, per RESEARCH
  * "Don't Hand-Roll").
  *
- * Wrapped in a `pg_advisory_lock`/`pg_advisory_unlock` pair (RESEARCH
- * Pitfall 4) so two parallel worker spec files calling `resetDb()`
- * concurrently can never interleave their truncate+reseed against each
- * other — `fullyParallel` runs multiple spec FILES concurrently, and
- * without this lock one file's `TRUNCATE` could fire mid-write of another
- * file's `resetDb()` reseed.
+ * Wrapped in a single `$transaction` using `pg_advisory_xact_lock`
+ * (CR-03, 11-REVIEW.md) — the previous implementation issued
+ * `pg_advisory_lock`/`pg_advisory_unlock` as three independent
+ * `$executeRawUnsafe` calls, with no guarantee `@prisma/adapter-pg`'s
+ * underlying `pg` connection pool routed all three to the SAME backend
+ * session. Session-scoped advisory locks are held/released per-connection,
+ * so the lock could silently provide zero mutual exclusion if the pool
+ * handed out different connections for the lock, the truncate, and the
+ * unlock. `pg_advisory_xact_lock` is transaction-scoped: acquiring it
+ * inside `$transaction` pins the whole critical section to one connection
+ * for the transaction's lifetime, and the lock is released automatically
+ * on commit/rollback — no separate unlock call needed, no possibility of
+ * it landing on a different connection.
  */
 export async function resetDb(prisma: PrismaClient): Promise<void> {
-  await prisma.$executeRawUnsafe(`SELECT pg_advisory_lock(${RESET_DB_ADVISORY_LOCK_KEY})`);
-  try {
-    await prisma.$executeRawUnsafe(
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${RESET_DB_ADVISORY_LOCK_KEY})`);
+    await tx.$executeRawUnsafe(
       'TRUNCATE "QrRemapHistory", "QrCode", "ClickEvent", "Link", "DomainMembership" RESTART IDENTITY CASCADE',
     );
-    await reseedBaselineDomainMembership(prisma);
-  } finally {
-    await prisma.$executeRawUnsafe(`SELECT pg_advisory_unlock(${RESET_DB_ADVISORY_LOCK_KEY})`);
-  }
+    await reseedBaselineDomainMembership(tx);
+  });
 }
 
 /**
@@ -151,7 +156,9 @@ export async function resetDb(prisma: PrismaClient): Promise<void> {
  * mutates it. `User`/`Domain` rows are never truncated, so they always
  * exist by the time this runs.
  */
-async function reseedBaselineDomainMembership(prisma: PrismaClient): Promise<void> {
+async function reseedBaselineDomainMembership(
+  prisma: PrismaClient | Prisma.TransactionClient,
+): Promise<void> {
   const domain = await prisma.domain.findUniqueOrThrow({
     where: { hostname: BASELINE_DOMAIN_HOSTNAME },
   });
