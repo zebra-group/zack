@@ -384,6 +384,44 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
     });
   });
 
+  describe("WR-04 regression (12-REVIEW.md): the new urlencoded content-type parser stays scoped to POST /:slug/verify", () => {
+    it("a sibling JSON-only route (POST /api/links) still rejects application/x-www-form-urlencoded with 415, never silently parsing it", async () => {
+      // `routes/redirect.ts`'s `registerRedirectRoute` registers its
+      // `addContentTypeParser("application/x-www-form-urlencoded", ...)`
+      // via a plain `app.addContentTypeParser` call inside the plugin
+      // Fastify passes to `app.register(redirectRoute(prisma))` — Fastify's
+      // encapsulation model scopes a content-type parser to the
+      // registering plugin's own context (and its children) UNLESS that
+      // plugin is wrapped in `fastify-plugin`, which `app.ts` deliberately
+      // does not do (confirmed by this phase's code review). If a future
+      // refactor accidentally added a `fastify-plugin` wrapper (or hoisted
+      // the parser registration to `app.ts` directly), this exact
+      // assertion would start failing: `POST /api/links` would begin
+      // accepting form-encoded bodies it never accepted before, silently
+      // widening every JSON-only endpoint's content-type contract.
+      //
+      // No auth cookie is sent — Fastify parses the request body BEFORE
+      // the route handler's own `resolveUserId` auth check ever runs, so
+      // an unauthenticated request still proves the parser-scoping
+      // question: a 415 here can ONLY come from Fastify's own "no parser
+      // registered for this content-type on this route" rejection, never
+      // from the handler (which would return 401, not 415, once past body
+      // parsing).
+      const app = await buildApp({ prisma });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/links",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        payload: "targetUrl=https://example.com/&slug=leaked-parser-scope",
+      });
+
+      expect(response.statusCode).toBe(415);
+    });
+  });
+
   describe("Precedence (D-14): expiry beats the password gate", () => {
     it("an expired AND password-protected link returns 410, never the password page", async () => {
       const app = await buildApp({ prisma });
