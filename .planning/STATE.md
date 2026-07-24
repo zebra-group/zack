@@ -229,6 +229,7 @@ None yet.
 | 260724-d72 | Enforce one-static-QR-per-link with DB unique index and conflict error code | 2026-07-24 | 9edf583 | [260724-d72-enforce-one-static-qr-per-link-with-db-u](./quick/260724-d72-enforce-one-static-qr-per-link-with-db-u/) |
 | 260724-d6y | Add delete path for QR codes | 2026-07-24 | 5c8265b | [260724-d6y-add-delete-path-for-qr-codes](./quick/260724-d6y-add-delete-path-for-qr-codes/) |
 | 260724-ecl | Fix CI smoke tests crashing app container | 2026-07-24 | ee9fca4 | [260724-ecl-fix-ci-smoke-tests-crashing-app-containe](./quick/260724-ecl-fix-ci-smoke-tests-crashing-app-containe/) |
+| 6 | Bump GitHub Actions to current majors (checkout v7, setup-node v7, pnpm/action-setup v6) | 2026-07-24 | fcbfc3f | — |
 
 ## Deferred Items
 
