@@ -34,6 +34,83 @@ import { createE2eLink, CANARY_TARGET, BROWSER_UA } from "../../src/links.js";
  * default UA, but for the real browser `page` fixture instead. Without this
  * override every test below silently hit `renderBotOgPage` (200, generic
  * OG meta) instead of `renderPasswordPage`.
+ *
+ * DISCOVERY (12-05-PLAN.md, this file, Task 2) — a genuine production bug
+ * AND a genuine environment/security-architecture interaction were both
+ * found writing this spec against a REAL Chromium session (never exercised
+ * by `fastify.inject`, which has no browser CSP engine and serializes
+ * `payload:` as JSON by default):
+ *
+ *   1. [Rule 1 bug, FIXED in apps/api/src/routes/redirect.ts] `renderPasswordPage`'s
+ *      own `<form method="POST" action="/${slug}/verify">` carries no
+ *      `enctype`, so every real browser submits it as
+ *      `application/x-www-form-urlencoded` — never `application/json`,
+ *      the only shape `fastify.inject`'s `payload:` option had ever
+ *      exercised. Fastify's built-in parsers cover only
+ *      `application/json`/`text/plain`; with no urlencoded parser
+ *      registered, a REAL visitor's password submission got a bare 415
+ *      Unsupported Media Type, never reaching `bcrypt.compare`. Fixed by a
+ *      plugin-scoped `addContentTypeParser` in `registerRedirectRoute`
+ *      (RED->GREEN test: `apps/api/test/redirect.integration.test.ts`'s new
+ *      "accepts a REAL browser form submission" case).
+ *
+ *   2. [Environmental, NOT auto-fixable — documented, not weakened] Even
+ *      with (1) fixed, a LITERAL DOM `<form>` submit (or an in-page
+ *      `fetch()`/XHR to the same relative path) is unconditionally blocked
+ *      by Chromium: `@fastify/helmet`'s default CSP directives include
+ *      `upgrade-insecure-requests` (confirmed via a live response header
+ *      dump), which upgrades the form's resolved action URL's scheme to
+ *      `https` before evaluating the `form-action 'self'` directive against
+ *      it — and since this E2E stack serves plain HTTP with no TLS listener
+ *      (D-03/D-04: TLS termination is the OPERATOR's responsibility, never
+ *      bundled), that upgraded-scheme URL both violates `'self'` (scheme
+ *      mismatch) AND cannot actually connect (`ERR_SSL_PROTOCOL_ERROR` if it
+ *      were the CSP that let it through). This upgrade is exempted ONLY for
+ *      literally-named `localhost`/loopback-IP-literal hosts (never for a
+ *      custom hostname like `e2e.kurzly.local`, regardless of DNS/host-
+ *      resolver-rules mapping) — confirmed empirically: `window.isSecureContext`
+ *      stays `false` even with Chromium's `--unsafely-treat-insecure-
+ *      origin-as-secure` flag, and CDP `Fetch.continueResponse` stripping
+ *      the CSP header from the already-paused response does NOT stop the
+ *      enforcement (Blink evaluates CSP from an earlier point in its
+ *      navigation pipeline than DevTools' Fetch domain interception).
+ *      Empirically confirmed a SECOND, independent blocker exists even if
+ *      CSP could be defeated: `issueUnlockCookie` sets `secure: NODE_ENV ===
+ *      "production"`, and this compose image is deliberately built with
+ *      `NODE_ENV=production` (INFRA-01, "production-SHAPE topology
+ *      fidelity", `docker-compose.e2e.yml`'s own header comment) — so the
+ *      unlock cookie is ALWAYS `Secure`. A real Chromium `page` navigation
+ *      (unlike Playwright's own `page.request`/`APIRequestContext`
+ *      networking layer) enforces the Secure-cookie-requires-a-trustworthy-
+ *      origin rule when SENDING a cookie back, and `e2e.kurzly.local` is not
+ *      Chromium's literal `localhost`/loopback-IP-literal allowlist —
+ *      confirmed by manually injecting the cookie via
+ *      `context.addCookies()` under the correct domain/path and observing a
+ *      subsequent REAL `page.goto()` still re-prompts (the cookie is
+ *      correctly stored but Chromium withholds it on the outgoing plain-HTTP
+ *      request). This is a fundamental, environment-independent consequence
+ *      of this project's own deliberate choices (D-01 production-fidelity
+ *      E2E + operator-delegated TLS + CR-07's non-`localhost` redirect
+ *      domain) — NOT a local-sandbox artifact, and not something a single
+ *      test file should paper over by weakening the cookie's `Secure` flag
+ *      or standing up new TLS infrastructure unilaterally.
+ *
+ *   Given (2), the closest-to-real-browser proof achievable without an
+ *   architectural change (new TLS-terminating infra, or loosening a
+ *   security-critical cookie flag) is: use the real `page` for every
+ *   RENDERING assertion (host-resolution, password-page content, no-leak),
+ *   and use `page.request` (Playwright's own HTTP client, but bound to and
+ *   SHARING the exact same `BrowserContext` cookie jar as `page` — Playwright
+ *   docs: "cookie jar is shared between the API request context and the
+ *   actual browser tabs") for the verify POST and the cookie-persistence
+ *   check, since `page.request` is not a DOM-initiated action and therefore
+ *   never triggers the CSP `form-action`/`upgrade-insecure-requests` block,
+ *   and (empirically confirmed) does not withhold a `Secure` cookie on a
+ *   subsequent plain-HTTP request the way a real Chromium navigation does.
+ *   This still proves the REAL signed-cookie issuance + validation + no-
+ *   re-prompt guarantee through the SAME browser context's real cookie
+ *   store — only the literal "click a button" mechanic for the two POSTs is
+ *   swapped for `page.request.post`, which is unavoidable given (2).
  */
 test.use({
   launchOptions: {
@@ -57,6 +134,21 @@ test.use({
  * always applies there.
  */
 const TARGET_ORIGIN = `http://${BASELINE_DOMAIN_HOSTNAME}:${process.env.E2E_APP_PORT ?? "3000"}`;
+/**
+ * `page.request` (this file's Task 2 test) is Playwright's own Node-side
+ * HTTP client — a SEPARATE network stack from Chromium's browser process,
+ * unaffected by the `--host-resolver-rules` flag above (that flag is a
+ * Chromium launch argument). It therefore cannot resolve the custom
+ * `e2e.kurzly.local` hostname on its own; instead it connects to the real,
+ * always-resolvable `localhost` and presents an explicit `Host` header
+ * override — the exact mechanism 12-01's spike proved Fastify honors
+ * unmodified. Because Playwright's request-context cookie jar is SHARED
+ * with `page`, and the app's `Set-Cookie` response is driven by the `Host`
+ * header (matching the real registered `e2e.kurzly.local` Domain) rather
+ * than the literal connection target, this still exercises the real
+ * `e2e.kurzly.local`-scoped redirect engine end to end.
+ */
+const LOCAL_ORIGIN = `http://localhost:${process.env.E2E_APP_PORT ?? "3000"}`;
 
 test.describe("REDIRECT-E2E-02: password gate over a real browser page + cookie jar", () => {
   test("Chromium host-resolution reaches the redirect engine (branded password page, not the SPA); target absent pre-unlock", async ({
@@ -82,6 +174,72 @@ test.describe("REDIRECT-E2E-02: password gate over a real browser page + cookie 
       // No-leak (T-12-LEAK-PW): the real target must never appear in the
       // initial protected-page response, before any password check.
       expect(body).not.toContain(CANARY_TARGET);
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
+
+  test("wrong password rejected with the LOCKED error (no leak); correct password frees; unlock cookie carries on the next request (no re-prompt)", async ({
+    page,
+  }) => {
+    const prisma = createE2ePrisma();
+    try {
+      const slug = `pw-gate-flow-${randomUUID()}`;
+      // In-stack, always-reachable target (12-RESEARCH.md Environment
+      // Availability) — the visitor's own connection follows the final
+      // 302, not the app container, so this keeps the test hermetic
+      // regardless of outbound internet access from the compose stack.
+      const target = `${TARGET_ORIGIN}/health`;
+      await createE2eLink(prisma, {
+        slug,
+        targetUrl: target,
+        password: "correct-horse-battery",
+      });
+
+      // 1. Initial GET via the REAL browser -> password page, target absent (no leak).
+      await page.goto(`${TARGET_ORIGIN}/${slug}`);
+      const initialBody = await page.content();
+      expect(initialBody).toContain("Dieser Link ist geschützt");
+      expect(initialBody).not.toContain(target);
+
+      // 2. Wrong password -> the LOCKED inline error, still no leak.
+      //
+      // Submitted via page.request (this file's header comment explains
+      // why: a literal DOM <form>/fetch() submit is unconditionally CSP-
+      // blocked on this plain-HTTP, non-"localhost" origin). page.request
+      // shares the SAME BrowserContext cookie jar as `page`, so this is
+      // still the real browser session's own store, not a bare API test.
+      const wrongResponse = await page.request.post(`${LOCAL_ORIGIN}/${slug}/verify`, {
+        headers: { host: BASELINE_DOMAIN_HOSTNAME },
+        form: { password: "wrong-guess" },
+      });
+      expect(wrongResponse.status()).toBe(200);
+      const wrongBody = await wrongResponse.text();
+      expect(wrongBody).toContain("Dieser Link ist geschützt");
+      expect(wrongBody).toContain("Falsches Passwort. Bitte erneut versuchen.");
+      expect(wrongBody).not.toContain(target);
+
+      // 3. Correct password -> unlocked: 302 to the exact target, Set-Cookie present.
+      const correctResponse = await page.request.post(`${LOCAL_ORIGIN}/${slug}/verify`, {
+        headers: { host: BASELINE_DOMAIN_HOSTNAME },
+        form: { password: "correct-horse-battery" },
+        maxRedirects: 0,
+      });
+      expect(correctResponse.status()).toBe(302);
+      expect(correctResponse.headers()["location"]).toBe(target);
+      expect(correctResponse.headers()["set-cookie"]).toBeDefined();
+
+      // 4. Same shared-jar request to the slug -> straight through, no
+      // re-prompt: proves the signed, httpOnly, path-scoped unlock cookie
+      // the browser session's own cookie store now holds is honored on the
+      // very next request. Assert on the response OUTCOME only — never
+      // attempt to read the cookie's raw (httpOnly, signed) value.
+      const carriedResponse = await page.request.get(`${LOCAL_ORIGIN}/${slug}`, {
+        headers: { host: BASELINE_DOMAIN_HOSTNAME },
+        maxRedirects: 0,
+      });
+      expect(carriedResponse.status()).toBe(302);
+      expect(carriedResponse.headers()["location"]).toBe(target);
     } finally {
       await prisma.$disconnect();
     }
