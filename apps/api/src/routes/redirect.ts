@@ -238,6 +238,30 @@ function isAppOwnHost(hostname: string): boolean {
 
 export function redirectRoute(prisma: PrismaClient) {
   return async function registerRedirectRoute(app: FastifyInstance): Promise<void> {
+    // 12-05-PLAN.md discovery (Rule 1 bug, found writing a REAL-browser E2E
+    // spec): `renderPasswordPage`'s own `<form method="POST"
+    // action="/${slug}/verify">` carries no `enctype` attribute, so every
+    // real browser submits it as `application/x-www-form-urlencoded` (the
+    // HTML spec's default) — never `application/json`. Fastify's built-in
+    // parsers cover only `application/json`/`text/plain`; with no
+    // urlencoded parser registered, every real visitor's password
+    // submission got a bare 415 Unsupported Media Type, never reaching
+    // `bcrypt.compare` below. Scoped to THIS plugin's own encapsulation
+    // context (Fastify's plugin isolation) rather than registered app-wide,
+    // so it only ever applies to `POST /:slug/verify` and cannot affect any
+    // other route's content-type handling.
+    app.addContentTypeParser(
+      "application/x-www-form-urlencoded",
+      { parseAs: "string" },
+      (_request, body, done) => {
+        try {
+          done(null, Object.fromEntries(new URLSearchParams(body as string)));
+        } catch (err) {
+          done(err as Error, undefined);
+        }
+      },
+    );
+
     app.route({
       method: "GET",
       url: "/:slug",
