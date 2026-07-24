@@ -1081,6 +1081,133 @@ describe("PATCH /api/qr-codes/:id (route layer)", () => {
   });
 });
 
+describe("DELETE /api/qr-codes/:id (route layer, IDOR guard — WR-07)", () => {
+  it("204s and removes the row for an accessible QR", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-delete-happy.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Delete happy",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+    });
+
+    expect(res.statusCode).toBe(204);
+    const row = await prisma.qrCode.findUnique({ where: { id: created.qrCode.id } });
+    expect(row).toBeNull();
+    await app.close();
+  });
+
+  it("404s and writes nothing for a non-existent id", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+
+    const before = await prisma.qrCode.count();
+    const res = await app.inject({
+      method: "DELETE",
+      url: "/api/qr-codes/does-not-exist",
+      headers: { cookie: ownerCookie },
+    });
+
+    expect(res.statusCode).toBe(404);
+    const after = await prisma.qrCode.count();
+    expect(after).toBe(before);
+    await app.close();
+  });
+
+  it("404s and leaves the row intact for a QR the caller cannot access (IDOR guard leaks nothing)", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const outsiderCookie = await signInAs(app, ROUTE_OUTSIDER_EMAIL);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-delete-forbidden.example.com");
+    const linkId = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "static",
+      linkId,
+      name: "Delete forbidden",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: outsiderCookie },
+    });
+
+    expect(res.statusCode).toBe(404);
+    const row = await prisma.qrCode.findUnique({ where: { id: created.qrCode.id } });
+    expect(row).not.toBeNull();
+    await app.close();
+  });
+
+  it("401s with no session", async () => {
+    const app = await buildApp({ prisma });
+
+    const res = await app.inject({ method: "DELETE", url: "/api/qr-codes/anything" });
+
+    expect(res.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it("cascade: deleting a dynamic QR also removes its QrRemapHistory rows (FK onDelete: Cascade)", async () => {
+    const app = await buildApp({ prisma });
+    const ownerCookie = await signInAs(app, ROUTE_OWNER_EMAIL);
+    const ownerId = await resolveSessionUserId(app, ownerCookie);
+    const domainId = await seedOwnedDomainForRoute(ownerId, "qr-route-delete-cascade.example.com");
+    const linkA = await seedLinkForRoute(ownerId, domainId);
+    const linkB = await seedLinkForRoute(ownerId, domainId);
+    const created = await createQrCode(prisma, {
+      userId: ownerId,
+      variant: "dynamic",
+      linkId: linkA,
+      name: "Delete cascade",
+      color: "#000000",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("expected ok");
+
+    await app.inject({
+      method: "PATCH",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+      payload: { targetLinkId: linkB },
+    });
+    const historyBefore = await prisma.qrRemapHistory.findMany({
+      where: { qrCodeId: created.qrCode.id },
+    });
+    expect(historyBefore).toHaveLength(1);
+
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/api/qr-codes/${created.qrCode.id}`,
+      headers: { cookie: ownerCookie },
+    });
+
+    expect(res.statusCode).toBe(204);
+    const historyAfter = await prisma.qrRemapHistory.findMany({
+      where: { qrCodeId: created.qrCode.id },
+    });
+    expect(historyAfter).toEqual([]);
+    await app.close();
+  });
+});
+
 describe("GET /api/qr-codes/:id/remap-history (route layer, QR-04 read seam)", () => {
   it("401s with no session", async () => {
     const app = await buildApp({ prisma });
