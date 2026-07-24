@@ -34,18 +34,16 @@ created: 2026-07-25
 
 ## Per-Task Verification Map
 
-| Task ID | Wave | Requirement | Secure Behavior | Test Type | Status |
-|---------|------|-------------|-----------------|-----------|--------|
-| 13-W0-01 | 0 | (infra) | `apps/e2e/oidc-mock` (Dockerfile + server.mjs wrapping oidc-provider@9.10.0) boots and serves discovery/token/userinfo | e2e/infra | ⬜ pending |
-| 13-W0-02 | 0 | (infra) | `docker-compose.e2e.yml` wires OIDC_ISSUER_URL/CLIENT_ID/CLIENT_SECRET to oidc-mock | e2e/infra | ⬜ pending |
-| 13-W0-03 | 0 | (infra) | `apps/e2e/src/oidc-mock.ts` client + `apps/e2e/src/users.ts` (invited-unverified User fixture) | unit/infra | ⬜ pending |
-| 13-01-01 | 1 | AUTH-E2E-01 | Magic-link round trip reaches active session | e2e | ⬜ pending |
-| 13-02-01 | 1 | AUTH-E2E-02 | Consumed/expired/malformed token rejected, no session | e2e | ⬜ pending |
-| 13-03-01 | 1 | AUTH-E2E-03 | Non-invited email — zero email, zero session | e2e | ⬜ pending |
-| 13-04-01 | 2 | AUTH-E2E-04 | OIDC round trip, least-privilege even against admin-shaped claims | e2e | ⬜ pending |
-| 13-05-01 (TDD RED→GREEN) | 2 | AUTH-E2E-05 | `account.accountLinking` fix in auth.ts; SSO-after-invite merges to one account | e2e + code fix | ⬜ pending |
-| 13-06-01 | 1 | AUTH-E2E-06 | Logout + route guard | e2e | ⬜ pending |
-| 13-07-01 | 1 | AUTH-E2E-07 | Rate-limited resend shows exact German UI copy | e2e | ⬜ pending |
+| Plan | Wave | Requirement(s) | Secure Behavior | Test Type | Status |
+|------|------|-----------------|-----------------|-----------|--------|
+| 13-01 | 0 | (infra) | `apps/e2e/oidc-mock` (Dockerfile + server.mjs wrapping oidc-provider@9.10.0) boots and serves discovery/token/userinfo; docker-compose.e2e.yml wires OIDC_ISSUER_URL/CLIENT_ID/CLIENT_SECRET | e2e/infra | ⬜ pending |
+| 13-02 | 0 | (infra) | `apps/e2e/src/oidc-mock.ts` client + `apps/e2e/src/users.ts` fixtures; standalone `auth` Playwright project, no `dependencies:["setup"]` | unit/infra | ⬜ pending |
+| 13-03 | 1 | AUTH-E2E-01, AUTH-E2E-02 | Magic-link round trip reaches active session; consumed/expired/malformed token rejected, no session | e2e | ⬜ pending |
+| 13-04 | 1 | AUTH-E2E-03 | Non-invited email — zero email, zero session | e2e | ⬜ pending |
+| 13-05 | 1 | AUTH-E2E-06 | Logout + route guard | e2e | ⬜ pending |
+| 13-06 | 1 | AUTH-E2E-07 | Rate-limited resend shows exact German UI copy, isolated real limiter | e2e | ⬜ pending |
+| 13-07 | 1 | AUTH-E2E-04 | OIDC round trip, least-privilege even against admin-shaped claims | e2e | ⬜ pending |
+| 13-08 (TDD RED→GREEN) | 2 | AUTH-E2E-05 | `account.accountLinking` fix in auth.ts; SSO-after-invite merges to one account | e2e + code fix | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 

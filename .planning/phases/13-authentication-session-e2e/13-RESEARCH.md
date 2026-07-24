@@ -386,17 +386,17 @@ Triggered by a button with `title="Abmelden"` in the sidebar footer. The spec sh
 
 **If this table is empty:** N/A — see rows above. Everything in the "Account-Linking, Code-Verified" and "sendMagicLink Neutral-Response" sections is `[VERIFIED]` against installed source, not assumed.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `requireLocalEmailVerified: false` be scoped narrowly (e.g., only for invite-originated rows) rather than globally on the `genericOAuth` config?**
    - What we know: better-auth's `account.accountLinking` config is a single global setting for the whole `betterAuth()` instance — there is no per-user-origin override surface in the installed 1.6.23 API.
    - What's unclear: whether a future requirement (e.g., allowing self-service local password reset for verified users) would ever need the stricter default back.
-   - Recommendation: accept the global relaxation now (Kurzly has no signup path other than admin invite, so "unverified local User row" ⟺ "admin-invited, not yet activated" is a closed, fully understood set today) but document the equivalence explicitly in the code comment so a future contributor adding any other user-creation path re-evaluates this decision.
+   - RESOLVED: accept the global relaxation now (Kurzly has no signup path other than admin invite, so "unverified local User row" ⟺ "admin-invited, not yet activated" is a closed, fully understood set today) but document the equivalence explicitly in the code comment so a future contributor adding any other user-creation path re-evaluates this decision.
 
 2. **Exact `oidc-provider` 9.10.0 discovery-route Koa context shape (`ctx.oidc.route === "discovery"`) — confirmed name?**
    - What we know: the pattern (`provider.use` post-middleware keyed on `ctx.oidc.route`) is a real, documented `oidc-provider` API surface used for exactly this per-deployment discovery-value override.
    - What's unclear: whether the discovery route's identifier string is literally `"discovery"` in 9.10.0 (older/newer versions have used this exact string historically; not independently reconfirmed against 9.10.0's changelog this pass).
-   - Recommendation: verify with a one-line `console.log(ctx.oidc.route)` during implementation before relying on the string match in the shipped middleware.
+   - RESOLVED: verify with a one-line `console.log(ctx.oidc.route)` during implementation before relying on the string match in the shipped middleware; this is a same-day implementation-time check with no architectural blast radius if the string differs.
 
 ## Environment Availability
 
