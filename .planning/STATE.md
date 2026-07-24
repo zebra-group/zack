@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-07-10)
 Phase: Milestone v1.0 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-07-23 — Milestone v1.0 completed and archived
+Last activity: 2026-07-24 — Completed quick task 260724-d1m: Fix LinkDetailView edit-submit dropping trackingEnabled
 
 ## Performance Metrics
 
@@ -217,6 +217,12 @@ None yet.
 ### Blockers/Concerns
 
 - REQUIREMENTS.md's traceability summary previously stated "47 v1 requirements" — an actual count found 53 distinct v1 requirement IDs across the 10 categories. Traceability table has been corrected to 53/53 mapped. Flagging in case "47" was an intentional target that implies some listed items should have been out-of-scope — worth a quick confirmation with the user.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260724-d1m | Fix LinkDetailView edit-submit dropping trackingEnabled | 2026-07-24 | 7f15d45 | [260724-d1m-fix-linkdetailview-edit-submit-dropping-](./quick/260724-d1m-fix-linkdetailview-edit-submit-dropping-/) |
 
 ## Deferred Items
 
