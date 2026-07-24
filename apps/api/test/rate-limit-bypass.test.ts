@@ -14,7 +14,7 @@
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
-import { envSchema } from "../src/env.js";
+import { envSchema, parseEnv } from "../src/env.js";
 import { prisma } from "./setupFileEach.js";
 
 const BYPASS_SECRET = "test-only-e2e-bypass-secret";
@@ -23,12 +23,18 @@ const REQUEST_COUNT = 6; // MAGIC_LINK_RATE_LIMIT is 5/15min — the 6th request
 
 describe("Rate-limit E2E bypass (INFRA-06)", () => {
   const originalSecret = process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
+  const originalOverlay = process.env.E2E_COMPOSE_OVERLAY;
 
   afterEach(() => {
     if (originalSecret === undefined) {
       delete process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
     } else {
       process.env.E2E_RATE_LIMIT_BYPASS_SECRET = originalSecret;
+    }
+    if (originalOverlay === undefined) {
+      delete process.env.E2E_COMPOSE_OVERLAY;
+    } else {
+      process.env.E2E_COMPOSE_OVERLAY = originalOverlay;
     }
   });
 
@@ -111,6 +117,67 @@ describe("Rate-limit E2E bypass (INFRA-06)", () => {
     } finally {
       await app.close();
     }
+  });
+
+  it("Test E (CR-05, 11-REVIEW.md iteration 2): with nodeEnv 'production' AND E2E_COMPOSE_OVERLAY set (the real docker-compose.e2e.yml shape), the bypass header works again", async () => {
+    process.env.E2E_RATE_LIMIT_BYPASS_SECRET = BYPASS_SECRET;
+    process.env.E2E_COMPOSE_OVERLAY = "true";
+    const app = await buildApp({ prisma, nodeEnv: "production" });
+
+    try {
+      for (let i = 0; i < REQUEST_COUNT; i++) {
+        const res = await app.inject({
+          method: "POST",
+          url: "/api/auth/sign-in/magic-link",
+          headers: { "x-e2e-bypass": BYPASS_SECRET },
+          payload: { email: PROBE_EMAIL },
+        });
+        expect(res.statusCode).not.toBe(429);
+      }
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe("CR-05 regression: docker-compose.e2e.yml's exact merged boot env must not crash-loop", () => {
+  // Shaped exactly like the merged environment scripts/e2e-compose.sh +
+  // docker-compose.e2e.yml produce for the `app` service's real boot:
+  // NODE_ENV=production (inherited from .env via docker-compose.yml's
+  // env_file, INFRA-01) + a real E2E_RATE_LIMIT_BYPASS_SECRET (INFRA-06) +
+  // the E2E_COMPOSE_OVERLAY marker literal hardcoded in
+  // docker-compose.e2e.yml. This is the exact interaction that was missed
+  // by testing WR-03 and CR-02's own fixes in isolation (11-REVIEW.md
+  // iteration 2, CR-05) — asserted directly here so it can never regress
+  // silently again.
+  const E2E_COMPOSE_MERGED_ENV: NodeJS.ProcessEnv = {
+    NODE_ENV: "production",
+    PORT: "3000",
+    DATABASE_URL: "postgresql://kurzly:changeme@db:5432/kurzly",
+    SMTP_HOST: "mailpit",
+    SMTP_PORT: "1025",
+    SMTP_SECURE: "false",
+    SMTP_FROM: "no-reply@e2e.kurzly.local",
+    BASE_URL: "http://localhost:3000",
+    BETTER_AUTH_SECRET: "a".repeat(32),
+    INITIAL_ADMIN_EMAIL: "admin@e2e.kurzly.local",
+    E2E_RATE_LIMIT_BYPASS_SECRET: "some-generated-hex-secret",
+    E2E_COMPOSE_OVERLAY: "true",
+  };
+
+  it("parseEnv() succeeds against the real merged docker-compose.e2e.yml env (no crash-loop)", () => {
+    const result = parseEnv(E2E_COMPOSE_MERGED_ENV);
+
+    expect(result.success).toBe(true);
+  });
+
+  it("parseEnv() still FAILS the same shape minus the E2E_COMPOSE_OVERLAY marker (real production stays protected)", () => {
+    const { E2E_COMPOSE_OVERLAY, ...withoutOverlay } = E2E_COMPOSE_MERGED_ENV;
+    void E2E_COMPOSE_OVERLAY;
+
+    const result = parseEnv(withoutOverlay);
+
+    expect(result.success).toBe(false);
   });
 });
 

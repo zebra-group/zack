@@ -179,8 +179,28 @@ export async function registerRateLimit(app: FastifyInstance, nodeEnv: string): 
   // `registerCors(app, nodeEnv)`'s precedent one line above this call in
   // app.ts) so the bypass is structurally inert whenever
   // `NODE_ENV=production`, regardless of what's in the environment.
+  //
+  // CR-05 (11-REVIEW.md iteration 2): `docker-compose.e2e.yml` deliberately
+  // boots the built image with `NODE_ENV=production` (INFRA-01 — production
+  // SHAPE topology fidelity), so `nodeEnv === "production"` alone can no
+  // longer distinguish "the E2E compose stack" from "a real production
+  // deployment" — under the gate above, the bypass would be permanently
+  // inert in the E2E stack too, defeating INFRA-06's whole point.
+  // `isE2EStack` is the same narrow, independent signal `env.ts`'s
+  // WR-03 boot guard now keys off: `E2E_COMPOSE_OVERLAY` is a fixed literal
+  // hardcoded ONLY in `docker-compose.e2e.yml`'s `app.environment` — never
+  // in `docker-compose.yml` (the real prod file), `.env.example`, or
+  // `envSchema`. A real production deployment would need BOTH this marker
+  // AND the bypass secret to leak in together for the bypass to activate —
+  // strictly more defense-in-depth than the single `nodeEnv` check it
+  // replaces, not less.
+  const isE2EStack =
+    typeof process.env.E2E_COMPOSE_OVERLAY === "string" &&
+    process.env.E2E_COMPOSE_OVERLAY.trim() !== "";
   const bypassSecret =
-    nodeEnv === "production" ? undefined : process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
+    nodeEnv === "production" && !isE2EStack
+      ? undefined
+      : process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
 
   await app.register(rateLimit, {
     global: true,

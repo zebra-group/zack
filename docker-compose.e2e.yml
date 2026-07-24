@@ -21,6 +21,18 @@ services:
 
   app:
     environment:
+      # CR-05 (11-REVIEW.md iteration 2) — a fixed literal, NOT interpolated
+      # from the script's/CI's own environment (unlike
+      # E2E_RATE_LIMIT_BYPASS_SECRET below): the narrow "this boot IS the
+      # E2E compose overlay" signal apps/api/src/env.ts's WR-03 boot guard
+      # and apps/api/src/plugins/rateLimit.ts's CR-02 gate both key off
+      # instead of NODE_ENV (which stays "production" here on purpose, per
+      # INFRA-01 — production-SHAPE topology fidelity). NEVER add this key
+      # to docker-compose.yml, docker-compose.dev.yml, or .env.example — its
+      # entire value is being structurally absent from every real-production
+      # config surface, mirroring E2E_RATE_LIMIT_BYPASS_SECRET's own
+      # discipline.
+      E2E_COMPOSE_OVERLAY: "true"
       # Route the built image's nodemailer client at the existing
       # dev-overlay Mailpit instance (never a real SMTP provider, never a
       # second Mailpit) so magic-link emails are host-readable via
