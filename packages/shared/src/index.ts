@@ -392,6 +392,18 @@ export type QrCodeDTO = {
   /** Derived from whether a logo is stored — never the raw bytes (T-07-DTO-LEAK). */
   logoEnabled: boolean;
   /**
+   * Whether logo bytes are ACTUALLY stored, independent of `logoEnabled`
+   * (a QR can have the toggle on with nothing uploaded yet — see
+   * `UpdateQrCodeInput.logoEnabled`'s doc comment). Exists purely so a
+   * client can tell "toggle on, no upload" apart from "toggle on, real
+   * logo from a past session" without the raw bytes ever crossing the
+   * JSON boundary (T-07-DTO-LEAK) — QrStudioPanel.vue needs this to avoid
+   * drawing its decorative placeholder tile over an already-composited
+   * real logo once a QR is reselected (its session-local upload-tracking
+   * flag resets on every selection change).
+   */
+  hasLogo: boolean;
+  /**
    * Pruning-resistant all-time scan counter (mirrors `LinkDTO.lifetimeClicks`,
    * D-13 precedent) — read-only, incremented only by the `/q` scan hook
    * (07-06). NEVER settable via `CreateQrCodeInput`/`UpdateQrCodeInput`

@@ -125,7 +125,15 @@ watch(
 );
 
 const studioCode = computed(() => (props.qr.variant === "dynamic" ? `/q/${props.qr.code}` : ""));
-const showLogoOverlay = computed(() => local.logoEnabled && !hasCustomLogo.value);
+/**
+ * Only draws the decorative placeholder tile for "toggle on, nothing
+ * uploaded yet" — a `qr.hasLogo` from the server means real logo bytes
+ * are already composited into `previewSrc`, so drawing the tile on top
+ * would hide the actual saved logo behind a generic brand-initial icon
+ * (this used to happen on every reselect/reload, since `hasCustomLogo`
+ * is session-local and always starts false).
+ */
+const showLogoOverlay = computed(() => local.logoEnabled && !hasCustomLogo.value && !props.qr.hasLogo);
 
 /** Preloads the next server render before swapping `previewSrc` — keeps the previous frame visible (opacity .6) instead of a blank flash. */
 function refreshPreview(): void {

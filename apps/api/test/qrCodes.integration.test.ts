@@ -320,6 +320,7 @@ describe("QrCode core (QR-02/03/04, single-write-path)", () => {
       const dto = toQrCodeDto(result.qrCode);
       expect(dto).not.toHaveProperty("logoData");
       expect(JSON.stringify(dto)).not.toContain("logoData");
+      expect(dto.hasLogo).toBe(false);
       expect(dto.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
       expect(dto.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
     });
@@ -623,6 +624,7 @@ describe("QrCode core (QR-02/03/04, single-write-path)", () => {
       const dto = toQrCodeDto(updated.qrCode);
       expect(dto).not.toHaveProperty("logoData");
       expect(dto.logoEnabled).toBe(true);
+      expect(dto.hasLogo).toBe(true);
     });
 
     it("mass-assignment: code/lifetimeScans/variant/linkId are never client-settable through updateQrCode", async () => {
@@ -1805,6 +1807,7 @@ describe("PATCH /api/qr-codes/:id logoData upload (route layer, T-07-LOGO-MIME)"
 
     expect(res.statusCode).toBe(200);
     expect(res.json().logoEnabled).toBe(true);
+    expect(res.json().hasLogo).toBe(true);
     await app.close();
   });
 
