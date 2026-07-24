@@ -330,6 +330,22 @@ export function qrCodesRoute(prisma: PrismaClient, auth: Auth) {
       },
     );
 
+    // DELETE /api/qr-codes/:id (WR-07) — delete, same IDOR guard as
+    // GET/PATCH (resolveOwnedQrCode). No manual QrRemapHistory cleanup: the
+    // FK is onDelete: Cascade (schema.prisma), proven by the integration
+    // suite's cascade test.
+    app.delete("/api/qr-codes/:id", async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = await resolveUserId(auth, request);
+      if (!userId) return reply.code(401).send({ error: "Unauthorized" });
+
+      const { id } = request.params as { id: string };
+      const qrCode = await resolveOwnedQrCode(prisma, userId, id);
+      if (!qrCode) return reply.code(404).send({ error: "Not found" });
+
+      await prisma.qrCode.delete({ where: { id } });
+      return reply.code(204).send();
+    });
+
     // PATCH /api/qr-codes/:id — style update (color/rounded/logo/name) via
     // updateQrCode, OR — when targetLinkId is present — a remap via
     // remapQrCode. Same IDOR guard as GET :id. Delegates every write to
