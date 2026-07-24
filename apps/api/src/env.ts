@@ -210,8 +210,28 @@ export function parseEnv(source: NodeJS.ProcessEnv): ParseEnvResult {
   // `safeParse` with zero boot-time signal. Fail loudly here, specifically
   // and only for this one already-known-dangerous key, rather than widening
   // schema strictness for every unrelated env var.
+  //
+  // CR-05 (11-REVIEW.md iteration 2): `docker-compose.e2e.yml` deliberately
+  // boots the built image with `NODE_ENV=production` (INFRA-01 — production
+  // SHAPE topology fidelity) while ALSO setting a real
+  // `E2E_RATE_LIMIT_BYPASS_SECRET` (INFRA-06) — exactly the combination this
+  // guard used to treat as an unconditional boot-time misconfiguration,
+  // crash-looping the entire E2E stack. `NODE_ENV` can therefore no longer
+  // serve as "is this a real production deployment" on its own. `isE2EStack`
+  // is the narrow, independent signal that answers that question instead:
+  // `E2E_COMPOSE_OVERLAY` is a fixed literal ("true") hardcoded ONLY in
+  // `docker-compose.e2e.yml`'s `app.environment` — structurally absent from
+  // `docker-compose.yml` (the real prod file), `.env.example`, and
+  // `envSchema` itself, mirroring `E2E_RATE_LIMIT_BYPASS_SECRET`'s own
+  // "never in the documented config surface" discipline. A real production
+  // deployment would need BOTH vars to leak in together (not just one) for
+  // this guard to stay silent — strictly more defense-in-depth than the
+  // single-signal check it replaces, not less.
+  const isE2EStack =
+    typeof source.E2E_COMPOSE_OVERLAY === "string" && source.E2E_COMPOSE_OVERLAY.trim() !== "";
   if (
     result.data.NODE_ENV === "production" &&
+    !isE2EStack &&
     typeof source.E2E_RATE_LIMIT_BYPASS_SECRET === "string" &&
     source.E2E_RATE_LIMIT_BYPASS_SECRET.trim() !== ""
   ) {
@@ -220,7 +240,7 @@ export function parseEnv(source: NodeJS.ProcessEnv): ParseEnvResult {
         code: "custom",
         path: ["E2E_RATE_LIMIT_BYPASS_SECRET"],
         message:
-          "E2E_RATE_LIMIT_BYPASS_SECRET must never be set when NODE_ENV=production (CR-02/WR-03, 11-REVIEW.md) — this is an E2E-only rate-limit bypass; its presence in a production environment is always a misconfiguration.",
+          "E2E_RATE_LIMIT_BYPASS_SECRET must never be set when NODE_ENV=production outside the E2E compose overlay (CR-02/WR-03/CR-05, 11-REVIEW.md) — this is an E2E-only rate-limit bypass; its presence in a production environment (without the E2E_COMPOSE_OVERLAY marker) is always a misconfiguration.",
       },
     ];
     return { success: false, issues };

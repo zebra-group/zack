@@ -293,6 +293,49 @@ describe("parseEnv() — E2E_RATE_LIMIT_BYPASS_SECRET production boot guard (WR-
 
     expect(result.success).toBe(true);
   });
+
+  // CR-05 (11-REVIEW.md iteration 2): docker-compose.e2e.yml deliberately
+  // boots the built image with NODE_ENV=production (INFRA-01) AND a real
+  // E2E_RATE_LIMIT_BYPASS_SECRET (INFRA-06) at the same time — exactly the
+  // shape this guard used to reject unconditionally, crash-looping the
+  // entire E2E stack on every boot. E2E_COMPOSE_OVERLAY is the narrow,
+  // independent signal that lets this exact merged-env shape boot
+  // successfully without reopening the original CR-02/WR-03 hole for real
+  // production deployments (which never set this marker either).
+  it("succeeds when NODE_ENV=production, E2E_RATE_LIMIT_BYPASS_SECRET is set, AND E2E_COMPOSE_OVERLAY is present (the real docker-compose.e2e.yml merged env shape)", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      NODE_ENV: "production",
+      E2E_RATE_LIMIT_BYPASS_SECRET: "leaked-secret",
+      E2E_COMPOSE_OVERLAY: "true",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("still fails loudly when E2E_COMPOSE_OVERLAY is empty/whitespace-only (not a real E2E-overlay boot)", async () => {
+    const { parseEnv } = await import("../src/env.js");
+
+    const result = parseEnv({
+      ...VALID_SOURCE,
+      NODE_ENV: "production",
+      E2E_RATE_LIMIT_BYPASS_SECRET: "leaked-secret",
+      E2E_COMPOSE_OVERLAY: "   ",
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected failure");
+    const paths = result.issues.map((issue) => issue.path.join("."));
+    expect(paths).toContain("E2E_RATE_LIMIT_BYPASS_SECRET");
+  });
+
+  it("does not require E2E_COMPOSE_OVERLAY to be a documented envSchema key (stays absent, mirrors E2E_RATE_LIMIT_BYPASS_SECRET)", async () => {
+    const { envSchema } = await import("../src/env.js");
+
+    expect(Object.keys(envSchema.shape)).not.toContain("E2E_COMPOSE_OVERLAY");
+  });
 });
 
 describe("loadEnv() (fail-fast boot wrapper)", () => {
