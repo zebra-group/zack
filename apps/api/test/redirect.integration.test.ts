@@ -344,6 +344,44 @@ describe("Redirect precedence engine (Phase 5, REDIR-01..05, D-14)", () => {
       expect(staleCookieGet.statusCode).toBe(200);
       expect(staleCookieGet.body).toContain("Dieser Link ist geschützt");
     });
+
+    it("accepts a REAL browser form submission (application/x-www-form-urlencoded, no enctype) — the exact encoding renderPasswordPage's own <form> produces", async () => {
+      // 12-05-PLAN.md discovery: `renderPasswordPage`'s rendered
+      // `<form method="POST" action="/${slug}/verify">` carries no
+      // `enctype` attribute, so every real browser submits it as
+      // `application/x-www-form-urlencoded` (the HTML spec's default) —
+      // NOT `application/json`, which is all `app.inject`'s own `payload:
+      // {...}` shape had ever exercised until a genuine Playwright `page`
+      // clicked the real submit button in 12-05's E2E spec. Fastify's
+      // built-in parsers cover only `application/json`/`text/plain`; with
+      // no `application/x-www-form-urlencoded` parser registered, every
+      // real end user's password submission got a bare 415 Unsupported
+      // Media Type, never reaching `bcrypt.compare` at all.
+      const app = await buildApp({ prisma });
+      const seed = await seedDomainWithOwner("protected-form-encoded.example.com");
+      await createLink(prisma, {
+        userId: seed.userId,
+        domainId: seed.domainId,
+        targetUrl: "https://unlocked-target.example.com/",
+        slug: "secret",
+        password: "correct-horse-battery",
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/secret/verify",
+        headers: {
+          host: "protected-form-encoded.example.com",
+          "user-agent": BROWSER_UA,
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        payload: "password=correct-horse-battery",
+      });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("https://unlocked-target.example.com/");
+      expect(response.headers["set-cookie"]).toBeDefined();
+    });
   });
 
   describe("Precedence (D-14): expiry beats the password gate", () => {
