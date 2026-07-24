@@ -45,6 +45,7 @@ import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest }
 import bcrypt from "bcryptjs";
 import type { Link, PrismaClient, ScanSource } from "../generated/prisma/client.js";
 import { resolveActiveDomainByHost } from "../lib/domainResolution.js";
+import { normalizeHostname } from "../lib/hostname.js";
 import { resolveLinkState, mergeQuery, applyUtmParams, QR_SCAN_PARAM } from "../lib/redirectEngine.js";
 import { isBotRequest } from "../lib/botDetection.js";
 import { hasValidUnlockCookie, issueUnlockCookie } from "../lib/unlockCookie.js";
@@ -199,6 +200,42 @@ const verifyRateLimitConfig = {
     }),
 };
 
+/**
+ * CR-07 (11-REVIEW.md, discovered via live E2E testing against the built
+ * image): the app's OWN serving host (`BASE_URL`) is never a registered
+ * redirect-target `Domain` row — it's the dashboard's origin, not a
+ * customer short-link domain. Without this exemption, EVERY single-segment
+ * dashboard SPA route (e.g. `/team`) matches this file's `/:slug` route
+ * syntactically, `resolveActiveDomainByHost` correctly returns null (no
+ * such Domain), and the handler used to render its OWN branded 404 page
+ * directly — never falling through to `app.ts`'s `setNotFoundHandler`,
+ * which is what actually serves the SPA's `index.html` for a client-side
+ * route on a hard reload/direct navigation. A member (or anyone) hard-
+ * navigating straight to `/team` got the redirect engine's "link not
+ * found" page instead of the Vue app (which would have client-side
+ * router-guard-redirected them to `/`) — read directly from `process.env`
+ * (not `loadEnv()`), mirroring this file's own `brandCtx()` convention so
+ * it works under Vitest without a boot-time ENV parse.
+ *
+ * Deliberately NOT applied to `resolveActiveDomainByHost`'s frozen
+ * signature (its own header comment: "keep it stable for downstream
+ * reuse") or to any OTHER unregistered host — REDIR-02's own test
+ * ("returns the generic 404 page for an unregistered/inactive host, never
+ * a cross-domain match") stays exactly as reviewed: a request to a
+ * genuinely random/attacker-probed hostname still gets the branded
+ * not-found page, denying any information about domain existence. Only
+ * the app's OWN configured host gets the SPA-fallback exemption.
+ */
+function isAppOwnHost(hostname: string): boolean {
+  const baseUrl = process.env.BASE_URL;
+  if (!baseUrl) return false;
+  try {
+    return normalizeHostname(hostname) === normalizeHostname(new URL(baseUrl).hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function redirectRoute(prisma: PrismaClient) {
   return async function registerRedirectRoute(app: FastifyInstance): Promise<void> {
     app.route({
@@ -215,6 +252,13 @@ export function redirectRoute(prisma: PrismaClient) {
 
         const domain = await resolveActiveDomainByHost(prisma, request.hostname);
         if (!domain) {
+          // CR-07: the app's own dashboard host falls through to the SPA
+          // (app.ts's setNotFoundHandler serves index.html) instead of the
+          // redirect engine's branded 404 — every other unregistered host
+          // keeps the existing deny-and-mask behavior (REDIR-02).
+          if (isAppOwnHost(request.hostname)) {
+            return reply.callNotFound();
+          }
           return reply.code(404).type("text/html").send(renderNotFoundPage(ctx));
         }
 
