@@ -157,7 +157,7 @@ export const QR_RENDER_RATE_LIMIT = {
   timeWindow: "1 minute",
 } as const;
 
-export async function registerRateLimit(app: FastifyInstance): Promise<void> {
+export async function registerRateLimit(app: FastifyInstance, nodeEnv: string): Promise<void> {
   // INFRA-06 (11-02-PLAN.md): a narrow, env-gated E2E-only bypass — NOT a
   // blanket disable. Read directly from `process.env` (mirrors
   // `routes/domains.ts`'s `computeVerificationTarget` precedent) rather than
@@ -169,7 +169,18 @@ export async function registerRateLimit(app: FastifyInstance): Promise<void> {
   // named per-route override (`MAGIC_LINK_RATE_LIMIT`, etc.) per the
   // plugin's own documented encapsulation-scope behavior — no per-route
   // edits needed (RESEARCH "Don't Hand-Roll").
-  const bypassSecret = process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
+  //
+  // CR-02 (11-REVIEW.md): the schema-absence guard above only proves the
+  // bypass secret can't be set via the *documented* config surface
+  // (`.env`/`.env.example`/`envSchema`). It does NOT prevent an operator,
+  // misconfigured hosting platform, or leaked CI env var from setting the
+  // raw `E2E_RATE_LIMIT_BYPASS_SECRET` process env var directly in a
+  // production deployment. Gate explicitly on `nodeEnv` (mirrors
+  // `registerCors(app, nodeEnv)`'s precedent one line above this call in
+  // app.ts) so the bypass is structurally inert whenever
+  // `NODE_ENV=production`, regardless of what's in the environment.
+  const bypassSecret =
+    nodeEnv === "production" ? undefined : process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
 
   await app.register(rateLimit, {
     global: true,

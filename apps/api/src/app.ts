@@ -151,7 +151,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await registerCors(app, nodeEnv);
   await registerHelmet(app);
-  await registerRateLimit(app);
+  await registerRateLimit(app, nodeEnv);
   // Phase 5 (D-07/D-08): signed cookies for the redirect engine's
   // link-bound unlock cookie (lib/unlockCookie.ts) — reuses the
   // already-validated BETTER_AUTH_SECRET (>= 32 chars, env.ts) as the HMAC
