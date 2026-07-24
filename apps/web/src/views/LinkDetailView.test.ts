@@ -357,6 +357,7 @@ describe("LinkDetailView", () => {
       password: undefined,
       expiresAt: undefined,
       forwardQuery: false,
+      trackingEnabled: true,
     });
     expect(wrapper.text()).toContain("Änderungen gespeichert");
   });
