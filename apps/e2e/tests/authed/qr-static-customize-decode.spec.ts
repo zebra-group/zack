@@ -133,6 +133,24 @@ test.describe("QR-E2E-01: static QR create + customize + decode round-trip", () 
       ]);
       expect(logoPatch.ok()).toBe(true);
 
+      // --- READ-BACK: confirm each customization actually persisted ---
+      // WR-02 (15-REVIEW.md): resolveQrPayload's encoded short-URL string is
+      // completely independent of color/roundedModules/logoData — only
+      // resolveRenderStyle consumes those fields, and the decode assertion
+      // below never changes based on them. Without this read-back, a
+      // regression that silently dropped color/roundedModules/logoData on
+      // write (while updateQrCode still returned 200) would pass this test
+      // unnoticed. Read the persisted row back directly via Prisma —
+      // mirroring qr-fixture.spec.ts's own read-back pattern for this exact
+      // model — rather than the HTTP DTO, since QrCodeDTO deliberately never
+      // exposes raw logoData bytes (T-07-DTO-LEAK, packages/shared/src/index.ts).
+      const expectedColor = (colorPatch.request().postDataJSON() as { color: string }).color;
+      const persisted = await prisma.qrCode.findUniqueOrThrow({ where: { id: qrId! } });
+      expect(persisted.color).toBe(expectedColor);
+      expect(persisted.roundedModules).toBe(true);
+      expect(persisted.logoEnabled).toBe(true);
+      expect(persisted.logoData).not.toBeNull();
+
       // --- DECODE round-trip ---
       // page.request shares the SAME BrowserContext cookie jar as page, so it
       // carries the chromium-admin project's storageState session cookie the
