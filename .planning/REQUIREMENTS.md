@@ -24,7 +24,7 @@
 - [ ] **AUTH-E2E-04**: OIDC/SSO-Login-Roundtrip gegen einen Test-IdP, inkl. Least-Privilege-Provisionierung ("Mitglied") bei Erstanmeldung
 - [ ] **AUTH-E2E-05**: Bereits eingeladener, noch nicht aktivierter Magic-Link-Account meldet sich erstmals per SSO an — Konten werden korrekt zusammengeführt
 - [x] **AUTH-E2E-06**: Logout beendet die Session; nicht authentifizierter Zugriff auf Dashboard-Routen leitet zum Login um
-- [ ] **AUTH-E2E-07**: Magic-Link-Resend-Rate-Limit zeigt eine sinnvolle UI-Meldung statt eines stillen Fehlers
+- [x] **AUTH-E2E-07**: Magic-Link-Resend-Rate-Limit zeigt eine sinnvolle UI-Meldung statt eines stillen Fehlers
 
 ### Redirect-Handler E2E
 
@@ -100,7 +100,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-E2E-04 | Phase 13 | Pending |
 | AUTH-E2E-05 | Phase 13 | Pending |
 | AUTH-E2E-06 | Phase 13 | Complete |
-| AUTH-E2E-07 | Phase 13 | Pending |
+| AUTH-E2E-07 | Phase 13 | Complete |
 | LINKS-E2E-01 | Phase 14 | Pending |
 | LINKS-E2E-02 | Phase 14 | Pending |
 | LINKS-E2E-03 | Phase 14 | Pending |
