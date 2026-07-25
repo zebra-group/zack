@@ -4,16 +4,16 @@ milestone: v1.1
 milestone_name: E2E Test Coverage
 current_phase: 17
 current_phase_name: Team Management & Domain-Scoped Authorization E2E
-status: planning
+status: executing
 stopped_at: Completed 16-03-PLAN.md (ANALYTICS-E2E-03 global rollup, Phase 16 complete)
-last_updated: "2026-07-25T08:20:01.014Z"
+last_updated: "2026-07-25T08:53:04.544Z"
 last_activity: 2026-07-25
-last_activity_desc: Phase 16 complete, transitioned to Phase 17
+last_activity_desc: Phase 17 execution started
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 30
-  completed_plans: 30
+  total_plans: 35
+  completed_plans: 31
   percent: 86
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hosted, ohne Drittanbieter-Tracking.
-**Current focus:** Phase 12 — Redirect Handler E2E (Core Value)
+**Current focus:** Phase 17 — Team Management & Domain-Scoped Authorization E2E
 
 ## Current Position
 
-Phase: 17 — Team Management & Domain-Scoped Authorization E2E
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-07-25 — Phase 16 complete, transitioned to Phase 17
+Phase: 17 (Team Management & Domain-Scoped Authorization E2E) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-07-25 — Phase 17 execution started
 
 Progress: [██████████] 86%
 
@@ -96,6 +96,7 @@ Progress: [██████████] 86%
 | Phase 16 P01 | 45min | 1 tasks | 1 files |
 | Phase 16 P02 | 40min | 1 tasks | 1 files |
 | Phase 16 P03 | 50min | 1 tasks | 1 files |
+| Phase 17 P01 | 40min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -151,6 +152,7 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 16]: ANALYTICS-E2E-02 proved live via the REAL LinkDetailView .tracking-card .toggle (awaited updateLink PATCH), never the fixture-only trackingEnabled:false path -- recordClickHook's structural early-return guard produces a true DB-asserted zero-rows guarantee (clickEvent.count===0, lifetimeClicks===0) while the redirect itself still 302s
 - [Phase 16]: ANALYTICS-E2E-03 proved live -- 3/2 real clicks across two distinct baseline-domain links roll up correctly in getGlobalAnalytics's server-side SQL GROUP BY topLinks; per-link Top Links rows (scoped by unique slug) are exact-matched, the shared "Klicks (30 Tage)" tile is asserted only with toBeGreaterThanOrEqual (never exact equality, since the query sums ALL links on the shared baseline domain) -- Phase 16 (Analytics E2E) complete, zero apps/api/apps/web diffs across all three plans
 - [Phase 16]: pre-existing, unrelated flakiness observed again in links-crud.spec.ts/qr-static-customize-decode.spec.ts/storage-state.spec.ts (chromium-member) when running the full tests/authed/ directory -- consistent with 16-02's identical finding, deferred (out of scope for Phase 16's own spec files), noted for Phase 17 or a dedicated stabilization pass
+- [Phase 17]: TEAM-E2E-01 proved live -- inviteMember's auth.api.signInMagicLink call is retrieved unchanged by findMagicLinkUrl; the acceptance-fully-awaited-before-refetch sequencing (Pitfall 2) held with zero flakiness across two live runs
 
 ### Pending Todos
 
@@ -175,6 +177,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-25T07:59:35.000Z
+Last session: 2026-07-25T08:52:36.130Z
 Stopped at: Completed 16-03-PLAN.md (ANALYTICS-E2E-03 global rollup, Phase 16 complete)
 Resume file: None
