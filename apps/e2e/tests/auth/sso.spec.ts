@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import { createE2ePrisma } from "../../src/db.js";
 import { resetOidcProfile, setOidcProfile } from "../../src/oidc-mock.js";
+import { createInvitedUnverifiedUser } from "../../src/users.js";
 
 /**
  * SSO login (AUTH-E2E-04/05, 13-07-PLAN.md/13-08-PLAN.md) — a single
@@ -90,6 +91,69 @@ test.describe.serial("SSO login (AUTH-E2E-04/05)", () => {
         where: { userId: user!.id },
       });
       expect(memberships).toHaveLength(0);
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
+
+  /**
+   * AUTH-E2E-05 (13-08-PLAN.md) — an admin-invited, not-yet-activated
+   * magic-link account (`emailVerified: false`, no `Account` row — exactly
+   * `lib/team.ts`'s `inviteMember` shape, reproduced here via
+   * `createInvitedUnverifiedUser`) that first signs in via SSO with the
+   * SAME email must be merged into ONE account, not duplicated. A unique
+   * per-run `sub`/`email` keeps this test's `Account(providerId, accountId)`
+   * row distinct from AUTH-E2E-04's own subject/email above.
+   *
+   * Against the CURRENT (unconfigured) `createAuth()`, better-auth's default
+   * `requireLocalEmailVerified: true` rejects this exact scenario (the
+   * invited User's `emailVerified` is still `false`) — the browser lands on
+   * `/auth/error` instead of the dashboard, and no `oidc` Account row is
+   * ever created. This test is RED until `apps/api/src/lib/auth.ts` adds
+   * `account.accountLinking`.
+   */
+  test("SSO login merges an admin-invited, unverified account into ONE account (AUTH-E2E-05)", async ({
+    page,
+  }) => {
+    const suffix = randomUUID().slice(0, 8);
+    const email = `sso-05-${suffix}@idp.test`;
+
+    const prisma = createE2ePrisma();
+    try {
+      await createInvitedUnverifiedUser(prisma, { email });
+
+      await setOidcProfile({
+        sub: `sso-05-${suffix}`,
+        email,
+        extraClaims: {},
+      });
+
+      await page.goto("/login");
+      const ssoButton = page.getByRole("button", { name: "Mit SSO anmelden" });
+      await expect(ssoButton).toBeVisible();
+      await ssoButton.click();
+
+      // Required GREEN behavior: the invited account is merged, so the
+      // browser reaches the dashboard exactly like a first-time SSO login
+      // (AUTH-E2E-04 above) — never redirected to /auth/error.
+      await page.getByRole("link", { name: "Dashboard" }).waitFor();
+
+      const sessionResponse = await page.request.get("/api/auth/get-session");
+      expect(sessionResponse.ok()).toBeTruthy();
+      const sessionBody = (await sessionResponse.json()) as { user?: { email?: string } } | null;
+      expect(sessionBody?.user?.email).toBe(email);
+
+      // Exactly ONE User row for this email — the SSO login must merge into
+      // the pre-created invited row, never create a second User.
+      const users = await prisma.user.findMany({ where: { email } });
+      expect(users).toHaveLength(1);
+
+      // An Account row for provider "oidc" now exists against the SAME
+      // (merged) User row.
+      const oidcAccount = await prisma.account.findFirst({
+        where: { userId: users[0]!.id, providerId: "oidc" },
+      });
+      expect(oidcAccount).not.toBeNull();
     } finally {
       await prisma.$disconnect();
     }

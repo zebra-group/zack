@@ -33,6 +33,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import http from "node:http";
+import { randomUUID } from "node:crypto";
 import { buildApp } from "../src/app.js";
 import { seedInitialAdmin } from "../src/lib/admin-seed.js";
 import { sendMagicLinkEmail } from "../src/lib/mailer.js";
@@ -346,6 +347,50 @@ describe("OIDC/SSO configured — genericOAuth registered (AUTH-06 coexistence, 
 
     const memberships = await prisma.domainMembership.findMany({ where: { userId: user!.id } });
     expect(memberships).toHaveLength(0);
+
+    await app.close();
+  });
+
+  /**
+   * AUTH-E2E-05 (13-08-PLAN.md) — the SSO-after-invite account-merge
+   * scenario. Reproduces `lib/team.ts`'s `inviteMember` new-invitee write
+   * shape EXACTLY (`emailVerified: false`, no `Account` row) via a direct
+   * `prisma.user.create`, mirroring `apps/e2e/src/users.ts`'s
+   * `createInvitedUnverifiedUser` fixture pattern, then drives the SAME
+   * `ssoSignInAndCallback` real `genericOAuth` round trip every other test
+   * in this describe block uses (better-auth's own provisioning/linking
+   * code runs — never a hand-rolled merge). Against the CURRENT
+   * (unconfigured) `createAuth()`, `requireLocalEmailVerified` defaults to
+   * `true` (13-RESEARCH.md Pitfall 1), so this callback redirects with
+   * `error=account_not_linked` and no `oidc` Account row is ever created —
+   * this test is RED until `apps/api/src/lib/auth.ts` adds
+   * `account.accountLinking`.
+   */
+  it("invited SSO merge: an admin-invited, unverified User merges into ONE account via SSO (AUTH-E2E-05)", async () => {
+    const email = "invited-sso-merge@idp.test";
+    await prisma.user.create({
+      data: {
+        id: randomUUID(),
+        name: email.split("@")[0] ?? email,
+        email,
+        emailVerified: false,
+        accountRole: "member",
+      },
+    });
+
+    const app = await buildAppWithOidc({ sub: "sso-invited-merge-subject", email });
+
+    const callbackRes = await ssoSignInAndCallback(app);
+    expect(callbackRes.statusCode).toBe(302);
+    expect(callbackRes.headers.location).not.toContain("error=");
+
+    const users = await prisma.user.findMany({ where: { email } });
+    expect(users).toHaveLength(1);
+
+    const oidcAccount = await prisma.account.findFirst({
+      where: { userId: users[0]!.id, providerId: SSO_PROVIDER_ID },
+    });
+    expect(oidcAccount).not.toBeNull();
 
     await app.close();
   });
