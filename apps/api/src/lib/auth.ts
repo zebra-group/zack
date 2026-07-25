@@ -203,6 +203,23 @@ export function createAuth(prisma: PrismaClient) {
                   discoveryUrl: ssoDiscoveryUrl(sso.issuer),
                   clientId: sso.clientId,
                   clientSecret: sso.clientSecret,
+                  // AUTH-E2E-04 fix (13-07-PLAN.md, empirically discovered by
+                  // 13-01's live round trip against a real, spec-compliant
+                  // mock IdP): without an explicit `scopes` array, better-auth
+                  // sends the authorization request with `scope=` (empty) --
+                  // `genericOAuth`'s own default is `[]`, not `["openid"]`.
+                  // The permissive hand-rolled stub in
+                  // sso-auth.integration.test.ts never validates the
+                  // requested scope, so this gap was invisible there; a
+                  // real OIDC provider's default interaction policy requires
+                  // at least the `openid` scope and denies consent
+                  // (`error=access_denied`) otherwise -- confirmed live via
+                  // apps/e2e/tests/auth/sso.spec.ts before this fix landed.
+                  // `email`/`profile` are additionally requested so the
+                  // userinfo response includes the claims this app's
+                  // provisioning path (`email`) and profile-completeness
+                  // (`name`) already expect.
+                  scopes: ["openid", "email", "profile"],
                 },
               ],
             }),
