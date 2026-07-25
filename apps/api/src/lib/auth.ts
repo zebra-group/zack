@@ -68,6 +68,46 @@
  * writes only the fields the `Account` model already has (`providerId`,
  * `accountId`, `accessToken`, `refreshToken`, `idToken`, `scope`), so no
  * migration was needed for this plan.
+ *
+ * D-13-01 (13-08-PLAN.md, AUTH-E2E-05, code-verified against installed
+ * `better-auth@1.6.23`'s `dist/oauth2/link-account.mjs`): `account
+ * .accountLinking.requireLocalEmailVerified` defaults to `true`. Without an
+ * explicit override, an admin-invited `User` row (`lib/team.ts`'s
+ * `inviteMember` creates it with `emailVerified: false` until the invitee's
+ * FIRST successful login) can never be linked to an OIDC/SSO login for the
+ * same email — better-auth's `handleOAuthUserInfo` finds the existing
+ * `User` by email, sees no `oidc` `Account` row yet, and rejects with
+ * `error=account_not_linked` regardless of what the IdP's own
+ * `email_verified` claim says. The failure mode is a clean error redirect,
+ * not data corruption or a duplicate account — but it hard-fails the
+ * ROADMAP's stated SSO-after-invite merge requirement.
+ *
+ * The fix below (`account.accountLinking.requireLocalEmailVerified: false`)
+ * is deliberately scoped, not a blanket "email verification never matters"
+ * statement: Kurzly has NO public signup (D-01) — every `User` row exists
+ * ONLY because an admin already vetted and invited that exact email
+ * address. "Unverified local User row" and "admin-invited, not yet
+ * activated" are therefore the SAME closed set today, so relaxing this
+ * check lets that invited user complete their first login via the
+ * operator-configured, admin-trusted IdP and merge into their pre-created
+ * account rather than being locked out of the very SSO path the operator
+ * set up for them.
+ *
+ * Security tradeoff, written down explicitly (not left implicit, per
+ * 13-RESEARCH.md's Pitfall 1 "How to avoid"): this makes an admin-invited-
+ * but-unverified `User` row linkable via SSO by ANYONE who can authenticate
+ * to the configured IdP with that email address. This is accepted as a
+ * bounded, deliberate tradeoff because the IdP is operator-configured,
+ * admin-trusted infrastructure (never attacker-controlled) and the email
+ * itself was already admin-chosen — not because email verification is
+ * considered unimportant in general.
+ *
+ * Open question for a future contributor (13-RESEARCH.md OQ-1, resolved for
+ * now): `account.accountLinking` is a single global `betterAuth()` setting
+ * with no per-user-origin override in the installed 1.6.23 API. If a future
+ * change ever introduces a SECOND way to create an unverified local `User`
+ * row (anything other than an admin invite), this equivalence breaks and
+ * this decision must be re-evaluated.
  */
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
@@ -98,6 +138,16 @@ export function createAuth(prisma: PrismaClient) {
     baseURL: requireEnv("BASE_URL"),
     secret: requireEnv("BETTER_AUTH_SECRET"),
     database: prismaAdapter(prisma, { provider: "postgresql" }),
+    // D-13-01 (see this file's header comment for the full rationale and
+    // security tradeoff): Kurzly's invite-only model already vets every
+    // local User row's email, so an admin-invited-but-unverified row is
+    // safe to link to a first SSO login for the same address.
+    account: {
+      accountLinking: {
+        enabled: true,
+        requireLocalEmailVerified: false,
+      },
+    },
     // Phase 9 (D-09-01, UI-09-02, T-09-ROLE-MASS): the `accountRole` column
     // already exists (plain additive Prisma migration, apps/api/src/lib/
     // accountRole.ts) — no `@better-auth/cli generate` schema-sync step is
