@@ -6,14 +6,14 @@ current_phase: 13
 current_phase_name: Authentication & Session E2E
 status: verifying
 stopped_at: Completed 13-03-PLAN.md (magic-link round trip + token rejection)
-last_updated: "2026-07-25T00:06:56.946Z"
+last_updated: "2026-07-25T00:18:28.467Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 12 complete, transitioned to Phase 13
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 19
-  completed_plans: 15
+  completed_plans: 16
   percent: 29
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 13 — Authentication & Session E2E
-Plan: 4 of 8 in current phase
+Plan: 5 of 8 in current phase
 Status: Ready to execute
 Last activity: 2026-07-24 — Phase 12 complete, transitioned to Phase 13
 
@@ -81,6 +81,7 @@ Progress: [██████████] 100%
 | Phase 13 P02 | 15min | 3 tasks | 3 files |
 | Phase 13 P03 | 30min | 2 tasks | 2 files |
 | Phase 13 P04 | 20min | 1 tasks | 1 files |
+| Phase 13 P05 | 20min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,7 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase ?]: [Phase 13]: better-auth's verification.identifier column stores the raw, unhashed magic-link token (confirmed against installed 1.6.23 source) -- consumeVerificationValue deletes the matching row unconditionally before checking expiresAt, so consumed-reuse and DB-expired tokens both fail via the identical INVALID_TOKEN redirect
 - [Phase ?]: [Phase 13]: browser.newContext() does not inherit playwright.config.ts's use.baseURL -- every fresh negative-path context in magic-link-token-rejection.spec.ts explicitly passes baseURL (with the same fallback chain as smoke/boot.spec.ts)
 - [Phase ?]: [Phase 13]: invite-only-denial.spec.ts creates NO Prisma fixture for its test email -- its absence from the User table IS the precondition isEmailAllowed checks, the one spec in this phase that deliberately writes nothing
+- [Phase ?]: [Phase 13]: A transient 3rd-consecutive-invocation stack-reuse flake (spurious Dashboard-nav timeouts under --workers=1) in tests/auth/ was diagnosed as accumulated Mailpit/DB state across back-to-back Playwright invocations on one long-lived compose stack, not a spec defect -- resolved by re-running against a freshly booted stack.
 
 ### Pending Todos
 
@@ -143,6 +145,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-25T00:05:22.561Z
+Last session: 2026-07-25T00:16:29.869Z
 Stopped at: Completed 13-03-PLAN.md (magic-link round trip + token rejection)
 Resume file: None
