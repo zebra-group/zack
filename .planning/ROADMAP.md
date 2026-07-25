@@ -117,9 +117,9 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
   2. A valid CSV import shows a preview with the correct row count/diff, and commit writes exactly the previewed rows — no silent extras — asserted directly against the database. [LINKS-E2E-02]
   3. A CSV containing a slug conflict surfaces the conflict in the preview, and commit behaves exactly as specified (skip/overwrite). [LINKS-E2E-03]
 
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 
-- [ ] 14-01-PLAN.md — Wave 0 CSV-fixture builder apps/e2e/src/csv.ts (buildImportCsv, exact header) + RED→GREEN contract spec (LINKS-E2E-02/03) [Wave 0]
+- [x] 14-01-PLAN.md — Wave 0 CSV-fixture builder apps/e2e/src/csv.ts (buildImportCsv, exact header) + RED→GREEN contract spec (LINKS-E2E-02/03) [Wave 0]
 - [ ] 14-02-PLAN.md — LINKS-E2E-01 canonical link journey: create→list→edit→search/filter→delete via real UI, server-verified (chromium-admin) [Wave 1]
 - [ ] 14-03-PLAN.md — LINKS-E2E-02 valid CSV upload→preview→commit, DB-asserted exact rows (chromium-admin) [Wave 1]
 - [ ] 14-04-PLAN.md — LINKS-E2E-03 CSV slug-conflict preview→commit-skips, DB-asserted skip-not-overwrite (chromium-admin) [Wave 1]
@@ -182,7 +182,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 | 11. Playwright E2E Infrastructure & Fixtures | v1.1 | 6/6 | Complete    | 2026-07-24 |
 | 12. Redirect Handler E2E (Core Value) | v1.1 | 5/5 | Complete    | 2026-07-24 |
 | 13. Authentication & Session E2E | v1.1 | 8/8 | Complete    | 2026-07-25 |
-| 14. Links & CSV Import E2E | v1.1 | 0/4 | Not started | - |
+| 14. Links & CSV Import E2E | v1.1 | 1/4 | In Progress|  |
 | 15. QR Studio E2E | v1.1 | 0/TBD | Not started | - |
 | 16. Analytics E2E | v1.1 | 0/TBD | Not started | - |
 | 17. Team Mgmt & Domain-Scoped Authz E2E | v1.1 | 0/TBD | Not started | - |

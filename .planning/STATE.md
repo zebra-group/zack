@@ -5,16 +5,16 @@ milestone_name: E2E Test Coverage
 current_phase: 14
 current_phase_name: Links & CSV Import E2E
 status: executing
-stopped_at: Completed 13-08-PLAN.md (AUTH-E2E-05 SSO-after-invite account merge, account.accountLinking fix) -- Phase 13 fully closed
-last_updated: "2026-07-25T01:37:58.832Z"
+stopped_at: Completed 14-01-PLAN.md (CSV fixture builder, apps/e2e/src/csv.ts buildImportCsv/IMPORT_CSV_HEADER, RED->GREEN)
+last_updated: "2026-07-25T02:19:04.281Z"
 last_activity: 2026-07-25
-last_activity_desc: Phase 13 complete, transitioned to Phase 14
+last_activity_desc: Completed 14-01-PLAN.md (CSV fixture builder, buildImportCsv)
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 19
-  completed_plans: 19
-  percent: 43
+  total_plans: 23
+  completed_plans: 20
+  percent: 87
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 14 — Links & CSV Import E2E
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-25 — Phase 13 complete, transitioned to Phase 14
+Plan: 1 of 4 in current phase
+Status: Executing
+Last activity: 2026-07-25 — Completed 14-01-PLAN.md (CSV fixture builder, buildImportCsv)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
@@ -85,6 +85,7 @@ Progress: [██████████] 100%
 | Phase 13 P06 | 20min | 1 tasks | 1 files |
 | Phase 13 P07 | 25min | 1 tasks | 2 files |
 | Phase 13 P08 | 45min | 2 tasks | 3 files |
+| Phase 14 P01 | 35min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,7 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase ?]: AUTH-E2E-07 tripped rate limit uses a 6-request same-IP pre-exhaust burst (no x-e2e-bypass anywhere) then drives the real LoginView UI once to assert the exact German 429 copy; no User fixture needed since MAGIC_LINK_RATE_LIMIT's onRequest hook fires before the allowlist check
 - [Phase ?]: [Phase 13]: Fixed apps/api/src/lib/auth.ts's empty-scopes genericOAuth gap (STATE.md blocker from 13-01/13-02) as part of 13-07 -- confirmed RED (real error=access_denied) then GREEN live against the built compose image before adding scopes: ['openid','email','profile']
 - [Phase 13]: [Phase 13]: Added account.accountLinking { enabled:true, requireLocalEmailVerified:false } to auth.ts (D-13-01) so an admin-invited unverified User merges into ONE account on first SSO login instead of being rejected with account_not_linked -- documented as a deliberate, bounded security tradeoff scoped to Kurzly's invite-only model (D-01) — Closes AUTH-E2E-05, the last known blocker in Phase 13; confirmed RED then GREEN live at both the Vitest-integration and real-browser-E2E levels
+- [Phase ?]: [Phase 14]: apps/e2e/src/csv.ts's buildImportCsv is a dependency-free string join (not a CSV library) centralizing IMPORT_CSV_HEADER (ziel_url,slug,domain) as the single source of the import-CSV header, proven RED->GREEN via csv-fixture.spec.ts -- structurally closes 14-RESEARCH.md Pitfall 4 for every fixture 14-03/14-04 build
 
 ### Pending Todos
 
@@ -150,6 +152,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-25T01:00:59.449Z
-Stopped at: Completed 13-08-PLAN.md (AUTH-E2E-05 SSO-after-invite account merge, account.accountLinking fix) -- Phase 13 fully closed
+Last session: 2026-07-25T02:19:04.273Z
+Stopped at: Completed 14-01-PLAN.md (CSV fixture builder, apps/e2e/src/csv.ts buildImportCsv/IMPORT_CSV_HEADER, RED->GREEN)
 Resume file: None
