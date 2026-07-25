@@ -5,13 +5,15 @@ import { BROWSER_UA, createE2eLink } from "../../src/links.js";
 
 /**
  * ANALYTICS-E2E-03 (16-03-PLAN.md) — real HTTP clicks distributed across TWO
- * distinct Links on the baseline domain (3 clicks on link A, 2 on link B),
- * generated via the real redirect handler (never a seeded `ClickEvent` row),
- * then a FRESH navigation to the global `/analytics` overview correctly
- * rolls up the numbers: per-link "Top Links" rows (scoped by each link's
- * unique slug) show the exact counts, and the server-side cross-link
- * `GROUP BY` rollup in `getGlobalAnalytics` — never a client-side sum — is
- * cross-checked against direct-Prisma per-link counts.
+ * distinct Links on the baseline domain (nA clicks on link A, nB clicks on
+ * link B — see the WR-01 note below for why these are double digits, not a
+ * couple), generated via the real redirect handler (never a seeded
+ * `ClickEvent` row), then a FRESH navigation to the global `/analytics`
+ * overview correctly rolls up the numbers: per-link "Top Links" rows
+ * (scoped by each link's unique slug) show the exact counts, and the
+ * server-side cross-link `GROUP BY` rollup in `getGlobalAnalytics` — never
+ * a client-side sum — is cross-checked against direct-Prisma per-link
+ * counts.
  *
  * 16-RESEARCH.md Summary point 3: `getGlobalAnalytics`'s `topLinks` is a raw
  * SQL `GROUP BY`/`COUNT`/`JOIN` scoped to `domainId IN (...)`, and
@@ -27,6 +29,23 @@ import { BROWSER_UA, createE2eLink } from "../../src/links.js";
  * Links" rows scoped by our unique random slugs; the global tile is checked
  * only with `toBeGreaterThanOrEqual` (monotonic contribution), NEVER exact
  * equality.
+ *
+ * 16-REVIEW.md WR-01 (fixed): `topLinks` (`lib/analytics.ts:199-208`) is an
+ * ALL-TIME, unfiltered `ORDER BY clicks DESC LIMIT 5` over every Link ever
+ * created on the shared baseline domain — not windowed like `clicks30Days`.
+ * A 3-click / 2-click fixture pair was only a "comparatively high click
+ * counts" heuristic, not a guaranteed top-5 floor, under full-suite
+ * concurrent noise. Two mitigations below close this without weakening the
+ * exact-equality proof itself: (1) nA/nB are raised to a much larger
+ * margin — every other spec in this suite that generates real clicks
+ * against the baseline domain does so 0-1 times per fixture Link, so double
+ * digits leaves comfortable headroom against realistic concurrent noise;
+ * (2) `assertTopLinksRow` below dumps the actually-rendered top-5 rows to
+ * the console before letting a "row not found" failure propagate, so a
+ * future flake is immediately diagnosable as "pushed out of top-5 by
+ * concurrent noise" rather than an opaque locator timeout. No production
+ * code change is implied — `topLinks`' all-time/no-window ranking is
+ * Phase 6's existing, already-shipped behavior.
  */
 test.describe("ANALYTICS-E2E-03: global overview rolls up per-link click counts across multiple links", () => {
   // apps/e2e/tests/smoke/db-isolation.spec.ts truncates ClickEvent/Link
@@ -63,8 +82,13 @@ test.describe("ANALYTICS-E2E-03: global overview rolls up per-link click counts 
     const slugA = `e2e-rollup-a-${hexA}`;
     const slugB = `e2e-rollup-b-${hexB}`;
 
-    const nA = 3;
-    const nB = 2;
+    // Double digits, not a couple (WR-01 fix): every other spec in this
+    // suite that generates real clicks against the shared baseline domain
+    // does so 0-1 times per fixture Link, so this leaves comfortable
+    // headroom for both fixture links to stay inside topLinks' all-time
+    // top-5 cap under realistic concurrent-suite noise.
+    const nA = 25;
+    const nB = 20;
 
     const prisma = createE2ePrisma();
     try {
@@ -116,13 +140,37 @@ test.describe("ANALYTICS-E2E-03: global overview rolls up per-link click counts 
 
       // --- UI rollup assertion: per-link rows scoped by unique slug ---
       // Proves the server-side per-link GROUP BY rollup surfaced each
-      // link's exact count in the cross-link overview.
-      await expect(
-        page.locator(".top-links-row", { hasText: `/${slugA}` }).locator(".row-count"),
-      ).toHaveText(String(nA));
-      await expect(
-        page.locator(".top-links-row", { hasText: `/${slugB}` }).locator(".row-count"),
-      ).toHaveText(String(nB));
+      // link's exact count in the cross-link overview. Still exact
+      // equality (never weakened) — assertTopLinksRow only adds a
+      // diagnostic dump of the rendered top-5 before a genuine failure
+      // propagates (WR-01, 16-REVIEW.md).
+      const assertTopLinksRow = async (slug: string, count: number) => {
+        const row = page.locator(".top-links-row", { hasText: `/${slug}` });
+        try {
+          await expect(row.locator(".row-count")).toHaveText(String(count));
+        } catch (err) {
+          // topLinks (lib/analytics.ts:199-208) is an ALL-TIME, unfiltered
+          // `ORDER BY clicks DESC LIMIT 5` over every Link ever created on
+          // the shared baseline domain. If this fixture link's row isn't
+          // found, it was most likely pushed out of the top-5 by enough
+          // concurrently-running specs' Links accumulating more lifetime
+          // clicks before this assertion ran — a shared-domain-noise flake,
+          // not a rollup regression. Dump what's actually rendered so a
+          // future failure is immediately diagnosable instead of a bare
+          // locator timeout.
+          const visibleRows = await page.locator(".top-links-row").allTextContents();
+          console.warn(
+            `[analytics-global-rollup.spec.ts] "/${slug}" (expected count ${count}) was not found in the ` +
+              `rendered Top Links list. Currently visible top-5 rows: ${JSON.stringify(visibleRows)}. ` +
+              "See 16-REVIEW.md WR-01 — this is almost certainly the documented all-time/no-window top-5 cap " +
+              "being pushed out by concurrent baseline-domain noise, not a rollup regression.",
+          );
+          throw err;
+        }
+      };
+
+      await assertTopLinksRow(slugA, nA);
+      await assertTopLinksRow(slugB, nB);
 
       // --- Global-total sanity (monotonic, concurrency-robust) ---
       // NEVER exact equality here — getGlobalAnalytics sums ClickEvents
