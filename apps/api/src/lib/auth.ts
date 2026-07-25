@@ -93,6 +93,53 @@
  * account rather than being locked out of the very SSO path the operator
  * set up for them.
  *
+ * CR-01 (13-REVIEW.md): `requireLocalEmailVerified: false` is NOT the only
+ * gate `handleOAuthUserInfo` evaluates — code-verified against the
+ * installed `better-auth@1.6.23` source (`oauth2/link-account.mjs`):
+ *
+ *   if (!isTrustedProvider && !userInfo.emailVerified
+ *       || requireLocalEmailVerified && !dbUser.user.emailVerified
+ *       || accountLinking?.enabled === false
+ *       || accountLinking?.disableImplicitLinking === true) {
+ *     return { error: "account not linked", data: null };
+ *   }
+ *
+ * `trustedProviders` (which would make `isTrustedProvider` true for
+ * `SSO_PROVIDER_ID` and short-circuit the first clause) is deliberately
+ * left UNSET here — it defaults to `[]` (`context/helpers.mjs`), so
+ * `isTrustedProvider` is always `false` for the `"oidc"` provider and the
+ * merge ALSO requires `userInfo.emailVerified` (the IdP's OWN
+ * `email_verified` userinfo claim) to be `true`. This is a deliberate
+ * decision, not an oversight: setting `trustedProviders: [SSO_PROVIDER_ID]`
+ * would remove this second, independent check entirely, making the merge
+ * (and first-time SSO provisioning, AUTH-07) succeed even when the
+ * operator-configured IdP itself asserts (or simply omits — the OIDC spec
+ * makes `email_verified` optional) that the authenticating user's email is
+ * NOT verified. Requiring both "admin invited this address" (the local
+ * gate this file relaxes) AND "the IdP itself vouches the email is
+ * verified" (the gate this file leaves untouched) is strictly safer
+ * defense-in-depth than collapsing to either check alone, so the safe
+ * default is kept. Operational consequence: an IdP whose userinfo response
+ * never asserts `email_verified: true` (self-hosted/enterprise IdPs
+ * commonly leave directory-synced accounts unverified) will see this exact
+ * merge fail with `error=account_not_linked` — a configuration
+ * incompatibility to diagnose against the specific IdP, not a bug to
+ * silently paper over by trusting the provider unconditionally.
+ * `test/sso-auth.integration.test.ts` has a dedicated case asserting this
+ * rejection (`emailVerified: false`) alongside the existing
+ * `emailVerified: true` merge-succeeds case, so a future change that adds
+ * `trustedProviders` (or otherwise removes this gate) fails a test rather
+ * than silently reintroducing the exact security regression this comment
+ * documents.
+ *
+ * This also means AUTH-07 (first-time SSO self-provisioning) can create its
+ * own unverified `User` row too, if a real IdP ever reports
+ * `email_verified: false` for a genuinely new user — so "unverified local
+ * User row" and "admin-invited, not yet activated" are NOT provably the
+ * same closed set the moment any IdP omits/falsifies `email_verified`; the
+ * IdP's own claim is what keeps that row's `emailVerified` faithful to
+ * reality in both the invite-merge and the first-time-provisioning path.
+ *
  * Security tradeoff, written down explicitly (not left implicit, per
  * 13-RESEARCH.md's Pitfall 1 "How to avoid"): this makes an admin-invited-
  * but-unverified `User` row linkable via SSO by ANYONE who can authenticate
@@ -142,6 +189,14 @@ export function createAuth(prisma: PrismaClient) {
     // security tradeoff): Kurzly's invite-only model already vets every
     // local User row's email, so an admin-invited-but-unverified row is
     // safe to link to a first SSO login for the same address.
+    //
+    // CR-01 (13-REVIEW.md, see header comment): `trustedProviders` is
+    // DELIBERATELY not set here — leaving it at its safe `[]` default
+    // means the merge below still independently requires the IdP's own
+    // `userInfo.emailVerified` claim to be `true`. Do not add
+    // `trustedProviders: [SSO_PROVIDER_ID]` — that would remove this
+    // second gate and let the merge succeed even when the configured IdP
+    // itself never asserts the email is verified.
     account: {
       accountLinking: {
         enabled: true,

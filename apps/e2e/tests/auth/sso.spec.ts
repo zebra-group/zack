@@ -158,4 +158,69 @@ test.describe.serial("SSO login (AUTH-E2E-04/05)", () => {
       await prisma.$disconnect();
     }
   });
+
+  /**
+   * CR-01 (13-REVIEW.md) — the merge above (AUTH-E2E-05) only succeeds
+   * because the mock IdP's default profile asserts `emailVerified: true`.
+   * `apps/api/src/lib/auth.ts` deliberately leaves `trustedProviders`
+   * unset (see that file's header comment), so `handleOAuthUserInfo`'s
+   * `!isTrustedProvider && !userInfo.emailVerified` clause is a SECOND,
+   * independent gate on top of `requireLocalEmailVerified: false` — the
+   * merge must be refused when the IdP itself never vouches the email is
+   * verified, even though the local admin-invite already vetted it.
+   *
+   * NOTE: this spec is new coverage added by the CR-01 fix pass and has
+   * NOT been run against a live `docker compose` stack in this session
+   * (live Playwright/compose verification was explicitly out of scope for
+   * this fix pass, per the phase's own port-conflict constraints on this
+   * dev machine) — flag for a live re-run before considering CR-01 fully
+   * closed end-to-end.
+   */
+  test("SSO login is REJECTED when the IdP's email_verified claim is false, even for an admin-invited account (CR-01)", async ({
+    page,
+  }) => {
+    const suffix = randomUUID().slice(0, 8);
+    const email = `sso-cr01-${suffix}@idp.test`;
+
+    const prisma = createE2ePrisma();
+    try {
+      await createInvitedUnverifiedUser(prisma, { email });
+
+      await setOidcProfile({
+        sub: `sso-cr01-${suffix}`,
+        email,
+        emailVerified: false,
+        extraClaims: {},
+      });
+
+      await page.goto("/login");
+      const ssoButton = page.getByRole("button", { name: "Mit SSO anmelden" });
+      await expect(ssoButton).toBeVisible();
+      await ssoButton.click();
+
+      // Refused, not merged: the browser lands on the error page, never
+      // the dashboard (mirrors magic-link-token-rejection.spec.ts's own
+      // assertion shape).
+      await expect(page).toHaveURL(/\/auth\/error/);
+
+      // No session was ever issued.
+      const sessionResponse = await page.request.get("/api/auth/get-session");
+      expect(sessionResponse.ok()).toBeTruthy();
+      const sessionBody = (await sessionResponse.json()) as unknown;
+      expect(sessionBody).toBeNull();
+
+      // The invited row is untouched: still exactly one User, still
+      // unverified, still no "oidc" Account row against it.
+      const users = await prisma.user.findMany({ where: { email } });
+      expect(users).toHaveLength(1);
+      expect(users[0]?.emailVerified).toBe(false);
+
+      const oidcAccount = await prisma.account.findFirst({
+        where: { userId: users[0]!.id, providerId: "oidc" },
+      });
+      expect(oidcAccount).toBeNull();
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
 });
