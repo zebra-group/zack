@@ -36,7 +36,7 @@
 
 ### Links & CSV-Import E2E
 
-- [ ] **LINKS-E2E-01**: Kanonische Journey — Link anlegen, in der Liste sehen, bearbeiten, per Suche/Filter finden, löschen
+- [x] **LINKS-E2E-01**: Kanonische Journey — Link anlegen, in der Liste sehen, bearbeiten, per Suche/Filter finden, löschen
 - [x] **LINKS-E2E-02**: CSV-Bulk-Import Happy Path — Upload → Preview (korrekte Zeilenzahl/Diff) → Commit schreibt exakt die vorgeschauten Zeilen
 - [x] **LINKS-E2E-03**: CSV-Import mit Slug-Konflikt — Preview zeigt den Konflikt korrekt an, Commit verhält sich wie spezifiziert (skip/overwrite)
 
@@ -101,7 +101,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-E2E-05 | Phase 13 | Complete |
 | AUTH-E2E-06 | Phase 13 | Complete |
 | AUTH-E2E-07 | Phase 13 | Complete |
-| LINKS-E2E-01 | Phase 14 | Pending |
+| LINKS-E2E-01 | Phase 14 | Complete |
 | LINKS-E2E-02 | Phase 14 | Complete |
 | LINKS-E2E-03 | Phase 14 | Complete |
 | QR-E2E-01 | Phase 15 | Pending |
