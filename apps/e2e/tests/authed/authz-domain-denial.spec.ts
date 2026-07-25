@@ -80,12 +80,14 @@ test.describe("AUTHZ-E2E-01: a zero-domain member is denied a Link (404), a QR (
 
     const prisma = createE2ePrisma();
     let memberCtx: Awaited<ReturnType<typeof browser.newContext>> | undefined;
+    let member: Awaited<ReturnType<typeof createAllowlistedUser>> | undefined;
+    let link: Awaited<ReturnType<typeof createE2eLink>> | undefined;
     try {
       // --- SETUP: a brand-new, ZERO-domain member (createAllowlistedUser
       // never touches DomainMembership) + a baseline-domain Link + a QR
       // bound to it. ---
-      await createAllowlistedUser(prisma, { email: memberEmail });
-      const link = await createE2eLink(prisma, {
+      member = await createAllowlistedUser(prisma, { email: memberEmail });
+      link = await createE2eLink(prisma, {
         slug,
         targetUrl: `https://example.com/authz-deny-target-${hex}`,
       });
@@ -172,11 +174,22 @@ test.describe("AUTHZ-E2E-01: a zero-domain member is denied a Link (404), a QR (
         clicks30Days: number;
         topLinks: { id: string; slug: string }[];
       };
+      const fixtureLinkId = link.id;
       expect(anBody.clicks30Days).toBe(0);
       expect(anBody.topLinks).toEqual([]);
-      expect(anBody.topLinks.some((row) => row.id === link.id || row.slug === slug)).toBe(false);
+      expect(anBody.topLinks.some((row) => row.id === fixtureLinkId || row.slug === slug)).toBe(false);
     } finally {
       if (memberCtx) await memberCtx.close();
+      // Teardown (WR-01, 17-REVIEW.md): this spec creates a real zero-domain
+      // member User plus a baseline-domain Link/QrCode/ClickEvent that
+      // withResetDbLock never truncates (User/Domain are excluded by
+      // design). Delete the fixture Link (schema.prisma cascades its bound
+      // QrCode and ClickEvent rows) and the member (cascades
+      // Session/Account/DomainMembership — none created here), so neither
+      // leaks into subsequent runs within the same compose session. Never
+      // touches the seeded ADMIN_EMAIL/MEMBER_EMAIL baseline fixtures.
+      if (link) await prisma.link.delete({ where: { id: link.id } });
+      if (member) await prisma.user.delete({ where: { id: member.id } });
       await prisma.$disconnect();
     }
   });

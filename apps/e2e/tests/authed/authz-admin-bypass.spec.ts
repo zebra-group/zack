@@ -68,6 +68,7 @@ test.describe("AUTHZ-E2E-02: an account-admin with zero DomainMembership rows re
     const slug = `e2e-bypass-${hex}`;
 
     const prisma = createE2ePrisma();
+    let bypassDomain: Awaited<ReturnType<typeof prisma.domain.create>> | undefined;
     try {
       // --- PRECONDITION: the seeded admin genuinely holds ZERO
       // DomainMembership rows. Makes "never explicitly assigned" an
@@ -85,7 +86,7 @@ test.describe("AUTHZ-E2E-02: an account-admin with zero DomainMembership rows re
       // via the accountRole bypass. Domain is never truncated by
       // withResetDbLock, so a per-test unique hostname is collision-free
       // across repeated runs. ---
-      const bypassDomain = await prisma.domain.create({
+      bypassDomain = await prisma.domain.create({
         data: {
           hostname,
           type: "subdomain",
@@ -123,6 +124,14 @@ test.describe("AUTHZ-E2E-02: an account-admin with zero DomainMembership rows re
       const qrApiResp = await page.request.get(`/api/qr-codes/${qr.id}`);
       expect(qrApiResp.status()).toBe(200);
     } finally {
+      // Teardown (WR-01, 17-REVIEW.md): this spec seeds a fresh, per-test
+      // Domain (never truncated by withResetDbLock) plus a Link/QrCode on
+      // it. Deleting the Domain (schema.prisma cascades its Links, which in
+      // turn cascade their QrCode/ClickEvent rows) is a single call that
+      // removes the whole fixture tree, so none of it accumulates across
+      // runs within the same compose session. Never touches the seeded
+      // admin User or the baseline Domain/DomainMembership fixtures.
+      if (bypassDomain) await prisma.domain.delete({ where: { id: bypassDomain.id } });
       await prisma.$disconnect();
     }
   });
