@@ -31,7 +31,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 
 - [x] **Phase 11: Playwright E2E Infrastructure & Fixtures** - Stable Playwright harness against the built image: Mailpit capture, DB isolation, per-role storageState fixtures, CI job, rate-limit bypass (completed 2026-07-24)
 - [x] **Phase 12: Redirect Handler E2E (Core Value)** - End-to-end proof of the redirect handler across every state (happy path, password gate, 410 expiry, bot/OG, UTM), auth-independent (completed 2026-07-24)
-- [ ] **Phase 13: Authentication & Session E2E** - Magic-link and OIDC/SSO login round-trips, session lifecycle, and route guarding — unlocks all dashboard-authenticated suites
+- [x] **Phase 13: Authentication & Session E2E** - Magic-link and OIDC/SSO login round-trips, session lifecycle, and route guarding — unlocks all dashboard-authenticated suites (completed 2026-07-25)
 - [ ] **Phase 14: Links & CSV Import E2E** - Canonical link CRUD journey plus the two-step CSV bulk-import (preview → commit) flow
 - [ ] **Phase 15: QR Studio E2E** - Static QR with customization (decode round-trip), dynamic `/q/:code` remapping, and PNG/SVG export
 - [ ] **Phase 16: Analytics E2E** - Real tracked click surfaces in per-link view, tracking-off true zero-rows, cross-link rollup
@@ -95,7 +95,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
   4. An invited-but-not-yet-activated magic-link account that first signs in via SSO is correctly merged into a single account. [AUTH-E2E-05]
   5. Logout ends the session and unauthenticated access to dashboard routes redirects to login; a magic-link resend that trips the rate limit surfaces a clear UI message rather than failing silently. [AUTH-E2E-06, AUTH-E2E-07]
 
-**Plans**: 7/8 plans executed
+**Plans**: 8/8 plans complete
 
 - [x] 13-01-PLAN.md — Mock OIDC IdP service (oidc-provider@9.10.0) + docker-compose.e2e.yml wiring (Wave 0)
 - [x] 13-02-PLAN.md — E2E harness scaffolding: mock-IdP client, User fixtures, standalone `auth` project (Wave 0)
@@ -104,7 +104,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 - [x] 13-05-PLAN.md — AUTH-E2E-06 logout + route guard (Wave 1)
 - [x] 13-06-PLAN.md — AUTH-E2E-07 rate-limit UI copy, real limiter (Wave 1)
 - [x] 13-07-PLAN.md — AUTH-E2E-04 SSO round trip + least-privilege (Wave 1)
-- [ ] 13-08-PLAN.md — AUTH-E2E-05 SSO-after-invite merge + auth.ts accountLinking fix, TDD RED→GREEN (Wave 2)
+- [x] 13-08-PLAN.md — AUTH-E2E-05 SSO-after-invite merge + auth.ts accountLinking fix, TDD RED→GREEN (Wave 2)
 
 ### Phase 14: Links & CSV Import E2E
 
@@ -176,7 +176,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 | 10. OIDC/SSO Integration | v1.0 | 5/5 | Complete | 2026-07-23 |
 | 11. Playwright E2E Infrastructure & Fixtures | v1.1 | 6/6 | Complete    | 2026-07-24 |
 | 12. Redirect Handler E2E (Core Value) | v1.1 | 5/5 | Complete    | 2026-07-24 |
-| 13. Authentication & Session E2E | v1.1 | 7/8 | In Progress|  |
+| 13. Authentication & Session E2E | v1.1 | 8/8 | Complete   | 2026-07-25 |
 | 14. Links & CSV Import E2E | v1.1 | 0/TBD | Not started | - |
 | 15. QR Studio E2E | v1.1 | 0/TBD | Not started | - |
 | 16. Analytics E2E | v1.1 | 0/TBD | Not started | - |
