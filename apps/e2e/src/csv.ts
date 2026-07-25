@@ -42,17 +42,40 @@ export type ImportCsvRow = {
 };
 
 /**
+ * RFC 4180 field escaping (14-REVIEW.md WR-02): quote-wraps `value` whenever
+ * it contains a comma, a double quote, or a newline (`\n`/`\r`) -- the three
+ * characters that would otherwise misalign or corrupt columns in the plain
+ * comma-join below -- doubling any embedded `"` per the spec. Every CURRENT
+ * call site only ever passes plain `https://example.com/...` URLs and
+ * hyphenated slugs (none of which need quoting, so this is a no-op for
+ * today's fixtures), but this module's own doc comment positions it as the
+ * ONE shared fixture builder every future CSV-import spec will reach for --
+ * without this, a future fixture value containing a comma would silently
+ * shift columns instead of failing loudly, since the server's own
+ * `csv-parse` (`apps/api/src/lib/links.ts`) correctly follows RFC 4180
+ * quoting rules on the way in.
+ */
+function escapeCsvField(value: string): string {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
  * Builds a CSV string from `rows`: `IMPORT_CSV_HEADER` first, then one line
  * per row (`zielUrl,slug,domain` in that fixed column order, blank cells for
- * an omitted `slug`/`domain`), with a trailing newline -- mirroring
- * `LinksImportView.vue`'s `SAMPLE_CSV` shape exactly (including for a
- * zero-row input, whose output is just the header line plus trailing
- * newline).
+ * an omitted `slug`/`domain`, each cell passed through `escapeCsvField`),
+ * with a trailing newline -- mirroring `LinksImportView.vue`'s `SAMPLE_CSV`
+ * shape exactly (including for a zero-row input, whose output is just the
+ * header line plus trailing newline).
  */
 export function buildImportCsv(rows: ImportCsvRow[]): string {
   const lines = [
     IMPORT_CSV_HEADER,
-    ...rows.map((row) => [row.zielUrl, row.slug ?? "", row.domain ?? ""].join(",")),
+    ...rows.map((row) =>
+      [escapeCsvField(row.zielUrl), escapeCsvField(row.slug ?? ""), escapeCsvField(row.domain ?? "")].join(","),
+    ),
   ];
   return `${lines.join("\n")}\n`;
 }

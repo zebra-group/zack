@@ -71,4 +71,38 @@ test.describe("buildImportCsv", () => {
     expect(lines.filter((line) => line === IMPORT_CSV_HEADER)).toHaveLength(1);
     expect(lines).toHaveLength(4); // header + 3 rows
   });
+
+  // 14-REVIEW.md WR-02: RFC 4180 field escaping — a field containing a
+  // comma, a double quote, or a newline must be quote-wrapped (doubling any
+  // embedded quote) rather than silently misaligning columns.
+  test("quote-wraps a field containing a comma", () => {
+    const csv = buildImportCsv([{ zielUrl: "https://example.com/a?x=1,2", slug: "slug-a" }]);
+
+    const lines = csv.split("\n");
+    expect(lines[1]).toBe('"https://example.com/a?x=1,2",slug-a,');
+  });
+
+  test("quote-wraps a field containing a double quote, doubling the embedded quote", () => {
+    const csv = buildImportCsv([{ zielUrl: "https://example.com/b", slug: 'weird"slug' }]);
+
+    const lines = csv.split("\n");
+    expect(lines[1]).toBe('https://example.com/b,"weird""slug",');
+  });
+
+  test("quote-wraps a field containing a newline", () => {
+    const csv = buildImportCsv([{ zielUrl: "https://example.com/c", domain: "e2e.kurzly.local\nmalicious" }]);
+
+    const lines = csv.split("\n");
+    // The embedded newline means this row itself spans two physical lines
+    // once split on "\n" -- reconstruct it by re-joining the quoted span.
+    expect(lines[1]).toBe("https://example.com/c,,\"e2e.kurzly.local");
+    expect(lines[2]).toBe('malicious"');
+  });
+
+  test("does not quote-wrap a field with none of comma/quote/newline", () => {
+    const csv = buildImportCsv([{ zielUrl: "https://example.com/plain", slug: "plain-slug", domain: "e2e.kurzly.local" }]);
+
+    const lines = csv.split("\n");
+    expect(lines[1]).toBe("https://example.com/plain,plain-slug,e2e.kurzly.local");
+  });
 });
