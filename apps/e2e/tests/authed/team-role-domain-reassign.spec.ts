@@ -79,11 +79,13 @@ test.describe("TEAM-E2E-02: admin's role/domain reassignment reaches the member'
 
     const prisma = createE2ePrisma();
     let memberCtx: Awaited<ReturnType<typeof browser.newContext>> | undefined;
+    let member: Awaited<ReturnType<typeof createAllowlistedUser>> | undefined;
+    let link: Awaited<ReturnType<typeof createE2eLink>> | undefined;
     try {
       // --- SETUP: a brand-new, zero-domain active member + a baseline-
       // domain fixture Link (the specific resource whose visibility flips). ---
-      await createAllowlistedUser(prisma, { email: memberEmail });
-      const link = await createE2eLink(prisma, {
+      member = await createAllowlistedUser(prisma, { email: memberEmail });
+      link = await createE2eLink(prisma, {
         slug,
         targetUrl: `https://example.com/reassign-target-${hex}`,
       });
@@ -184,6 +186,16 @@ test.describe("TEAM-E2E-02: admin's role/domain reassignment reaches the member'
       expect(teamApiResponse.ok()).toBeTruthy();
     } finally {
       if (memberCtx) await memberCtx.close();
+      // Teardown (WR-01, 17-REVIEW.md): this spec's own test subject is
+      // promoted to `accountRole: "admin"` with a live DomainMembership on
+      // the baseline domain by PART B above — the highest-hygiene-cost
+      // leaked fixture in this phase (a permanently-privileged real admin
+      // row surviving for the rest of the compose session). Delete it
+      // (schema.prisma cascades DomainMembership/Session/Account) and the
+      // fixture Link this spec created, so neither accumulates across runs.
+      // Never touches the seeded ADMIN_EMAIL/MEMBER_EMAIL baseline fixtures.
+      if (link) await prisma.link.delete({ where: { id: link.id } });
+      if (member) await prisma.user.delete({ where: { id: member.id } });
       await prisma.$disconnect();
     }
   });

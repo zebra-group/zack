@@ -131,6 +131,15 @@ test.describe("TEAM-E2E-01: admin invites a new member via the real Team UI; mag
     try {
       const invitee = await prisma.user.findUniqueOrThrow({ where: { email: inviteeEmail } });
       expect(invitee.emailVerified).toBe(true);
+
+      // Teardown (WR-01, 17-REVIEW.md): this spec creates a real invitee
+      // User row via the real invite-accept flow, and withResetDbLock never
+      // truncates User. Delete it (schema.prisma cascades its Session —
+      // created by the magic-link acceptance — and any Account/
+      // DomainMembership, none of which exist here) so it doesn't
+      // accumulate across runs within the same compose session. Never
+      // touches the seeded ADMIN_EMAIL/MEMBER_EMAIL baseline fixtures.
+      await prisma.user.delete({ where: { id: invitee.id } });
     } finally {
       await prisma.$disconnect();
     }
