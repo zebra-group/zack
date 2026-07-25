@@ -4,17 +4,17 @@ milestone: v1.1
 milestone_name: E2E Test Coverage
 current_phase: 17
 current_phase_name: Team Management & Domain-Scoped Authorization E2E
-status: executing
+status: verifying
 stopped_at: Completed 16-03-PLAN.md (ANALYTICS-E2E-03 global rollup, Phase 16 complete)
-last_updated: "2026-07-25T09:41:22.025Z"
+last_updated: "2026-07-25T10:19:56.748Z"
 last_activity: 2026-07-25
 last_activity_desc: Phase 17 execution started
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 35
-  completed_plans: 34
-  percent: 86
+  completed_plans: 35
+  percent: 100
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 Phase: 17 (Team Management & Domain-Scoped Authorization E2E) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-25 — Phase 17 execution started
 
 Progress: [██████████] 86%
@@ -100,6 +100,7 @@ Progress: [██████████] 86%
 | Phase 17 P02 | 75min | 1 tasks | 1 files |
 | Phase 17 P03 | 35min | 1 tasks | 1 files |
 | Phase 17 P04 | 25min | 1 tasks | 1 files |
+| Phase 17 P05 | 35min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,8 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase ?]: [Phase 17]: TEAM-E2E-03 proved live -- removeMember's tx.user.delete() cascades every Session row for that user in the SAME transaction (Session.user onDelete: Cascade), and better-auth's uncached getSession means the removed member's OWN already-open context observes get-session===null on its VERY NEXT request, no polling; DB cross-check confirms zero User + zero Session rows; reused 17-02's storageState:undefined second-session fix verbatim, no new harness bug this plan
 - [Phase ?]: [Phase 17] AUTHZ-E2E-01 proved live -- zero-domain member's own real session is denied server-side for Link (404 .not-found-card), QR (404), and sees a silently-scoped 200 empty Analytics rollup (clicks30Days:0, topLinks:[]) despite a real click existing on a baseline link the member cannot see; zero apps/api/apps/web diffs
 - [Phase ?]: [Phase 17] Local host port collisions (3000/5433/8025 already bound by unrelated Docker containers) required a session-local, non-committed Compose port-remap overlay (!override on ports:, plus an explicit app BASE_URL override) instead of scripts/e2e-compose.sh verbatim; three back-to-back manual re-invocations against the same long-lived app container exhausted its global rate-limit bucket (a test-harness artifact of repeated re-invocation, not a spec/app regression) -- restarting the app process reset it and confirmed a clean pass
+- [Phase ?]: [Phase 17]: AUTHZ-E2E-02 proved live -- existing chromium-admin storageState (zero DomainMembership rows) reaches a fresh, never-assigned second domain's Link (UI) and Link/QR (API 200) via the isAccountAdmin short-circuit; explicit domainMembership.count===0 precondition asserted. No new admin fixture, zero apps/api/apps/web diffs.
+- [Phase ?]: [Phase 17]: Full tests/authed/ single-invocation wave-merge gate hits a pre-existing, documented rate-limit-capacity ceiling (global 100req/15min bucket exhausted by real-browser traffic across ~15 spec files) at both --workers=1 and default parallelism -- confirmed unrelated to 17-05's own spec via isolation testing; documented in deferred-items.md (D-17-05-01), recommended fix is a Playwright extraHTTPHeaders bypass-secret addition (apps/e2e only, out of this plan's file scope).
 
 ### Pending Todos
 
@@ -184,6 +187,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-25T09:39:47.303Z
+Last session: 2026-07-25T10:17:50.867Z
 Stopped at: Completed 16-03-PLAN.md (ANALYTICS-E2E-03 global rollup, Phase 16 complete)
 Resume file: None
