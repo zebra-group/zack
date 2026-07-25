@@ -114,6 +114,17 @@ interface OidcStubOptions {
   email: string;
   /** Extra claims merged into the userinfo response (e.g. admin-shaped role/groups/admin claims for the no-claim-elevation proof). */
   extraClaims?: Record<string, unknown>;
+  /**
+   * CR-01 (13-REVIEW.md): controls the stub userinfo response's
+   * `email_verified` claim.
+   * - `true` (default): matches every pre-existing test in this file.
+   * - `false`: asserts the claim explicitly false.
+   * - `"omit"`: the claim is absent from the response entirely (OIDC makes
+   *   it optional) — better-auth's `getUserInfo` then defaults
+   *   `emailVerified` to `false` (`generic-oauth/routes.mjs`), so this
+   *   exercises the exact same rejection path as an explicit `false`.
+   */
+  emailVerified?: boolean | "omit";
 }
 
 interface OidcStub {
@@ -172,16 +183,23 @@ function startOidcStub(options: OidcStubOptions): Promise<OidcStub> {
           res.end(JSON.stringify({ error: "invalid_token" }));
           return;
         }
+        // CR-01 (13-REVIEW.md): `emailVerified` defaults to `true` so every
+        // pre-existing test in this file is unaffected; `"omit"` drops the
+        // claim from the response body entirely rather than sending it as
+        // `false`, exercising the OIDC-optional-claim case separately from
+        // the explicit-`false` case.
+        const emailVerifiedClaim = options.emailVerified ?? true;
+        const body: Record<string, unknown> = {
+          sub: options.sub,
+          email: options.email,
+          name: "SSO Stub User",
+          ...options.extraClaims,
+        };
+        if (emailVerifiedClaim !== "omit") {
+          body.email_verified = emailVerifiedClaim;
+        }
         res.writeHead(200, { "content-type": "application/json" });
-        res.end(
-          JSON.stringify({
-            sub: options.sub,
-            email: options.email,
-            email_verified: true,
-            name: "SSO Stub User",
-            ...options.extraClaims,
-          }),
-        );
+        res.end(JSON.stringify(body));
         return;
       }
 
@@ -394,4 +412,59 @@ describe("OIDC/SSO configured — genericOAuth registered (AUTH-06 coexistence, 
 
     await app.close();
   });
+
+  /**
+   * CR-01 (13-REVIEW.md): the merge above only succeeds because the stub
+   * IdP's userinfo response asserts `email_verified: true`. `auth.ts`
+   * deliberately leaves `trustedProviders` unset (see that file's header
+   * comment), so `handleOAuthUserInfo`'s `!isTrustedProvider &&
+   * !userInfo.emailVerified` clause is a SECOND, independent gate on top of
+   * `requireLocalEmailVerified: false` — the merge must still be refused
+   * when the IdP itself never vouches the email is verified, regardless of
+   * how thoroughly the local admin-invite already vetted it. Without this
+   * test, a future change that adds `trustedProviders: [SSO_PROVIDER_ID]`
+   * (silently removing this gate) would pass every other test in this file.
+   */
+  it.each([
+    ["false", false] as const,
+    ["omitted", "omit"] as const,
+  ])(
+    "CR-01: invited SSO merge is REJECTED when the IdP's email_verified claim is %s",
+    async (_label, emailVerified) => {
+      const email = `invited-sso-merge-unverified-${emailVerified}@idp.test`;
+      await prisma.user.create({
+        data: {
+          id: randomUUID(),
+          name: email.split("@")[0] ?? email,
+          email,
+          emailVerified: false,
+          accountRole: "member",
+        },
+      });
+
+      const app = await buildAppWithOidc({
+        sub: `sso-invited-merge-unverified-${emailVerified}-subject`,
+        email,
+        emailVerified,
+      });
+
+      const callbackRes = await ssoSignInAndCallback(app);
+      expect(callbackRes.statusCode).toBe(302);
+      expect(callbackRes.headers.location).toContain("error=");
+
+      // Refused, not silently merged or duplicated: the pre-created invited
+      // row stays exactly as it was, and no `oidc` Account row is created
+      // against it.
+      const users = await prisma.user.findMany({ where: { email } });
+      expect(users).toHaveLength(1);
+      expect(users[0]?.emailVerified).toBe(false);
+
+      const oidcAccount = await prisma.account.findFirst({
+        where: { userId: users[0]!.id, providerId: SSO_PROVIDER_ID },
+      });
+      expect(oidcAccount).toBeNull();
+
+      await app.close();
+    },
+  );
 });
