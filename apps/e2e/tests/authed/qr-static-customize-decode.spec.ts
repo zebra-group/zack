@@ -35,6 +35,22 @@ test.describe("QR-E2E-01: static QR create + customize + decode round-trip", () 
   // table). A whole-journey retry with a fresh per-test random slug/Link is
   // the UI-flow equivalent and is collision-free: every retry attempt re-runs
   // this test function from scratch, minting brand-new random identifiers.
+  //
+  // WR-01 (15-REVIEW.md): a finer-grained fetchWithFixtureRaceRetry-style
+  // helper (apps/e2e/src/links.ts, reused by smoke/redirect-*.spec.ts) was
+  // considered and deliberately NOT adopted here. That helper retries a
+  // single HTTP round-trip whose closure recreates its own fixture per
+  // attempt — but this test is a multi-step real-UI journey (button click ->
+  // Studio navigation -> three sequential style PATCHes -> an authenticated
+  // render.png fetch) with no single comparable value to retry around;
+  // wrapping only the final render.png fetch would leave every preceding UI
+  // step (which can just as easily race the same truncate) unprotected.
+  // Retrofitting the whole journey into one retryable closure is a
+  // materially larger, riskier change than this fix pass's scope justifies —
+  // mirrors 14-REVIEW-FIX.md's identical WR-01 tradeoff call for Phase 14's
+  // own multi-step UI specs. The coarser whole-test retry above, plus the
+  // testInfo.retry attribution logging in the beforeEach below, is the
+  // accepted tradeoff for this spec.
   test.describe.configure({ retries: 2 });
 
   test.beforeEach(async ({}, testInfo) => {
