@@ -6,14 +6,14 @@ current_phase: 17
 current_phase_name: Team Management & Domain-Scoped Authorization E2E
 status: executing
 stopped_at: Completed 16-03-PLAN.md (ANALYTICS-E2E-03 global rollup, Phase 16 complete)
-last_updated: "2026-07-25T09:27:12.189Z"
+last_updated: "2026-07-25T09:41:22.025Z"
 last_activity: 2026-07-25
 last_activity_desc: Phase 17 execution started
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 35
-  completed_plans: 33
+  completed_plans: 34
   percent: 86
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 17 (Team Management & Domain-Scoped Authorization E2E) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-07-25 — Phase 17 execution started
 
@@ -99,6 +99,7 @@ Progress: [██████████] 86%
 | Phase 17 P01 | 40min | 1 tasks | 1 files |
 | Phase 17 P02 | 75min | 1 tasks | 1 files |
 | Phase 17 P03 | 35min | 1 tasks | 1 files |
+| Phase 17 P04 | 25min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -157,6 +158,8 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 17]: TEAM-E2E-01 proved live -- inviteMember's auth.api.signInMagicLink call is retrieved unchanged by findMagicLinkUrl; the acceptance-fully-awaited-before-refetch sequencing (Pitfall 2) held with zero flakiness across two live runs
 - [Phase ?]: [Phase 17]: TEAM-E2E-02 proved live -- domain assignment and role promotion both take effect in a brand-new member's own already-open, never-re-authenticated session on its very next navigation (no cookieCache, scopedDomainIds/accountRole re-derived from Postgres per request); discovered and fixed a test-harness bug where browser.newContext() under a storageState-bearing project silently inherits that storageState, tripping better-auth's CSRF MISSING_OR_NULL_ORIGIN guard -- fixed with explicit storageState: undefined + the fresh context's own .request
 - [Phase ?]: [Phase 17]: TEAM-E2E-03 proved live -- removeMember's tx.user.delete() cascades every Session row for that user in the SAME transaction (Session.user onDelete: Cascade), and better-auth's uncached getSession means the removed member's OWN already-open context observes get-session===null on its VERY NEXT request, no polling; DB cross-check confirms zero User + zero Session rows; reused 17-02's storageState:undefined second-session fix verbatim, no new harness bug this plan
+- [Phase ?]: [Phase 17] AUTHZ-E2E-01 proved live -- zero-domain member's own real session is denied server-side for Link (404 .not-found-card), QR (404), and sees a silently-scoped 200 empty Analytics rollup (clicks30Days:0, topLinks:[]) despite a real click existing on a baseline link the member cannot see; zero apps/api/apps/web diffs
+- [Phase ?]: [Phase 17] Local host port collisions (3000/5433/8025 already bound by unrelated Docker containers) required a session-local, non-committed Compose port-remap overlay (!override on ports:, plus an explicit app BASE_URL override) instead of scripts/e2e-compose.sh verbatim; three back-to-back manual re-invocations against the same long-lived app container exhausted its global rate-limit bucket (a test-harness artifact of repeated re-invocation, not a spec/app regression) -- restarting the app process reset it and confirmed a clean pass
 
 ### Pending Todos
 
@@ -181,6 +184,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-25T09:26:36.475Z
+Last session: 2026-07-25T09:39:47.303Z
 Stopped at: Completed 16-03-PLAN.md (ANALYTICS-E2E-03 global rollup, Phase 16 complete)
 Resume file: None

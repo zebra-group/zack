@@ -60,7 +60,7 @@
 
 ### Domain-Autorisierung E2E
 
-- [ ] **AUTHZ-E2E-01**: Für je einen Ressourcentyp (Link, QR, Analytics) beweist ein UI-Layer-Test, dass eine echte, ohne Domain-Zuweisung agierende Mitglieder-Session serverseitig abgelehnt wird (ergänzt, dupliziert nicht die bestehende Integration-Denial-Suite)
+- [x] **AUTHZ-E2E-01**: Für je einen Ressourcentyp (Link, QR, Analytics) beweist ein UI-Layer-Test, dass eine echte, ohne Domain-Zuweisung agierende Mitglieder-Session serverseitig abgelehnt wird (ergänzt, dupliziert nicht die bestehende Integration-Denial-Suite)
 - [ ] **AUTHZ-E2E-02**: Ein Account-Admin greift über die UI auf eine ihm nie explizit zugewiesene Domain zu (Bypass-Nachweis)
 
 ## Out of Scope
@@ -113,7 +113,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEAM-E2E-01 | Phase 17 | Complete |
 | TEAM-E2E-02 | Phase 17 | Complete |
 | TEAM-E2E-03 | Phase 17 | Complete |
-| AUTHZ-E2E-01 | Phase 17 | Pending |
+| AUTHZ-E2E-01 | Phase 17 | Complete |
 | AUTHZ-E2E-02 | Phase 17 | Pending |
 
 **Coverage:** 32/32 requirements mapped across Phases 11–17 — no orphans, no duplicates.

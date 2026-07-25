@@ -172,12 +172,12 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
   4. For each resource type (Link, QR, Analytics), a real member session with no domain assignment is denied server-side through the UI, complementing (not duplicating) the existing v1.0 integration Denial-Suite. [AUTHZ-E2E-01]
   5. An account-admin reaches a domain never explicitly assigned to them through the UI, proving the bypass. [AUTHZ-E2E-02]
 
-**Plans**: 3/5 plans executed
+**Plans**: 4/5 plans executed
 
 - [x] 17-01-PLAN.md — TEAM-E2E-01 real-UI invite → Mailpit → accept → Team-list status flip "Ausstehend"→"Aktiv" (chromium-admin) [Wave 1]
 - [x] 17-02-PLAN.md — TEAM-E2E-02 admin role/domain reassignment reaches the member's own re-navigated session, no re-login (two contexts, chromium-admin) [Wave 1]
 - [x] 17-03-PLAN.md — TEAM-E2E-03 member removal immediately revokes the active session on the very next request (two contexts, chromium-admin) [Wave 1]
-- [ ] 17-04-PLAN.md — AUTHZ-E2E-01 zero-domain member denied Link (404 .not-found-card), QR (404), Analytics (200 empty rollup) (chromium-admin) [Wave 1]
+- [x] 17-04-PLAN.md — AUTHZ-E2E-01 zero-domain member denied Link (404 .not-found-card), QR (404), Analytics (200 empty rollup) (chromium-admin) [Wave 1]
 - [ ] 17-05-PLAN.md — AUTHZ-E2E-02 account-admin (zero DomainMembership) reaches a never-assigned domain's Link/QR, explicit precondition (chromium-admin) [Wave 1]
 
 ## Progress
@@ -200,4 +200,4 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 | 14. Links & CSV Import E2E | v1.1 | 4/4 | Complete    | 2026-07-25 |
 | 15. QR Studio E2E | v1.1 | 4/4 | Complete    | 2026-07-25 |
 | 16. Analytics E2E | v1.1 | 3/3 | Complete    | 2026-07-25 |
-| 17. Team Mgmt & Domain-Scoped Authz E2E | v1.1 | 3/5 | In Progress|  |
+| 17. Team Mgmt & Domain-Scoped Authz E2E | v1.1 | 4/5 | In Progress|  |
