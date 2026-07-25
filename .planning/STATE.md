@@ -5,16 +5,16 @@ milestone_name: E2E Test Coverage
 current_phase: 15
 current_phase_name: QR Studio E2E
 status: executing
-stopped_at: Completed 14-01-PLAN.md (CSV fixture builder, apps/e2e/src/csv.ts buildImportCsv/IMPORT_CSV_HEADER, RED->GREEN)
-last_updated: "2026-07-25T03:26:10.026Z"
+stopped_at: Completed 15-01-PLAN.md (QR fixture builder, apps/e2e/src/qr.ts createE2eQrCode/decodeQrImage, RED->GREEN, jsqr/sharp devDeps added)
+last_updated: "2026-07-25T04:00:57.316Z"
 last_activity: 2026-07-25
-last_activity_desc: Phase 14 complete, transitioned to Phase 15
+last_activity_desc: Completed 15-01-PLAN.md (QR fixture builder, createE2eQrCode/decodeQrImage)
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 23
-  completed_plans: 23
-  percent: 57
+  total_plans: 27
+  completed_plans: 24
+  percent: 89
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 15 — QR Studio E2E
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-25 — Phase 14 complete, transitioned to Phase 15
+Plan: 1 of 4 in current phase
+Status: Executing
+Last activity: 2026-07-25 — Completed 15-01-PLAN.md (QR fixture builder, createE2eQrCode/decodeQrImage)
 
-Progress: [█████████░] 87%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
@@ -89,6 +89,7 @@ Progress: [█████████░] 87%
 | Phase 14 P02 | 55min | 1 tasks | 1 files |
 | Phase 14 P03 | 30min | 1 tasks | 1 files |
 | Phase 14 P04 | 60min | 1 tasks | 1 files |
+| Phase 15 P01 | 10min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,8 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase ?]: [Phase 14]: LINKS-E2E-01 proved live against the built compose image with zero apps/api/apps/web diffs -- LinksView.vue/LinkFormModal.vue/api.ts behave exactly as 14-RESEARCH.md documented; test.describe.configure({ retries: 2 }) applied as the whole-journey UI equivalent of fetchWithFixtureRaceRetry for the documented cross-file db-isolation.spec.ts Link-table truncate race
 - [Phase ?]: [Phase 14]: LINKS-E2E-02 CSV import happy path proved live -- select-default-domain-before-upload avoids the documented double-preview race, commit re-sends the SAME csv text (no preview-id exists), and the DB-level slug-scoped findMany (not just importedCount) is the real 'no silent extras' proof
 - [Phase ?]: [Phase 14]: LINKS-E2E-03 CSV slug conflict proved live -- pre-existing Link seeded via createE2eLink inside the test body, preview surfaces slug_conflict, commit skips the row; the definitive proof is a direct-Prisma findMany scoped to the conflict slug returning exactly one row with the UNCHANGED pre-existing target (skip, never overwrite, no duplicate row) -- closing T-14-06, no overwrite path exists anywhere in the codebase
+- [Phase 15]: sharp's [SUS] freshness-heuristic flag (15-RESEARCH.md Package Legitimacy Audit) is a documented false-positive -- sharp is a 10+-year-old, ~76M-weekly-download package already an approved, in-production @kurzly/api dependency since Phase 7 and already resolved in the shared pnpm-lock.yaml; the blocking-human checkpoint was pre-authorized by the orchestrator for this autonomous run, no substitution
+- [Phase 15]: apps/e2e/src/qr.ts's createE2eQrCode is a raw prisma.qrCode.create (lib/qrCodes.ts's createQrCode is unreachable from apps/e2e via @kurzly/api's exports map, same as createLink/updateLink before it) and decodeQrImage is a verbatim port of apps/api/test/qrDecode.test.ts's sharp+jsQR decode recipe -- proven RED->GREEN via qr-fixture.spec.ts, closing 15-01-PLAN.md's Wave 0 infra gate for 15-02/03/04
 
 ### Pending Todos
 
@@ -158,6 +161,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-25T03:04:09.152Z
-Stopped at: Completed 14-01-PLAN.md (CSV fixture builder, apps/e2e/src/csv.ts buildImportCsv/IMPORT_CSV_HEADER, RED->GREEN)
+Last session: 2026-07-25T04:00:57.316Z
+Stopped at: Completed 15-01-PLAN.md (QR fixture builder, apps/e2e/src/qr.ts createE2eQrCode/decodeQrImage, RED->GREEN, jsqr/sharp devDeps added)
 Resume file: None
