@@ -41,6 +41,26 @@ test.describe("QR-E2E-02: dynamic QR remap changes /q/:code resolution, records 
   // slugs/code is the collision-free equivalent, since every retry attempt
   // re-runs this test function from scratch, minting brand-new random
   // identifiers.
+  //
+  // WR-01 (15-REVIEW.md): the review specifically asks whether THIS spec's
+  // two `/q/:code` GETs (the one genuinely single-HTTP-round-trip-shaped
+  // reads in this phase) could each be wrapped individually in
+  // fetchWithFixtureRaceRetry-style retry, keeping only a last-resort outer
+  // retries:2. Deliberately NOT adopted: fetchWithFixtureRaceRetry's closure
+  // recreates its OWN fixture on every attempt, but the two GETs here share
+  // fixtures (targetA/targetB/qr) created once at the top of the test and
+  // straddle a real-UI remap step in between — retrying just the "before"
+  // GET after a truncate wipes the shared rows would still fail (nothing
+  // recreates targetA/qr), and the SAME race window also covers the UI
+  // navigation + PATCH between the two GETs, which fetchWithFixtureRaceRetry
+  // cannot wrap at all. Splitting only the two GETs would therefore add
+  // complexity without closing the actual race window. Retrofitting the
+  // whole journey (fixtures + both GETs + the UI remap) into one retryable
+  // closure is a materially larger, riskier change than this fix pass's
+  // scope justifies — mirrors 14-REVIEW-FIX.md's identical WR-01 tradeoff
+  // call for Phase 14's own multi-step UI specs. The coarser whole-test
+  // retry above, plus the testInfo.retry attribution logging in the
+  // beforeEach below, is the accepted tradeoff for this spec.
   test.describe.configure({ retries: 2 });
 
   test.beforeEach(async ({}, testInfo) => {
