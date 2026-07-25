@@ -20,7 +20,7 @@
 
 - [x] **AUTH-E2E-01**: Magic-Link-Login-Roundtrip (Mail anfordern → in Mailpit lesen → Link öffnen → Session aktiv)
 - [x] **AUTH-E2E-02**: Ungültiger/abgelaufener Magic-Link-Token wird abgelehnt, keine Session entsteht
-- [ ] **AUTH-E2E-03**: Nicht eingeladene E-Mail-Adresse erzeugt keine Session (invite-only bewiesen)
+- [x] **AUTH-E2E-03**: Nicht eingeladene E-Mail-Adresse erzeugt keine Session (invite-only bewiesen)
 - [ ] **AUTH-E2E-04**: OIDC/SSO-Login-Roundtrip gegen einen Test-IdP, inkl. Least-Privilege-Provisionierung ("Mitglied") bei Erstanmeldung
 - [ ] **AUTH-E2E-05**: Bereits eingeladener, noch nicht aktivierter Magic-Link-Account meldet sich erstmals per SSO an — Konten werden korrekt zusammengeführt
 - [ ] **AUTH-E2E-06**: Logout beendet die Session; nicht authentifizierter Zugriff auf Dashboard-Routen leitet zum Login um
@@ -96,7 +96,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REDIRECT-E2E-05 | Phase 12 | Complete |
 | AUTH-E2E-01 | Phase 13 | Complete |
 | AUTH-E2E-02 | Phase 13 | Complete |
-| AUTH-E2E-03 | Phase 13 | Pending |
+| AUTH-E2E-03 | Phase 13 | Complete |
 | AUTH-E2E-04 | Phase 13 | Pending |
 | AUTH-E2E-05 | Phase 13 | Pending |
 | AUTH-E2E-06 | Phase 13 | Pending |
