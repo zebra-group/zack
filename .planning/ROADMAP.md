@@ -135,7 +135,12 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
   2. A dynamic `/q/:code` resolves to target A, then to target B after a Studio remap, and an ordered remap-history row is recorded. [QR-E2E-02]
   3. PNG and SVG exports each produce a valid, downloadable file. [QR-E2E-03]
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+- [ ] 15-01-PLAN.md — Wave 0 QR fixture apps/e2e/src/qr.ts (createE2eQrCode + decodeQrImage jsQR/sharp recipe) + jsqr/sharp devDeps, RED→GREEN, sharp [SUS] checkpoint (QR-E2E-01/02/03) [Wave 0]
+- [ ] 15-02-PLAN.md — QR-E2E-01 static QR create+customize (color/rounded/logo) via real Studio, PNG decodes to its exact short URL (chromium-admin) [Wave 1]
+- [ ] 15-03-PLAN.md — QR-E2E-02 dynamic /q/:code remap A→B via real .target-select, ordered QrRemapHistory row DB-asserted (chromium-admin) [Wave 1]
+- [ ] 15-04-PLAN.md — QR-E2E-03 PNG+SVG export buttons both download+jsQR-decode to same short URL, content-types asserted (chromium-admin) [Wave 1]
 
 ### Phase 16: Analytics E2E
 
