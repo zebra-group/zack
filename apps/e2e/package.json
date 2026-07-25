@@ -13,6 +13,7 @@
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@prisma/adapter-pg": "^7.8.0",
+    "@types/node": "^24.0.0",
     "bcryptjs": "^3.0.3",
     "jsqr": "^1.4.0",
     "sharp": "^0.35.3"
