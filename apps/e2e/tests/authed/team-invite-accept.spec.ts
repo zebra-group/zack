@@ -94,8 +94,15 @@ test.describe("TEAM-E2E-01: admin invites a new member via the real Team UI; mag
     // re-fetch (Pitfall 2: never race the two contexts). ---
     const magicLinkUrl = await findMagicLinkUrl(inviteeEmail);
 
+    // `storageState: undefined` is REQUIRED here (not merely defensive,
+    // CR-01 17-REVIEW.md): this test only ever runs under `chromium-admin`
+    // (test.skip above), whose project config declares `use.storageState`,
+    // and `browser.newContext()` otherwise silently inherits the ADMIN's
+    // session cookie into what looks like a fresh, unauthenticated context
+    // — 17-02's documented fix (`team-role-domain-reassign.spec.ts`),
+    // applied consistently across every other spec in this phase.
     const resolvedBaseUrl = baseURL ?? process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
-    const acceptCtx = await browser.newContext({ baseURL: resolvedBaseUrl });
+    const acceptCtx = await browser.newContext({ baseURL: resolvedBaseUrl, storageState: undefined });
     try {
       const acceptPage = await acceptCtx.newPage();
       await acceptPage.goto(magicLinkUrl);
