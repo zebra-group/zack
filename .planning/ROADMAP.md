@@ -200,4 +200,4 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 | 14. Links & CSV Import E2E | v1.1 | 4/4 | Complete    | 2026-07-25 |
 | 15. QR Studio E2E | v1.1 | 4/4 | Complete    | 2026-07-25 |
 | 16. Analytics E2E | v1.1 | 3/3 | Complete    | 2026-07-25 |
-| 17. Team Mgmt & Domain-Scoped Authz E2E | v1.1 | 5/5 | Complete   | 2026-07-25 |
+| 17. Team Mgmt & Domain-Scoped Authz E2E | v1.1 | 5/5 | Complete    | 2026-07-25 |
