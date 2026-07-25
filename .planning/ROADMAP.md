@@ -33,7 +33,7 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 - [x] **Phase 12: Redirect Handler E2E (Core Value)** - End-to-end proof of the redirect handler across every state (happy path, password gate, 410 expiry, bot/OG, UTM), auth-independent (completed 2026-07-24)
 - [x] **Phase 13: Authentication & Session E2E** - Magic-link and OIDC/SSO login round-trips, session lifecycle, and route guarding — unlocks all dashboard-authenticated suites (completed 2026-07-25)
 - [x] **Phase 14: Links & CSV Import E2E** - Canonical link CRUD journey plus the two-step CSV bulk-import (preview → commit) flow (completed 2026-07-25)
-- [ ] **Phase 15: QR Studio E2E** - Static QR with customization (decode round-trip), dynamic `/q/:code` remapping, and PNG/SVG export
+- [x] **Phase 15: QR Studio E2E** - Static QR with customization (decode round-trip), dynamic `/q/:code` remapping, and PNG/SVG export (completed 2026-07-25)
 - [ ] **Phase 16: Analytics E2E** - Real tracked click surfaces in per-link view, tracking-off true zero-rows, cross-link rollup
 - [ ] **Phase 17: Team Management & Domain-Scoped Authorization E2E** - Invite/roles/domain assignment/removal, plus representative server-side domain-denial and account-admin bypass through the UI
 
@@ -135,12 +135,12 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
   2. A dynamic `/q/:code` resolves to target A, then to target B after a Studio remap, and an ordered remap-history row is recorded. [QR-E2E-02]
   3. PNG and SVG exports each produce a valid, downloadable file. [QR-E2E-03]
 
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans complete
 
 - [x] 15-01-PLAN.md — Wave 0 QR fixture apps/e2e/src/qr.ts (createE2eQrCode + decodeQrImage jsQR/sharp recipe) + jsqr/sharp devDeps, RED→GREEN, sharp [SUS] checkpoint (QR-E2E-01/02/03) [Wave 0]
 - [x] 15-02-PLAN.md — QR-E2E-01 static QR create+customize (color/rounded/logo) via real Studio, PNG decodes to its exact short URL (chromium-admin) [Wave 1]
 - [x] 15-03-PLAN.md — QR-E2E-02 dynamic /q/:code remap A→B via real .target-select, ordered QrRemapHistory row DB-asserted (chromium-admin) [Wave 1]
-- [ ] 15-04-PLAN.md — QR-E2E-03 PNG+SVG export buttons both download+jsQR-decode to same short URL, content-types asserted (chromium-admin) [Wave 1]
+- [x] 15-04-PLAN.md — QR-E2E-03 PNG+SVG export buttons both download+jsQR-decode to same short URL, content-types asserted (chromium-admin) [Wave 1]
 
 ### Phase 16: Analytics E2E
 
@@ -188,6 +188,6 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 | 12. Redirect Handler E2E (Core Value) | v1.1 | 5/5 | Complete    | 2026-07-24 |
 | 13. Authentication & Session E2E | v1.1 | 8/8 | Complete    | 2026-07-25 |
 | 14. Links & CSV Import E2E | v1.1 | 4/4 | Complete    | 2026-07-25 |
-| 15. QR Studio E2E | v1.1 | 3/4 | In Progress|  |
+| 15. QR Studio E2E | v1.1 | 4/4 | Complete   | 2026-07-25 |
 | 16. Analytics E2E | v1.1 | 0/TBD | Not started | - |
 | 17. Team Mgmt & Domain-Scoped Authz E2E | v1.1 | 0/TBD | Not started | - |

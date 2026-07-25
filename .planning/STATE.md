@@ -5,16 +5,16 @@ milestone_name: E2E Test Coverage
 current_phase: 15
 current_phase_name: QR Studio E2E
 status: executing
-stopped_at: Completed 15-01-PLAN.md (QR fixture builder, apps/e2e/src/qr.ts createE2eQrCode/decodeQrImage, RED->GREEN, jsqr/sharp devDeps added)
-last_updated: "2026-07-25T04:37:26.514Z"
+stopped_at: Completed 15-04-PLAN.md (QR-E2E-03 export formats, Phase 15 complete)
+last_updated: "2026-07-25T04:50:33.074Z"
 last_activity: 2026-07-25
 last_activity_desc: Completed 15-01-PLAN.md (QR fixture builder, createE2eQrCode/decodeQrImage)
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 27
-  completed_plans: 26
-  percent: 57
+  completed_plans: 27
+  percent: 71
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 15 — QR Studio E2E
-Plan: 3 of 4 in current phase
+Plan: 4 of 4 in current phase
 Status: Ready to execute
 Last activity: 2026-07-25 — Completed 15-01-PLAN.md (QR fixture builder, createE2eQrCode/decodeQrImage)
 
@@ -92,6 +92,7 @@ Progress: [█████████░] 89%
 | Phase 15 P01 | 10min | 2 tasks | 4 files |
 | Phase 15 P02 | 25min | 1 tasks | 1 files |
 | Phase 15 P03 | ~40min | 1 tasks | 1 files |
+| Phase 15 P04 | ~30min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -141,6 +142,8 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase 15]: apps/e2e/src/qr.ts's createE2eQrCode is a raw prisma.qrCode.create (lib/qrCodes.ts's createQrCode is unreachable from apps/e2e via @kurzly/api's exports map, same as createLink/updateLink before it) and decodeQrImage is a verbatim port of apps/api/test/qrDecode.test.ts's sharp+jsQR decode recipe -- proven RED->GREEN via qr-fixture.spec.ts, closing 15-01-PLAN.md's Wave 0 infra gate for 15-02/03/04
 - [Phase 15]: QR-E2E-01 proved live against the built compose image with zero apps/api/apps/web diffs -- LinkDetailView.vue's handleQrCode/QrStudioPanel.vue's color-swatch/rounded-toggle/logo-upload controls behave exactly as 15-RESEARCH.md documented; decode assertion built from BASELINE_DOMAIN_HOSTNAME+slug+qrId (resolveQrPayload's static-QR short URL), never link.targetUrl
 - [Phase ?]: [Phase 15]: Rule 1 bug fix -- Playwright's request fixture default UA is bot-classified by isbot, routing GET /q/:code to the bot-OG 200 branch instead of the human 302 branch; fixed with an explicit BROWSER_UA header, mirroring Phase 12's redirect-*.spec.ts's already-documented identical fix
+- [Phase ?]: [Phase 15]: QR-E2E-03 proved live against the built compose image with zero apps/api/apps/web diffs -- QrStudioPanel.vue's exportFile/routes/qrCodes.ts's render.png/render.svg behave exactly as 15-RESEARCH.md documented; both real export-button downloads independently decode (SVG rasterized via sharp first) to the same expected short-URL string built from BASELINE_DOMAIN_HOSTNAME+slug+qrId, never link.targetUrl -- closing Phase 15
+- [Phase ?]: [Phase 15]: Compose v5's plain ports: override list ADDS to (never replaces) the base files' original published ports -- a session-local port-remap override needs each remapped ports: key tagged with the !override merge directive, or the boot fails with 'port is already allocated' on the ORIGINAL port
 
 ### Pending Todos
 
@@ -165,6 +168,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-25T04:36:49.299Z
-Stopped at: Completed 15-01-PLAN.md (QR fixture builder, apps/e2e/src/qr.ts createE2eQrCode/decodeQrImage, RED->GREEN, jsqr/sharp devDeps added)
+Last session: 2026-07-25T04:50:33.066Z
+Stopped at: Completed 15-04-PLAN.md (QR-E2E-03 export formats, Phase 15 complete)
 Resume file: None
