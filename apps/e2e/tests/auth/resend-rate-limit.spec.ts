@@ -31,6 +31,27 @@ import { test, expect } from "@playwright/test";
  * bypass header) BEFORE driving the real UI, so the UI-driven request is
  * guaranteed to be the one that observes the 429 — avoids racing
  * `LoginView.vue`'s own idle -> "sent" state transition on a first success.
+ *
+ * WR-02 (13-REVIEW.md): this test runs in the `auth` Playwright project,
+ * which has no `dependencies` and inherits the top-level `fullyParallel:
+ * true` (`playwright.config.ts`) — so this spec's 6-request burst against
+ * the IP-keyed magic-link limiter can execute concurrently with every
+ * sibling magic-link-sending spec in this same project (all of which DO
+ * send `x-e2e-bypass`). This is safe, verified by reading
+ * `@fastify/rate-limit@11.1.0`'s own source (`index.js`, the
+ * `allowList`-check branch inside its request handler): when
+ * `params.allowList(req, key)` returns `true`, the function returns
+ * `{ isAllowed: true, key }` immediately, BEFORE any bucket-counting logic
+ * (`store.incr`) runs. So a bypassed sibling request is excluded from the
+ * shared IP bucket's count entirely — it can neither dilute this spec's
+ * own attempt to trip the bucket, nor get spuriously 429'd once this
+ * spec's burst has tripped it. `apps/api/src/plugins/rateLimit.ts`'s
+ * `allowList` callback (`request.headers["x-e2e-bypass"] === bypassSecret`)
+ * is exactly this kind of function-form `allowList`, so this guarantee
+ * applies here. If a future `@fastify/rate-limit` major changes this
+ * short-circuit ordering, this spec (and its siblings) would start
+ * flaking intermittently under `fullyParallel` — re-verify this comment's
+ * claim against the installed version if that happens.
  */
 test("tripped rate limit surfaces the exact German UI copy, not a silent failure (AUTH-E2E-07)", async ({
   page,
