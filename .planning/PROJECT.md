@@ -8,18 +8,20 @@ Kurzly ist ein self-hosted, quelloffener URL-Shortener (in der Klasse von bit.ly
 
 Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hosted, ohne Drittanbieter-Tracking. Wenn alles andere ausfällt, muss der Redirect-Handler (Domain → Slug → Ziel-URL) korrekt und schnell funktionieren.
 
-## Current Milestone: v1.1 E2E Test Coverage
-
-**Goal:** Komplette Playwright-E2E-Abdeckung für alle kritischen v1.0-User-Flows, ergänzend zur bestehenden Vitest-Unit-/Integrationssuite.
-
-**Target features:**
-- Playwright-Infrastruktur (Config, Fixtures, Testdaten-Seeding) im pnpm-Monorepo
-- Mailpit/MailHog-SMTP-Catcher in `docker-compose.dev.yml` + CI-Wiring, damit Magic-Link-Mails E2E auslesbar sind
-- E2E-Abdeckung: Magic-Link-Login-Roundtrip, OIDC/SSO-Login, Redirect-Handler-Zustände (Slug→Ziel, Passwort-Gate, Expiry 410, Bot-OG-Rendering), Links-CRUD inkl. CSV-Import, QR-Studio (statisch + dynamisches Remapping), Analytics-Ansichten, Team-Management (Invite/Rollen/Domain-Zuweisung/Entfernen), domain-scoped Autorisierung end-to-end
-
 ## Current State
 
-**Shipped: v1.0 MVP (2026-07-23)** — full v1 feature scope, all 53 requirements delivered and verified across 10 phases. ~37k LOC TypeScript/Vue across a pnpm monorepo (apps/api Fastify + apps/web Vue 3 + packages/shared). Test suite: 540 API tests (44 files, real-Postgres testcontainers harness) + 256 web tests (21 files), workspace `tsc --noEmit` clean. Docker/Compose-hostable, ENV-configured end to end.
+**Shipped: v1.1 E2E Test Coverage (2026-07-25)** — full Playwright E2E suite covering every critical v1.0 user flow, all 32 requirements delivered and verified across 7 phases (11-17), executed fully autonomously. `apps/e2e` pnpm workspace package runs against the real built Docker image (never split dev servers): Mailpit-backed magic-link/invite email capture, isolated/reset Postgres, per-role `storageState` fixtures, a mock OIDC IdP, and CI wiring. Coverage: auth (magic-link + OIDC/SSO + session lifecycle), the redirect handler (Core Value: password gate, expiry, bot/OG, UTM), links CRUD + CSV bulk import, QR Studio (static customization decode round-trip, dynamic remap, PNG/SVG export), analytics (real click tracking, tracking-off zero-rows, cross-link rollup), and team management + domain-scoped authorization (invite/accept, role/domain reassignment, immediate session revocation, resource-type denial, admin bypass). Found and fixed 6 genuine production bugs via live E2E testing that static review had missed. See `.planning/milestones/v1.1-MILESTONE-AUDIT.md` for the full closing record.
+
+<details>
+<summary>Previously shipped: v1.0 MVP (2026-07-23)</summary>
+
+Full v1 feature scope, all 53 requirements delivered and verified across 10 phases. ~37k LOC TypeScript/Vue across a pnpm monorepo (apps/api Fastify + apps/web Vue 3 + packages/shared). Test suite: 540 API tests (44 files, real-Postgres testcontainers harness) + 256 web tests (21 files), workspace `tsc --noEmit` clean. Docker/Compose-hostable, ENV-configured end to end.
+
+</details>
+
+## Next Milestone Goals
+
+Not yet defined — run `/gsd-new-milestone` to scope the next milestone.
 
 ## Requirements
 
@@ -38,10 +40,11 @@ Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hos
 - ✓ Magic-Link-Login (better-auth, invite-only, kein Passwort-Login) — v1.0
 - ✓ OIDC/SSO-Integration (optional, ENV-konfiguriert; SSO-Neuanmeldungen → least-privilege „Mitglied") — v1.0
 - ✓ Dashboard-UI pixelgenau nach Hi-Fi-Prototyp, Light + Dark — v1.0
+- ✓ Playwright-E2E-Abdeckung für alle kritischen v1.0-Flows (Auth, Redirect-Handler, Links/QR/Analytics, Team-Management, domain-scoped Autorisierung) — v1.1
 
 ### Active
 
-- Playwright-E2E-Abdeckung für alle kritischen v1.0-Flows (Auth, Redirect-Handler, Links/QR/Analytics, Team-Management, domain-scoped Autorisierung) — v1.1, Requirements werden in `REQUIREMENTS.md` definiert.
+None currently — awaiting scope for the next milestone.
 
 ### Out of Scope
 
@@ -84,6 +87,8 @@ Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hos
 | Domain-scoped Autorisierung in `requireDomainAccess`/`scopedDomainIds` zentralisiert (Phase 2), account-admin Bypass darin (Phase 9) | Jeder Link/QR/Analytics-Callsite erbt die Durchsetzung ohne Route-Edits; Denial-Suite beweist sie | ✓ Good |
 | Per-file cloned-DB Test-Isolation statt shared-DB BEGIN/ROLLBACK | Postgres kennt keine verschachtelten Transaktionen — interaktive `$transaction` committete den Test-Wrapper mit und leakte Zeilen | ✓ Good — in Phase 7 entdeckt & behoben |
 | OIDC ENV-konfiguriert, Admin-Karte read-only Status (D-10-02) | Konsistent mit ENV-everywhere/self-hosted; better-auth konfiguriert statisch beim Boot; Secret bleibt aus der App-DB | ⚠️ Revisit — weicht von wörtlicher Prototyp-Lesart ab; ggf. Folge-Phase für Dashboard-Eingabe |
+| E2E-Suite läuft gegen das echte gebaute Docker-Image, nie gegen separate Dev-Server (v1.1) | Infrastruktur-Bugs (Rate-Limiting, Session-Handling, Content-Type-Parsing), die nur in der Deployment-Topologie auftreten, sollen genau dort gefangen werden | ✓ Good — 6 echte Produktionsbugs per Live-E2E gefunden & behoben, die statisches Review übersehen hatte |
+| "Immediate" Session-Revocation bei Mitglieder-Entfernung ist eine architektonisch verifizierte Garantie (kein cookieCache + Cascade-Delete), keine TTL-Lücke (v1.1) | Höchstriskante offene Frage des Milestones; Code-Verifikation zeigt: jeder getSession()-Call ist ein ungecachter Live-Postgres-Read | ✓ Good — bestätigt, kein Fix nötig |
 
 ## Evolution
 
@@ -103,4 +108,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-24 — milestone v1.1 (E2E Test Coverage) started*
+*Last updated: 2026-07-25 — milestone v1.1 (E2E Test Coverage) shipped*
