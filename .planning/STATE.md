@@ -6,14 +6,14 @@ current_phase: 16
 current_phase_name: Analytics E2E
 status: executing
 stopped_at: Completed 15-04-PLAN.md (QR-E2E-03 export formats, Phase 15 complete)
-last_updated: "2026-07-25T07:33:45.290Z"
+last_updated: "2026-07-25T07:48:40.744Z"
 last_activity: 2026-07-25
 last_activity_desc: Phase 15 complete, transitioned to Phase 16
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 30
-  completed_plans: 28
+  completed_plans: 29
   percent: 71
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 16 — Analytics E2E
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: Ready to execute
 Last activity: 2026-07-25 — Phase 15 complete, transitioned to Phase 16
 
@@ -94,6 +94,7 @@ Progress: [█████████░] 89%
 | Phase 15 P03 | ~40min | 1 tasks | 1 files |
 | Phase 15 P04 | ~30min | 1 tasks | 1 files |
 | Phase 16 P01 | 45min | 1 tasks | 1 files |
+| Phase 16 P02 | 40min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,7 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase ?]: [Phase 15]: QR-E2E-03 proved live against the built compose image with zero apps/api/apps/web diffs -- QrStudioPanel.vue's exportFile/routes/qrCodes.ts's render.png/render.svg behave exactly as 15-RESEARCH.md documented; both real export-button downloads independently decode (SVG rasterized via sharp first) to the same expected short-URL string built from BASELINE_DOMAIN_HOSTNAME+slug+qrId, never link.targetUrl -- closing Phase 15
 - [Phase ?]: [Phase 15]: Compose v5's plain ports: override list ADDS to (never replaces) the base files' original published ports -- a session-local port-remap override needs each remapped ports: key tagged with the !override merge directive, or the boot fails with 'port is already allocated' on the ORIGINAL port
 - [Phase 16]: [Phase 16]: ANALYTICS-E2E-01 proved live -- recordClickHook's fully-awaited $transaction makes the ClickEvent+lifetimeClicks write synchronous relative to the HTTP response (no polling needed); LinkDetailView.vue's one-shot loadAnalytics() mount fetch requires the click to be generated strictly before page.goto
+- [Phase 16]: ANALYTICS-E2E-02 proved live via the REAL LinkDetailView .tracking-card .toggle (awaited updateLink PATCH), never the fixture-only trackingEnabled:false path -- recordClickHook's structural early-return guard produces a true DB-asserted zero-rows guarantee (clickEvent.count===0, lifetimeClicks===0) while the redirect itself still 302s
 
 ### Pending Todos
 
@@ -170,6 +172,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-25T07:32:34.512Z
+Last session: 2026-07-25T07:47:58.383Z
 Stopped at: Completed 15-04-PLAN.md (QR-E2E-03 export formats, Phase 15 complete)
 Resume file: None

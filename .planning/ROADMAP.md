@@ -153,10 +153,10 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
   2. With tracking toggled off, a redirect provably creates no new tracking row (true zero-rows, asserted at the database). [ANALYTICS-E2E-02]
   3. The global cross-link analytics overview correctly rolls up numbers from multiple links. [ANALYTICS-E2E-03]
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 - [x] 16-01-PLAN.md — ANALYTICS-E2E-01 real HTTP click surfaces in the per-link analytics view, DB-and-UI cross-checked (chromium-admin) [Wave 1]
-- [ ] 16-02-PLAN.md — ANALYTICS-E2E-02 tracking-off via real toggle → real click still 302s, DB-asserted zero ClickEvent rows (chromium-admin) [Wave 1]
+- [x] 16-02-PLAN.md — ANALYTICS-E2E-02 tracking-off via real toggle → real click still 302s, DB-asserted zero ClickEvent rows (chromium-admin) [Wave 1]
 - [ ] 16-03-PLAN.md — ANALYTICS-E2E-03 cross-link clicks roll up in the global overview, per-link Top Links + DB cross-check (chromium-admin) [Wave 1]
 
 ### Phase 17: Team Management & Domain-Scoped Authorization E2E
@@ -193,5 +193,5 @@ Full phase details archived in [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-RO
 | 13. Authentication & Session E2E | v1.1 | 8/8 | Complete    | 2026-07-25 |
 | 14. Links & CSV Import E2E | v1.1 | 4/4 | Complete    | 2026-07-25 |
 | 15. QR Studio E2E | v1.1 | 4/4 | Complete    | 2026-07-25 |
-| 16. Analytics E2E | v1.1 | 1/3 | In Progress|  |
+| 16. Analytics E2E | v1.1 | 2/3 | In Progress|  |
 | 17. Team Mgmt & Domain-Scoped Authz E2E | v1.1 | 0/TBD | Not started | - |
