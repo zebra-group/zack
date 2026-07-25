@@ -56,7 +56,7 @@
 
 - [x] **TEAM-E2E-01**: Invite → Annahme (Magic-Link-artige Zustellung) → neues Mitglied erscheint in der Team-Liste
 - [x] **TEAM-E2E-02**: Rollen-/Domain-Zuweisung eines Admins wirkt sich in der Session des betroffenen Mitglieds real aus
-- [ ] **TEAM-E2E-03**: Entfernen eines Mitglieds widerruft dessen aktive Session sofort (nicht erst beim nächsten Login-Versuch)
+- [x] **TEAM-E2E-03**: Entfernen eines Mitglieds widerruft dessen aktive Session sofort (nicht erst beim nächsten Login-Versuch)
 
 ### Domain-Autorisierung E2E
 
@@ -112,7 +112,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ANALYTICS-E2E-03 | Phase 16 | Complete |
 | TEAM-E2E-01 | Phase 17 | Complete |
 | TEAM-E2E-02 | Phase 17 | Complete |
-| TEAM-E2E-03 | Phase 17 | Pending |
+| TEAM-E2E-03 | Phase 17 | Complete |
 | AUTHZ-E2E-01 | Phase 17 | Pending |
 | AUTHZ-E2E-02 | Phase 17 | Pending |
 
