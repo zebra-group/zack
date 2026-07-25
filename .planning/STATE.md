@@ -6,15 +6,15 @@ current_phase: 14
 current_phase_name: Links & CSV Import E2E
 status: executing
 stopped_at: Completed 14-01-PLAN.md (CSV fixture builder, apps/e2e/src/csv.ts buildImportCsv/IMPORT_CSV_HEADER, RED->GREEN)
-last_updated: "2026-07-25T02:51:55.283Z"
+last_updated: "2026-07-25T03:04:55.589Z"
 last_activity: 2026-07-25
 last_activity_desc: Completed 14-01-PLAN.md (CSV fixture builder, buildImportCsv)
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 23
-  completed_plans: 22
-  percent: 43
+  completed_plans: 23
+  percent: 57
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 14 — Links & CSV Import E2E
-Plan: 3 of 4 in current phase
+Plan: 4 of 4 in current phase
 Status: Ready to execute
 Last activity: 2026-07-25 — Completed 14-01-PLAN.md (CSV fixture builder, buildImportCsv)
 
@@ -88,6 +88,7 @@ Progress: [█████████░] 87%
 | Phase 14 P01 | 35min | 2 tasks | 2 files |
 | Phase 14 P02 | 55min | 1 tasks | 1 files |
 | Phase 14 P03 | 30min | 1 tasks | 1 files |
+| Phase 14 P04 | 60min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -132,6 +133,7 @@ Full decision log lives in PROJECT.md Key Decisions. Carried forward for v1.1:
 - [Phase ?]: [Phase 14]: apps/e2e/src/csv.ts's buildImportCsv is a dependency-free string join (not a CSV library) centralizing IMPORT_CSV_HEADER (ziel_url,slug,domain) as the single source of the import-CSV header, proven RED->GREEN via csv-fixture.spec.ts -- structurally closes 14-RESEARCH.md Pitfall 4 for every fixture 14-03/14-04 build
 - [Phase ?]: [Phase 14]: LINKS-E2E-01 proved live against the built compose image with zero apps/api/apps/web diffs -- LinksView.vue/LinkFormModal.vue/api.ts behave exactly as 14-RESEARCH.md documented; test.describe.configure({ retries: 2 }) applied as the whole-journey UI equivalent of fetchWithFixtureRaceRetry for the documented cross-file db-isolation.spec.ts Link-table truncate race
 - [Phase ?]: [Phase 14]: LINKS-E2E-02 CSV import happy path proved live -- select-default-domain-before-upload avoids the documented double-preview race, commit re-sends the SAME csv text (no preview-id exists), and the DB-level slug-scoped findMany (not just importedCount) is the real 'no silent extras' proof
+- [Phase ?]: [Phase 14]: LINKS-E2E-03 CSV slug conflict proved live -- pre-existing Link seeded via createE2eLink inside the test body, preview surfaces slug_conflict, commit skips the row; the definitive proof is a direct-Prisma findMany scoped to the conflict slug returning exactly one row with the UNCHANGED pre-existing target (skip, never overwrite, no duplicate row) -- closing T-14-06, no overwrite path exists anywhere in the codebase
 
 ### Pending Todos
 
@@ -156,6 +158,6 @@ Items carried forward from v1.0 close:
 
 ## Session Continuity
 
-Last session: 2026-07-25T02:51:08.419Z
+Last session: 2026-07-25T03:04:09.152Z
 Stopped at: Completed 14-01-PLAN.md (CSV fixture builder, apps/e2e/src/csv.ts buildImportCsv/IMPORT_CSV_HEADER, RED->GREEN)
 Resume file: None
