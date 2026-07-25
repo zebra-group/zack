@@ -87,7 +87,15 @@ services:
       # Narrow rate-limit bypass secret (INFRA-06, T-11-01) - interpolated
       # from the script's/CI's own environment, NEVER a literal default
       # here and NEVER present in docker-compose.yml/prod.
-      E2E_RATE_LIMIT_BYPASS_SECRET: ${E2E_RATE_LIMIT_BYPASS_SECRET}
+      #
+      # WR-03 (13-REVIEW.md): `:?` required-variable guard - `scripts/
+      # e2e-compose.sh` (the documented canonical entrypoint) always
+      # exports a generated value first, but without this guard, invoking
+      # `docker compose -f ... up -d --wait` directly (as this file's own
+      # header comment shows) would let Compose silently substitute an
+      # empty string on a non-fatal stderr warning, handing the app an
+      # empty bypass secret instead of failing the boot loudly.
+      E2E_RATE_LIMIT_BYPASS_SECRET: ${E2E_RATE_LIMIT_BYPASS_SECRET:?E2E_RATE_LIMIT_BYPASS_SECRET must be set — run via scripts/e2e-compose.sh}
       # All-three-present (D-10-07) so readSsoConfig() returns non-null ->
       # genericOAuth registers -> /api/auth/sign-in/oauth2 exists and the
       # login view's SSO button appears. app-container-facing issuer
