@@ -50,7 +50,7 @@
 
 - [x] **ANALYTICS-E2E-01**: Ein echter getrackter Redirect-Klick erscheint in der Pro-Link-Analytics-Ansicht
 - [x] **ANALYTICS-E2E-02**: Tracking-Toggle aus → Redirect erzeugt nachweislich keine neue Tracking-Zeile (Zero-Rows)
-- [ ] **ANALYTICS-E2E-03**: Globale (Cross-Link-)Analytics-Übersicht rollt Zahlen aus mehreren Links korrekt auf
+- [x] **ANALYTICS-E2E-03**: Globale (Cross-Link-)Analytics-Übersicht rollt Zahlen aus mehreren Links korrekt auf
 
 ### Team-Management E2E
 
@@ -109,7 +109,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QR-E2E-03 | Phase 15 | Complete |
 | ANALYTICS-E2E-01 | Phase 16 | Complete |
 | ANALYTICS-E2E-02 | Phase 16 | Complete |
-| ANALYTICS-E2E-03 | Phase 16 | Pending |
+| ANALYTICS-E2E-03 | Phase 16 | Complete |
 | TEAM-E2E-01 | Phase 17 | Pending |
 | TEAM-E2E-02 | Phase 17 | Pending |
 | TEAM-E2E-03 | Phase 17 | Pending |
