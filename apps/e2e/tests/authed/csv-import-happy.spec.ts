@@ -45,6 +45,22 @@ test.describe("LINKS-E2E-02: CSV import happy path (preview -> commit, DB-assert
       testInfo.project.name !== "chromium-admin",
       "LINKS-E2E-02 CSV happy-path is admin-scoped; member/domain-scoped import authz is Phase 17 (AUTHZ-E2E-01), per CONTEXT.md Deferred Ideas",
     );
+
+    // 14-REVIEW.md WR-01: the whole-test `retries: 2` above is a coarser
+    // safety net than Phase 12's `fetchWithFixtureRaceRetry` (it cannot
+    // distinguish the documented db-isolation.spec.ts truncate race from a
+    // genuine intermittent regression). This log line is the minimum-fix
+    // option the review calls out: it makes every retry visible in CI
+    // output, so "this test retried" is never silently indistinguishable
+    // from "this test passed clean" — a retry firing repeatedly across runs
+    // is a signal worth investigating, not assuming away as the known race.
+    if (testInfo.retry > 0) {
+      console.warn(
+        `[csv-import-happy.spec.ts] retry ${testInfo.retry}/${testInfo.project.retries} firing for "${testInfo.title}" — ` +
+          "this MAY be the documented db-isolation.spec.ts cross-file Link-table truncate race (see this file's " +
+          "header comment), or a genuine intermittent regression. If this fires repeatedly across runs, investigate.",
+      );
+    }
   });
 
   test("valid CSV previews two rows and commit writes exactly those rows", async ({ page }) => {
