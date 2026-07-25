@@ -42,7 +42,7 @@
 
 ### QR Studio E2E
 
-- [ ] **QR-E2E-01**: Statische QR-Generierung inkl. Customization (Farbe/Rundung/Logo) mit Decode-Roundtrip auf die Ziel-URL
+- [x] **QR-E2E-01**: Statische QR-Generierung inkl. Customization (Farbe/Rundung/Logo) mit Decode-Roundtrip auf die Ziel-URL
 - [ ] **QR-E2E-02**: Dynamisches QR-Remapping — `/q/:code` löst zunächst zu Ziel A auf, nach Remap in der Studio-UI zu Ziel B, Remap-Historie wird erfasst
 - [ ] **QR-E2E-03**: PNG- und SVG-Export liefern jeweils eine gültige, herunterladbare Datei
 
@@ -104,7 +104,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LINKS-E2E-01 | Phase 14 | Complete |
 | LINKS-E2E-02 | Phase 14 | Complete |
 | LINKS-E2E-03 | Phase 14 | Complete |
-| QR-E2E-01 | Phase 15 | Pending |
+| QR-E2E-01 | Phase 15 | Complete |
 | QR-E2E-02 | Phase 15 | Pending |
 | QR-E2E-03 | Phase 15 | Pending |
 | ANALYTICS-E2E-01 | Phase 16 | Pending |
