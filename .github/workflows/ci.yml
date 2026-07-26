@@ -110,6 +110,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # apps/e2e/src/db.ts imports @kurzly/api's generated Prisma client
+      # directly as workspace TS source (the "./prisma-client" export in
+      # apps/api/package.json) and runs on THIS runner, not inside the app
+      # container — so it needs its own `prisma generate`, independent of
+      # the Docker image build below (same step as the `test` job, D-11).
+      - name: Generate Prisma client
+        run: pnpm --filter @kurzly/api exec prisma generate
+        env:
+          DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+
       # Fresh browser install every run (11-RESEARCH.md Pitfall 7) —
       # deliberately no ~/.cache/ms-playwright cache step, since a stale
       # cache pinned to an old Chromium build is a documented footgun.
