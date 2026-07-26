@@ -202,8 +202,38 @@ export async function registerRateLimit(app: FastifyInstance, nodeEnv: string): 
       ? undefined
       : process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
 
+  // D-17-05-02: under the E2E compose overlay ONLY, drop the blanket global
+  // default bucket (`global: false`) instead of applying it to every route.
+  //
+  // The x-e2e-bypass allowList (INFRA-06) can only exempt requests that CARRY
+  // the header, so it structurally cannot cover the full E2E suite's
+  // header-less traffic against endpoints with no per-route override — most
+  // importantly the header-less browser navigation the mock OIDC IdP drives
+  // to `/api/auth/oauth2/callback/oidc` (a third-party redirect can carry no
+  // custom header at all). Because the docker E2E stack funnels the entire
+  // suite through ~one Docker-gateway source IP, that shared 100/15min global
+  // bucket is trivially exhausted, 429-ing the OIDC callback before
+  // better-auth's own reject-and-redirect logic runs (and previously /health,
+  // now exempted unconditionally in routes/health.ts).
+  //
+  // Per @fastify/rate-limit's onRoute hook, `global: false` adds NO hook to
+  // routes without a `config.rateLimit`, but EVERY per-route override
+  // (`MAGIC_LINK_RATE_LIMIT` on POST /api/auth/sign-in/magic-link,
+  // `VERIFY_RATE_LIMIT`, `REDIRECT_RATE_LIMIT`, etc.) is still installed and
+  // still merges in the `allowList` below — so the enforcement specs
+  // (rate-limit-bypass.spec.ts / resend-rate-limit.spec.ts, which trip the
+  // magic-link per-route limit, NOT the global default) keep observing their
+  // real 429, and the bypass header keeps working on those per-route limits.
+  //
+  // This is gated on `isE2EComposeOverlay(process.env)` (the fixed literal
+  // hardcoded ONLY in docker-compose.e2e.yml, never in the prod compose file
+  // / .env.example / envSchema — same discipline as the bypass secret and
+  // CR-02/CR-05 gates above), so a real production deployment keeps the
+  // byte-identical `global: true, max: 100` blanket bucket.
+  const global = !isE2EComposeOverlay(process.env);
+
   await app.register(rateLimit, {
-    global: true,
+    global,
     max: 100,
     timeWindow: "15 minutes",
     // Omitted entirely (not just falsy) when `bypassSecret` is unset, so
