@@ -78,7 +78,13 @@ test.describe.serial("AUTH-E2E-02: magic-link token rejection (consumed / expire
     // established (verified independently, not just "no error appeared").
     await page.goto(magicLinkUrl);
     await page.getByRole("link", { name: "Dashboard" }).waitFor();
-    const firstSession = await page.request.get("/api/auth/get-session");
+    // Narrow rate-limit bypass (INFRA-06) for these ASSERTION-ONLY session
+    // checks — this spec's subject is token rejection, not rate-limiting.
+    const bypassSecret = process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
+    const bypassHeaders: Record<string, string> | undefined = bypassSecret
+      ? { "x-e2e-bypass": bypassSecret }
+      : undefined;
+    const firstSession = await page.request.get("/api/auth/get-session", { headers: bypassHeaders });
     expect(((await firstSession.json()) as { user?: { email?: string } } | null)?.user?.email).toBe(EMAIL);
 
     // Second, fresh, cookie-less context: the SAME token is already
@@ -91,7 +97,7 @@ test.describe.serial("AUTH-E2E-02: magic-link token rejection (consumed / expire
       await freshPage.goto(magicLinkUrl);
       await expect(freshPage).toHaveURL(/\/auth\/error/);
 
-      const sessionResponse = await freshPage.request.get("/api/auth/get-session");
+      const sessionResponse = await freshPage.request.get("/api/auth/get-session", { headers: bypassHeaders });
       expect(await sessionResponse.json()).toBeNull();
     } finally {
       await freshContext.close();
@@ -125,7 +131,12 @@ test.describe.serial("AUTH-E2E-02: magic-link token rejection (consumed / expire
       await freshPage.goto(magicLinkUrl);
       await expect(freshPage).toHaveURL(/\/auth\/error/);
 
-      const sessionResponse = await freshPage.request.get("/api/auth/get-session");
+      // Narrow rate-limit bypass (INFRA-06) — this spec's subject is token
+      // rejection, not rate-limiting.
+      const bypassSecret = process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
+      const sessionResponse = await freshPage.request.get("/api/auth/get-session", {
+        headers: bypassSecret ? { "x-e2e-bypass": bypassSecret } : {},
+      });
       expect(await sessionResponse.json()).toBeNull();
     } finally {
       await freshContext.close();
@@ -144,7 +155,12 @@ test.describe.serial("AUTH-E2E-02: magic-link token rejection (consumed / expire
       await freshPage.goto(malformedUrl);
       await expect(freshPage).toHaveURL(/\/auth\/error/);
 
-      const sessionResponse = await freshPage.request.get("/api/auth/get-session");
+      // Narrow rate-limit bypass (INFRA-06) — this spec's subject is token
+      // rejection, not rate-limiting.
+      const bypassSecret = process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
+      const sessionResponse = await freshPage.request.get("/api/auth/get-session", {
+        headers: bypassSecret ? { "x-e2e-bypass": bypassSecret } : {},
+      });
       expect(await sessionResponse.json()).toBeNull();
     } finally {
       await freshContext.close();

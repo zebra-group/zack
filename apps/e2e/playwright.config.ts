@@ -76,6 +76,17 @@ export default defineConfig({
       dependencies: ["setup"],
       use: {
         storageState: "playwright/.auth/admin.json",
+        // D-17-05-01 (17-VERIFICATION.md / milestone audit): running every
+        // authed spec file in one process exhausts the global rate-limit
+        // bucket, since only specs that manually set the header (e.g.
+        // auth.setup.ts) were bypassing it — real browser navigations
+        // never carried it. None of these downstream feature specs (links/
+        // QR/analytics/team/authz) are testing rate-limiting itself (that's
+        // the `auth`/`smoke` projects' own dedicated specs, which must NOT
+        // get this bypass), so a blanket header here is safe and narrow.
+        extraHTTPHeaders: process.env.E2E_RATE_LIMIT_BYPASS_SECRET
+          ? { "x-e2e-bypass": process.env.E2E_RATE_LIMIT_BYPASS_SECRET }
+          : {},
       },
     },
     {
@@ -84,6 +95,9 @@ export default defineConfig({
       dependencies: ["setup"],
       use: {
         storageState: "playwright/.auth/member.json",
+        extraHTTPHeaders: process.env.E2E_RATE_LIMIT_BYPASS_SECRET
+          ? { "x-e2e-bypass": process.env.E2E_RATE_LIMIT_BYPASS_SECRET }
+          : {},
       },
     },
   ],

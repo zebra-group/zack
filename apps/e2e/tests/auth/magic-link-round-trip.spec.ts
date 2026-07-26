@@ -73,7 +73,9 @@ test("magic-link round trip: request -> Mailpit -> open link -> active, server-v
   // response is `null` when unauthenticated, `{ session, user }` when a
   // valid session cookie is present (apps/web/src/api.ts's own documented
   // contract, confirmed against apps/api's integration test suite).
-  const sessionResponse = await page.request.get("/api/auth/get-session");
+  const sessionResponse = await page.request.get("/api/auth/get-session", {
+    headers: bypassSecret ? { "x-e2e-bypass": bypassSecret } : {},
+  });
   expect(sessionResponse.ok()).toBeTruthy();
   const sessionBody = (await sessionResponse.json()) as { user?: { email?: string } } | null;
   expect(sessionBody?.user?.email).toBe(email);

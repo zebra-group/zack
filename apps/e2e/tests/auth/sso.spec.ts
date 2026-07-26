@@ -72,7 +72,12 @@ test.describe.serial("SSO login (AUTH-E2E-04/05)", () => {
     // the same BrowserContext cookie jar the redirect chain just
     // established (T-02-13: the session cookie/DB row is the actual
     // security boundary, never just the UI render).
-    const sessionResponse = await page.request.get("/api/auth/get-session");
+    // Narrow rate-limit bypass (INFRA-06) — see the identical rationale on
+    // the other `get-session` calls in this file.
+    const bypassSecretAdmin = process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
+    const sessionResponse = await page.request.get("/api/auth/get-session", {
+      headers: bypassSecretAdmin ? { "x-e2e-bypass": bypassSecretAdmin } : {},
+    });
     expect(sessionResponse.ok()).toBeTruthy();
     const sessionBody = (await sessionResponse.json()) as { user?: { email?: string } } | null;
     expect(sessionBody?.user?.email).toBe(email);
@@ -138,7 +143,15 @@ test.describe.serial("SSO login (AUTH-E2E-04/05)", () => {
       // (AUTH-E2E-04 above) — never redirected to /auth/error.
       await page.getByRole("link", { name: "Dashboard" }).waitFor();
 
-      const sessionResponse = await page.request.get("/api/auth/get-session");
+      // Narrow rate-limit bypass (INFRA-06) for this ASSERTION-ONLY session
+      // check — this spec's subject is the SSO account merge, not
+      // rate-limiting, so it must not silently count against the shared
+      // global 100-req/15-min bucket other specs in this same run also
+      // consume.
+      const bypassSecret = process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
+      const sessionResponse = await page.request.get("/api/auth/get-session", {
+        headers: bypassSecret ? { "x-e2e-bypass": bypassSecret } : {},
+      });
       expect(sessionResponse.ok()).toBeTruthy();
       const sessionBody = (await sessionResponse.json()) as { user?: { email?: string } } | null;
       expect(sessionBody?.user?.email).toBe(email);
@@ -203,8 +216,13 @@ test.describe.serial("SSO login (AUTH-E2E-04/05)", () => {
       // assertion shape).
       await expect(page).toHaveURL(/\/auth\/error/);
 
-      // No session was ever issued.
-      const sessionResponse = await page.request.get("/api/auth/get-session");
+      // No session was ever issued. Narrow rate-limit bypass (INFRA-06) —
+      // see the identical rationale on the other `get-session` calls in
+      // this file.
+      const bypassSecretRejected = process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
+      const sessionResponse = await page.request.get("/api/auth/get-session", {
+        headers: bypassSecretRejected ? { "x-e2e-bypass": bypassSecretRejected } : {},
+      });
       expect(sessionResponse.ok()).toBeTruthy();
       const sessionBody = (await sessionResponse.json()) as unknown;
       expect(sessionBody).toBeNull();

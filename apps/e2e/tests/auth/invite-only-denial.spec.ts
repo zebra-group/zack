@@ -72,7 +72,15 @@ test("non-invited email yields zero Mailpit message and zero session (AUTH-E2E-0
   });
   try {
     const freshPage = await freshContext.newPage();
-    const sessionResponse = await freshPage.request.get("/api/auth/get-session");
+    // Narrow rate-limit bypass (INFRA-06) for this ASSERTION-ONLY session
+    // check — this spec's subject is invite-only denial, not rate-limiting
+    // (that's rate-limit-bypass.spec.ts's/resend-rate-limit.spec.ts's own
+    // job), so it must not silently count against the shared global
+    // 100-req/15-min bucket other specs in this same run also consume.
+    const bypassSecret = process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
+    const sessionResponse = await freshPage.request.get("/api/auth/get-session", {
+      headers: bypassSecret ? { "x-e2e-bypass": bypassSecret } : {},
+    });
     expect(sessionResponse.ok()).toBeTruthy();
     expect(await sessionResponse.json()).toBeNull();
   } finally {

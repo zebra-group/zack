@@ -71,7 +71,9 @@ test.describe("AUTH-E2E-06: logout ends the session; unauthenticated access redi
 
     // Independently prove the server session is gone — the httpOnly cookie
     // was revoked by POST /api/auth/sign-out, not merely hidden client-side.
-    const sessionAfterLogout = await page.request.get("/api/auth/get-session");
+    const sessionAfterLogout = await page.request.get("/api/auth/get-session", {
+      headers: bypassSecret ? { "x-e2e-bypass": bypassSecret } : {},
+    });
     expect(sessionAfterLogout.ok()).toBeTruthy();
     expect(await sessionAfterLogout.json()).toBeNull();
 
