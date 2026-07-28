@@ -37,3 +37,18 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - '@semantic-release/git@11.0.1'
+
+# Range-scoped security overrides (Dependabot alert remediation, quick task
+# 260728-fxv). Each key is scoped to the exact major/range line a real parent
+# declares, so an override never bleeds into an incompatible major consumed
+# elsewhere in the tree (see 260728-fxv-PLAN.md <override_matrix>).
+overrides:
+  find-my-way@<9.7.0: ^9.7.0
+  fast-uri@3: ^3.1.4
+  fast-uri@4: ^4.1.1
+  postcss@<8.5.18: ^8.5.18
+  brace-expansion@5: ^5.0.8
+  '@hono/node-server@1': ^1.19.13
+  valibot@1: ^1.4.2
+  drizzle-orm@<0.45.2: ^0.45.2
+  esbuild@0.27: 0.28.1

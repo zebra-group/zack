@@ -9,6 +9,7 @@
     "./prisma-client": "./src/generated/prisma/client.ts"
   },
   "scripts": {
+    "auth:generate-schema": "pnpm dlx @better-auth/cli@latest generate",
     "build": "tsup",
     "dev": "tsx watch src/server.ts",
     "test": "vitest run",
@@ -40,7 +41,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@better-auth/cli": "^1.4.21",
     "@testcontainers/postgresql": "^12.0.4",
     "@types/node": "^24.0.0",
     "@types/nodemailer": "^7.0.4",
