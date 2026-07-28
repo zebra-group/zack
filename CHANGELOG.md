@@ -1,3 +1,11 @@
+## [1.1.1](https://github.com/zebra-group/zack/compare/v1.1.0...v1.1.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **deps:** close remaining brace-expansion DoS alert ([#27](https://github.com/zebra-group/zack/issues/27)) ([7b1fc24](https://github.com/zebra-group/zack/commit/7b1fc247ccb06b7b3c3c014a2c29d0e84dfdfb75))
+* **deps:** resolve dependabot security alerts via override and unused-devDependency removal ([61b1a7c](https://github.com/zebra-group/zack/commit/61b1a7cbd4245bcf064f5f8b4d1ee95e6f2f9810))
+
 # [1.1.0](https://github.com/zebra-group/zack/compare/v1.0.2...v1.1.0) (2026-07-26)
 
 
