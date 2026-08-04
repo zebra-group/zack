@@ -1,7 +1,7 @@
 /**
  * Component test for the theme Pinia store (UI-02/UI-03): toggling flips
  * light/dark, sets `body[data-theme]`, and persists the choice to
- * `localStorage["kurzly-theme"]`.
+ * `localStorage["zack-theme"]`.
  */
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -28,7 +28,7 @@ describe("theme store", () => {
 
     expect(store.theme).toBe("dark");
     expect(document.body.getAttribute("data-theme")).toBe("dark");
-    expect(localStorage.getItem("kurzly-theme")).toBe("dark");
+    expect(localStorage.getItem("zack-theme")).toBe("dark");
   });
 
   it("toggle() twice returns to light and clears the attribute + persists light", () => {
@@ -39,11 +39,11 @@ describe("theme store", () => {
 
     expect(store.theme).toBe("light");
     expect(document.body.getAttribute("data-theme")).toBe("");
-    expect(localStorage.getItem("kurzly-theme")).toBe("light");
+    expect(localStorage.getItem("zack-theme")).toBe("light");
   });
 
   it("reads a persisted dark theme from localStorage on store creation", () => {
-    localStorage.setItem("kurzly-theme", "dark");
+    localStorage.setItem("zack-theme", "dark");
 
     const store = useThemeStore();
 

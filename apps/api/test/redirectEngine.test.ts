@@ -324,8 +324,8 @@ describe("isBotRequest (D-04, thin isbot wrapper)", () => {
 });
 
 describe("unlockPayload / cookieName (D-07/D-08, self-invalidating unlock cookie)", () => {
-  it("cookieName produces a stable 'kurzly_unlock_<linkId>' string", () => {
-    expect(cookieName("link_abc123")).toBe("kurzly_unlock_link_abc123");
+  it("cookieName produces a stable 'zack_unlock_<linkId>' string", () => {
+    expect(cookieName("link_abc123")).toBe("zack_unlock_link_abc123");
   });
 
   it("unlockPayload is deterministic — the same hash always produces the same payload", () => {
