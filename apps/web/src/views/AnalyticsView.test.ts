@@ -5,7 +5,7 @@
  * without a real session — mirrors LinkDetailView.test.ts's pattern.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { GlobalAnalyticsDTO } from "@kurzly/shared";
+import type { GlobalAnalyticsDTO } from "@zack/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 import AnalyticsView from "./AnalyticsView.vue";

@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 /**
- * Playwright config for @kurzly/e2e.
+ * Playwright config for @zack/e2e.
  *
  * `globalSetup`/`globalTeardown` (11-04-PLAN.md, INFRA-02/03) run once per
  * suite invocation: setup clears Mailpit's inbox and seeds the

@@ -46,7 +46,7 @@ async function seedDomain(hostname: string): Promise<string> {
 describe("inviteMember atomicity (WR-01)", () => {
   it("rolls back the new User row when a membership write fails mid-invite", async () => {
     const domainA = await seedDomain("wr01-atomic-a.test");
-    const email = "wr01-atomic@kurzly.test";
+    const email = "wr01-atomic@zack.test";
 
     // A duplicated domain id passes the existence pre-check (Set-deduped, so
     // findMany still returns exactly one row) but violates DomainMembership's
@@ -69,7 +69,7 @@ describe("inviteMember atomicity (WR-01)", () => {
 
 describe("inviteMember resend ignores domainIds without validating them (WR-03)", () => {
   it("re-inviting an existing member resends even with an unknown domainId (no INVALID_DOMAIN)", async () => {
-    const email = "wr03-resend@kurzly.test";
+    const email = "wr03-resend@zack.test";
     await prisma.user.create({
       data: { id: randomUUID(), name: "wr03", email, emailVerified: false, accountRole: "member" },
     });

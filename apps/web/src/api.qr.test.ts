@@ -9,7 +9,7 @@
  * method/URL/body each function sends and how it maps a failed response to
  * `ApiError`/`QrFormFieldErrors`.
  */
-import type { QrCodeDTO, QrRemapHistoryEntryDTO } from "@kurzly/shared";
+import type { QrCodeDTO, QrRemapHistoryEntryDTO } from "@zack/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,

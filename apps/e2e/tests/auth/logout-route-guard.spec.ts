@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
-import type { PrismaClient } from "@kurzly/api/prisma-client";
+import type { PrismaClient } from "@zack/api/prisma-client";
 import { createE2ePrisma } from "../../src/db.js";
 import { createAllowlistedUser } from "../../src/users.js";
 import { findMagicLinkUrl } from "../../src/mailpit.js";

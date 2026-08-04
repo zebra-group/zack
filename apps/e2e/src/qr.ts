@@ -10,7 +10,7 @@
  *   deterministic enough to reliably set up "starts bound to target A" for
  *   QR-E2E-02/03. Like `createLink`/`updateLink` before it (12-RESEARCH.md
  *   Q2), `lib/qrCodes.ts`'s `createQrCode` is NOT exported via
- *   `@kurzly/api`'s `exports` map (only `.`/`./prisma-client` are) and is
+ *   `@zack/api`'s `exports` map (only `.`/`./prisma-client` are) and is
  *   therefore structurally unreachable from `apps/e2e` — a raw insert is
  *   the only option, exactly as `createE2eLink` established.
  *
@@ -26,7 +26,7 @@
 import { randomBytes } from "node:crypto";
 import jsQR from "jsqr";
 import sharp from "sharp";
-import type { Prisma, PrismaClient } from "@kurzly/api/prisma-client";
+import type { Prisma, PrismaClient } from "@zack/api/prisma-client";
 
 /** Accepts either a top-level PrismaClient or a `withResetDbLock` transaction client. */
 type E2ePrismaLike = PrismaClient | Prisma.TransactionClient;
@@ -35,7 +35,7 @@ type E2ePrismaLike = PrismaClient | Prisma.TransactionClient;
  * Generates a random dynamic-QR `code` — 16 lowercase-hex characters, well
  * within `routes/qrRedirect.ts`'s `QR_CODE_PARAM` shape gate
  * (`/^[0-9A-Za-z]{1,32}$/`). E2E's tiny scale needs no collision-retry loop
- * (15-RESEARCH.md Assumption A2): `@kurzly/api`'s own `generateSlug` is not
+ * (15-RESEARCH.md Assumption A2): `@zack/api`'s own `generateSlug` is not
  * exported from its `exports` map and is structurally unreachable from
  * `apps/e2e` (mirrors `createE2eLink`'s own note on `generateSlug`).
  */

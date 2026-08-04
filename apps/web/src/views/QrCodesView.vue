@@ -36,7 +36,7 @@
  */
 import { computed, ref } from "vue";
 import { useRoute } from "vue-router";
-import type { LinkDTO, QrCodeDTO, QrRemapHistoryEntryDTO } from "@kurzly/shared";
+import type { LinkDTO, QrCodeDTO, QrRemapHistoryEntryDTO } from "@zack/shared";
 import {
   createQrCode,
   getQrRemapHistory,

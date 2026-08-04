@@ -41,7 +41,7 @@ import type {
   TeamErrorCode,
   TeamMemberDTO,
   UpdateMemberRoleInput,
-} from "@kurzly/shared";
+} from "@zack/shared";
 import { Prisma } from "../generated/prisma/client.js";
 import type { Domain, DomainMembership, PrismaClient, User } from "../generated/prisma/client.js";
 import type { createAuth } from "./auth.js";

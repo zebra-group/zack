@@ -20,7 +20,7 @@ describe("Schema push: User.accountRole (D-09-01, T-09-MIGR-BACKFILL)", () => {
       data: {
         id: "account-role-schema-push-default",
         name: "Default Member",
-        email: "account-role-schema-push-default@kurzly.test",
+        email: "account-role-schema-push-default@zack.test",
       },
     });
 
@@ -32,7 +32,7 @@ describe("Schema push: User.accountRole (D-09-01, T-09-MIGR-BACKFILL)", () => {
       data: {
         id: "account-role-schema-push-admin",
         name: "Explicit Admin",
-        email: "account-role-schema-push-admin@kurzly.test",
+        email: "account-role-schema-push-admin@zack.test",
         accountRole: "admin",
       },
     });
@@ -49,7 +49,7 @@ describe("Schema push: User.accountRole (D-09-01, T-09-MIGR-BACKFILL)", () => {
       data: {
         id: "account-role-schema-push-isadmin-admin",
         name: "Is Admin",
-        email: "account-role-schema-push-isadmin-admin@kurzly.test",
+        email: "account-role-schema-push-isadmin-admin@zack.test",
         accountRole: "admin",
       },
     });
@@ -57,7 +57,7 @@ describe("Schema push: User.accountRole (D-09-01, T-09-MIGR-BACKFILL)", () => {
       data: {
         id: "account-role-schema-push-isadmin-member",
         name: "Is Member",
-        email: "account-role-schema-push-isadmin-member@kurzly.test",
+        email: "account-role-schema-push-isadmin-member@zack.test",
         accountRole: "member",
       },
     });

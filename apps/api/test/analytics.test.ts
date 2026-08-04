@@ -18,8 +18,8 @@ vi.mock("../src/lib/mailer.js", () => ({
   sendMagicLinkEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
-const OWNER_EMAIL = "analytics-owner@kurzly.test";
-const OUTSIDER_EMAIL = "analytics-outsider@kurzly.test";
+const OWNER_EMAIL = "analytics-owner@zack.test";
+const OUTSIDER_EMAIL = "analytics-outsider@zack.test";
 
 // Invite-only allowlist (D-01, lib/allowlist.ts): sendMagicLink only fires
 // for a User row that already exists — mirrors links.integration.test.ts's

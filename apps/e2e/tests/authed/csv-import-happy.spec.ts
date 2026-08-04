@@ -24,9 +24,9 @@ import { BASELINE_DOMAIN_HOSTNAME, createE2ePrisma } from "../../src/db.js";
 
 /**
  * Minimal shape of the two import response bodies this spec inspects,
- * defined locally rather than importing `@kurzly/shared`'s
+ * defined locally rather than importing `@zack/shared`'s
  * `ImportPreviewResult`/`ImportCommitResult` — `apps/e2e` does not depend on
- * `@kurzly/shared` (unlike `apps/api`/`apps/web`), and only these numeric
+ * `@zack/shared` (unlike `apps/api`/`apps/web`), and only these numeric
  * fields are asserted here; the DB findMany below is the real proof of
  * "no silent extras", not a full response-shape assertion.
  */

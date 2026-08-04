@@ -35,7 +35,7 @@ let userSeq = 0;
 async function createTestUser(): Promise<string> {
   const id = `qr-redirect-test-user-${userSeq++}`;
   await prisma.user.create({
-    data: { id, name: id, email: `${id}@kurzly.test`, emailVerified: true },
+    data: { id, name: id, email: `${id}@zack.test`, emailVerified: true },
   });
   return id;
 }

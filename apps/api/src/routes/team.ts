@@ -31,7 +31,7 @@
  * itself.
  */
 import { fromNodeHeaders } from "better-auth/node";
-import type { TeamErrorCode } from "@kurzly/shared";
+import type { TeamErrorCode } from "@zack/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { PrismaClient } from "../generated/prisma/client.js";

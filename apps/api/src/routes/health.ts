@@ -19,7 +19,7 @@
  * rate-limit hook at all for this route.
  */
 import type { FastifyInstance } from "fastify";
-import type { HealthStatus } from "@kurzly/shared";
+import type { HealthStatus } from "@zack/shared";
 
 export async function healthRoute(app: FastifyInstance): Promise<void> {
   app.get(

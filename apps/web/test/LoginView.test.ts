@@ -79,7 +79,7 @@ describe("LoginView", () => {
 
     const wrapper = mount(LoginView);
     await flushPromises();
-    await wrapper.find('input[type="email"]').setValue("operator@kurzly.example");
+    await wrapper.find('input[type="email"]').setValue("operator@zack.example");
     await wrapper.find("button").trigger("click");
     await flushPromises();
 
@@ -91,14 +91,14 @@ describe("LoginView", () => {
         // better-auth routes a failed verification to the dedicated
         // /auth/error screen (D-05) instead of falling back to "/".
         body: JSON.stringify({
-          email: "operator@kurzly.example",
+          email: "operator@zack.example",
           callbackURL: "/",
           errorCallbackURL: "/auth/error",
         }),
       }),
     );
     expect(wrapper.text()).toContain("Link gesendet");
-    expect(wrapper.text()).toContain("operator@kurzly.example");
+    expect(wrapper.text()).toContain("operator@zack.example");
     expect(wrapper.text()).toContain("15 Minuten gültig");
     // Idle form is gone — only the Sent-state confirmation is visible.
     expect(wrapper.find('input[type="email"]').exists()).toBe(false);
@@ -135,7 +135,7 @@ describe("LoginView", () => {
 
     const wrapper = mount(LoginView);
     await flushPromises();
-    await wrapper.find('input[type="email"]').setValue("operator@kurzly.example");
+    await wrapper.find('input[type="email"]').setValue("operator@zack.example");
     await wrapper.find("button").trigger("click");
     await flushPromises();
 
@@ -155,7 +155,7 @@ describe("LoginView", () => {
 
     const wrapper = mount(LoginView);
     await flushPromises();
-    await wrapper.find('input[type="email"]').setValue("operator@kurzly.example");
+    await wrapper.find('input[type="email"]').setValue("operator@zack.example");
     await wrapper.find("button").trigger("click");
     await flushPromises();
 
@@ -222,7 +222,7 @@ describe("LoginView", () => {
       await flushPromises();
       expect(wrapper.text()).toContain("Mit SSO anmelden");
 
-      await wrapper.find('input[type="email"]').setValue("operator@kurzly.example");
+      await wrapper.find('input[type="email"]').setValue("operator@zack.example");
       await wrapper.find(".primary-button").trigger("click");
       await flushPromises();
 

@@ -26,8 +26,8 @@ import type {
   UpdateLinkInput,
   UpdateMemberRoleInput,
   UpdateQrCodeInput,
-} from "@kurzly/shared";
-import type { CanaryResult, VersionInfo } from "@kurzly/shared";
+} from "@zack/shared";
+import type { CanaryResult, VersionInfo } from "@zack/shared";
 
 /**
  * Thrown by `parseJsonOrThrow` (and any manual non-ok checks below) on a

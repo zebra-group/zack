@@ -29,7 +29,7 @@
  * loop with `prisma.link.createMany(...)` would silently reintroduce a
  * parallel write path that skips every rule below. Do not add one.
  */
-import type { ImportRowResult, LinkSkipReason } from "@kurzly/shared";
+import type { ImportRowResult, LinkSkipReason } from "@zack/shared";
 import bcrypt from "bcryptjs";
 import { parse } from "csv-parse/sync";
 import { customAlphabet } from "nanoid";
@@ -636,7 +636,7 @@ export type CsvRow = { ziel_url?: string; slug?: string; domain?: string };
  */
 export const EXPECTED_CSV_COLUMNS = ["ziel_url", "slug", "domain"] as const;
 
-/** Shared shape of `previewImport`/`commitImport`'s return — the caller (routes/links.ts) maps this onto `ImportPreviewResult`/`ImportCommitResult` (@kurzly/shared). */
+/** Shared shape of `previewImport`/`commitImport`'s return — the caller (routes/links.ts) maps this onto `ImportPreviewResult`/`ImportCommitResult` (@zack/shared). */
 export type ImportRunResult = {
   validCount: number;
   skippedCount: number;

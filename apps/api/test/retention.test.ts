@@ -29,7 +29,7 @@ let userSeq = 0;
 async function seedLinkWithEvents(): Promise<{ linkId: string }> {
   const userId = `retention-test-user-${userSeq++}`;
   await prisma.user.create({
-    data: { id: userId, name: userId, email: `${userId}@kurzly.test`, emailVerified: true },
+    data: { id: userId, name: userId, email: `${userId}@zack.test`, emailVerified: true },
   });
   const domain = await prisma.domain.create({
     data: {

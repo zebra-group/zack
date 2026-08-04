@@ -25,7 +25,7 @@
  * (UI-10-02, T-10-CARD-FALSE-STATE).
  */
 import { computed, ref } from "vue";
-import type { AccountRole, DomainDTO, SsoStatusDTO, TeamMemberDTO } from "@kurzly/shared";
+import type { AccountRole, DomainDTO, SsoStatusDTO, TeamMemberDTO } from "@zack/shared";
 import {
   assignMemberDomains,
   changeMemberRole,

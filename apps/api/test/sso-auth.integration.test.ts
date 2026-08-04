@@ -44,7 +44,7 @@ vi.mock("../src/lib/mailer.js", () => ({
   sendMagicLinkEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
-const ADMIN_EMAIL = "admin@kurzly.test";
+const ADMIN_EMAIL = "admin@zack.test";
 const STUB_ACCESS_TOKEN = "stub-access-token";
 
 type FastifyTestApp = Awaited<ReturnType<typeof buildApp>>;

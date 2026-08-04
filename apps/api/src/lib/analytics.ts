@@ -24,7 +24,7 @@
  * raw data stays locale-neutral; the German label is a view-layer
  * concern only).
  */
-import type { GlobalAnalyticsDTO, LinkAnalyticsDTO } from "@kurzly/shared";
+import type { GlobalAnalyticsDTO, LinkAnalyticsDTO } from "@zack/shared";
 import { Prisma } from "../generated/prisma/client.js";
 import type { PrismaClient } from "../generated/prisma/client.js";
 

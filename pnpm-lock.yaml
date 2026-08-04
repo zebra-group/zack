@@ -71,15 +71,15 @@ importers:
       '@fastify/static':
         specifier: ^10.1.2
         version: 10.1.2
-      '@kurzly/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@prisma/adapter-pg':
         specifier: ^7.8.0
         version: 7.8.0
       '@prisma/client':
         specifier: ^7.8.0
         version: 7.8.0(prisma@7.8.0(@types/react@19.2.17)(better-sqlite3@12.11.1)(magicast@0.5.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@7.0.2))(typescript@7.0.2)
+      '@zack/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
@@ -162,7 +162,7 @@ importers:
 
   apps/e2e:
     dependencies:
-      '@kurzly/api':
+      '@zack/api':
         specifier: workspace:*
         version: link:../api
     devDependencies:
@@ -187,7 +187,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@kurzly/shared':
+      '@zack/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       pinia:

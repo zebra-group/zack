@@ -20,8 +20,8 @@ vi.mock("../src/lib/mailer.js", () => ({
   sendMagicLinkEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
-const ADMIN_EMAIL = "domain-admin@kurzly.test";
-const SECOND_USER_EMAIL = "domain-second@kurzly.test";
+const ADMIN_EMAIL = "domain-admin@zack.test";
+const SECOND_USER_EMAIL = "domain-second@zack.test";
 
 /** Joins one or more raw `Set-Cookie` headers into a single `Cookie` header value. */
 function toCookieHeader(setCookie: string | string[] | undefined): string {

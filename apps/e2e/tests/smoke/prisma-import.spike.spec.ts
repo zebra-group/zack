@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PrismaClient } from "@kurzly/api/prisma-client";
+import { PrismaClient } from "@zack/api/prisma-client";
 
 /**
  * RESEARCH Open Question 1 / Assumption A1 spike.
@@ -13,6 +13,6 @@ import { PrismaClient } from "@kurzly/api/prisma-client";
  * Deliberately does NOT instantiate the client (no `new PrismaClient(...)`)
  * and does NOT open a connection.
  */
-test("the @kurzly/api/prisma-client subpath resolves to a constructor", () => {
+test("the @zack/api/prisma-client subpath resolves to a constructor", () => {
   expect(typeof PrismaClient).toBe("function");
 });

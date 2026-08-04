@@ -7,7 +7,7 @@ import { createE2eLink, derivePasswordHash, deriveExpiresAt, fetchWithFixtureRac
 /**
  * RED->GREEN contract spec for `apps/e2e/src/links.ts` (12-02-PLAN.md Task
  * 1/2) — the ONE shared fixture helper every feature spec in this phase
- * (12-03/12-04/12-05) consumes. Because `@kurzly/api`'s `exports` map
+ * (12-03/12-04/12-05) consumes. Because `@zack/api`'s `exports` map
  * exposes only `.` and `./prisma-client` (12-RESEARCH.md Q2, RESOLVED —
  * `lib/links.ts`'s `createLink`/`updateLink` are unreachable from
  * `apps/e2e`), the helper must reproduce two invariants a raw

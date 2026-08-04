@@ -19,7 +19,7 @@
  * ever reads the allowlisted fields off `parsed.data`, never
  * `request.body` itself.
  */
-import type { ImportCommitResult, ImportPreviewResult } from "@kurzly/shared";
+import type { ImportCommitResult, ImportPreviewResult } from "@zack/shared";
 import { fromNodeHeaders } from "better-auth/node";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";

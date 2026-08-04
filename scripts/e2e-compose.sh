@@ -3,7 +3,7 @@
 #
 # Boots the 3-file compose stack (docker-compose.yml + docker-compose.dev.yml
 # + docker-compose.e2e.yml) under project name kurzly-e2e, waits on the
-# app's existing HEALTHCHECK, runs the Playwright suite (@kurzly/e2e)
+# app's existing HEALTHCHECK, runs the Playwright suite (@zack/e2e)
 # against the built image at http://localhost:3000, and ALWAYS tears the
 # stack down (`down -v --remove-orphans`) - even on failure - so this is the
 # one command CI (and local devs) run to exercise Kurzly's Core Value as
@@ -66,7 +66,7 @@ export E2E_RATE_LIMIT_BYPASS_SECRET="${E2E_RATE_LIMIT_BYPASS_SECRET:-$(openssl r
 echo "==> docker compose up -d --wait (kurzly-e2e)"
 "${COMPOSE[@]}" up -d --wait
 
-# Host-runner env contract for @kurzly/e2e. Derive Postgres credentials from
+# Host-runner env contract for @zack/e2e. Derive Postgres credentials from
 # the same .env POSTGRES_* values the base compose's `db` service itself
 # uses (default kurzly/changeme/kurzly per .env.example), rather than
 # assuming they were never customized.
@@ -81,5 +81,5 @@ export PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL:-http://localhost:3000}"
 # endpoint (docker-compose.e2e.yml's `oidc-mock` service, host port 9000).
 export OIDC_MOCK_CONTROL_URL="http://localhost:9000"
 
-echo "==> pnpm --filter @kurzly/e2e test"
-pnpm --filter @kurzly/e2e test "$@"
+echo "==> pnpm --filter @zack/e2e test"
+pnpm --filter @zack/e2e test "$@"

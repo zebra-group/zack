@@ -19,7 +19,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { Prisma, PrismaClient } from "@kurzly/api/prisma-client";
+import { Prisma, PrismaClient } from "@zack/api/prisma-client";
 
 /** Seeded admin User (accountRole "admin"). Matches
  * `docker-compose.e2e.yml`'s `INITIAL_ADMIN_EMAIL` so this row also passes

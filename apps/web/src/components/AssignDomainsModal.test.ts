@@ -7,7 +7,7 @@
  * convention).
  */
 import { mount } from "@vue/test-utils";
-import type { DomainDTO } from "@kurzly/shared";
+import type { DomainDTO } from "@zack/shared";
 import { describe, expect, it } from "vitest";
 import AssignDomainsModal from "./AssignDomainsModal.vue";
 

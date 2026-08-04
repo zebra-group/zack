@@ -43,7 +43,7 @@ jobs:
       # a real database at this step (same pattern as the Dockerfile build
       # stage).
       - name: Generate Prisma client
-        run: pnpm --filter @kurzly/api exec prisma generate
+        run: pnpm --filter @zack/api exec prisma generate
         env:
           DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
 
@@ -60,14 +60,14 @@ jobs:
       # Spins up testcontainers Postgres per D-09 (one shared container per
       # Vitest run, each test wrapped in a rolled-back transaction).
       #
-      # @kurzly/e2e is explicitly excluded here (CR-01): its own "test"
+      # @zack/e2e is explicitly excluded here (CR-01): its own "test"
       # script runs the full Playwright suite, which requires installed
       # browsers and a live app server — neither of which exist in this
       # job. That suite runs in the dedicated `e2e` job below via
-      # scripts/e2e-compose.sh (pnpm --filter @kurzly/e2e test), against
+      # scripts/e2e-compose.sh (pnpm --filter @zack/e2e test), against
       # the built app image, once browsers are installed.
       - name: Test
-        run: pnpm run -r --filter='!@kurzly/e2e' test
+        run: pnpm run -r --filter='!@zack/e2e' test
 
   smoke:
     name: Compose boot & persistence smoke tests
@@ -110,13 +110,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # apps/e2e/src/db.ts imports @kurzly/api's generated Prisma client
+      # apps/e2e/src/db.ts imports @zack/api's generated Prisma client
       # directly as workspace TS source (the "./prisma-client" export in
       # apps/api/package.json) and runs on THIS runner, not inside the app
       # container — so it needs its own `prisma generate`, independent of
       # the Docker image build below (same step as the `test` job, D-11).
       - name: Generate Prisma client
-        run: pnpm --filter @kurzly/api exec prisma generate
+        run: pnpm --filter @zack/api exec prisma generate
         env:
           DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
 
@@ -124,7 +124,7 @@ jobs:
       # deliberately no ~/.cache/ms-playwright cache step, since a stale
       # cache pinned to an old Chromium build is a documented footgun.
       - name: Install Playwright browsers
-        run: pnpm --filter @kurzly/e2e exec playwright install --with-deps chromium
+        run: pnpm --filter @zack/e2e exec playwright install --with-deps chromium
 
       - name: Build the app image
         run: docker compose -f docker-compose.yml build app

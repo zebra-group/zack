@@ -16,7 +16,7 @@
  * assert on the auth section) don't need touching.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { DomainDTO, SsoStatusDTO, TeamMemberDTO } from "@kurzly/shared";
+import type { DomainDTO, SsoStatusDTO, TeamMemberDTO } from "@zack/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TeamView from "./TeamView.vue";
 import { ApiError } from "../api";

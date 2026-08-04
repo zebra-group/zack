@@ -13,7 +13,7 @@
  * trigger for `/login` when `user` is still null — resolves deterministically
  * instead of hitting a real network request.
  */
-import type { SessionUser } from "@kurzly/shared";
+import type { SessionUser } from "@zack/shared";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import router from "./index";

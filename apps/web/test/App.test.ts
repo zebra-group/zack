@@ -48,7 +48,7 @@ describe("App.vue", () => {
     mockFetch.mockImplementation(() =>
       Promise.resolve(
         new Response(
-          JSON.stringify({ session: {}, user: { id: "u1", email: "operator@kurzly.example" } }),
+          JSON.stringify({ session: {}, user: { id: "u1", email: "operator@zack.example" } }),
           { status: 200 },
         ),
       ),
@@ -74,7 +74,7 @@ describe("App.vue", () => {
     mockFetch.mockImplementation(() =>
       Promise.resolve(
         new Response(
-          JSON.stringify({ session: {}, user: { id: "u1", email: "operator@kurzly.example" } }),
+          JSON.stringify({ session: {}, user: { id: "u1", email: "operator@zack.example" } }),
           { status: 200 },
         ),
       ),

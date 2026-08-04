@@ -39,7 +39,7 @@
  * config endpoint (out of scope; no backend files may be touched here).
  */
 import { computed, onUnmounted, reactive, ref, watch } from "vue";
-import type { QrCodeDTO, UpdateQrCodeInput } from "@kurzly/shared";
+import type { QrCodeDTO, UpdateQrCodeInput } from "@zack/shared";
 import { deleteQrCode, fetchQrRenderBlob, mapQrFormError, qrRenderPngUrl, updateQrCode } from "../api";
 
 type QrStudioPanelProps = {

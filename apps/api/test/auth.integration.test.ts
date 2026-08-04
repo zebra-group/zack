@@ -23,8 +23,8 @@ vi.mock("../src/lib/mailer.js", () => ({
   sendMagicLinkEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
-const ADMIN_EMAIL = "admin@kurzly.test";
-const NEVER_SEEN_EMAIL = "never-allowlisted@kurzly.test";
+const ADMIN_EMAIL = "admin@zack.test";
+const NEVER_SEEN_EMAIL = "never-allowlisted@zack.test";
 
 /** Joins one or more raw `Set-Cookie` headers into a single `Cookie` header value. */
 function toCookieHeader(setCookie: string | string[] | undefined): string {

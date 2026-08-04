@@ -22,7 +22,7 @@
  */
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import type { DomainDTO, LinkAnalyticsDTO, LinkDTO } from "@kurzly/shared";
+import type { DomainDTO, LinkAnalyticsDTO, LinkDTO } from "@zack/shared";
 import {
   ApiError,
   createQrCode,

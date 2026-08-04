@@ -8,7 +8,7 @@
 #             EXPLICITLY (never relies on the postinstall lifecycle hook -
 #             see 01-RESEARCH.md Pitfall 1), builds packages/shared before
 #             apps/* (pnpm's topological -r ordering), then prunes to a
-#             production-only @kurzly/api deploy directory
+#             production-only @zack/api deploy directory
 #   runtime - the actual shipped image: pruned API + the built Vue SPA
 #             copied into the API's public/ dir (single-origin serving),
 #             plus the migration-on-start entrypoint
@@ -39,7 +39,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 # `generate` (which never opens a DB connection) - a placeholder value
 # unblocks config loading without needing a real database at build time.
 RUN DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder" \
-    pnpm --filter @kurzly/api exec prisma generate
+    pnpm --filter @zack/api exec prisma generate
 
 # Topological build: packages/shared builds before apps/web and apps/api,
 # because both declare it as a workspace:* dependency (pnpm resolves the
@@ -62,11 +62,11 @@ RUN apk add --no-cache curl \
       -o /usr/src/app/geo/dbip-country-lite.mmdb.gz \
  && gunzip /usr/src/app/geo/dbip-country-lite.mmdb.gz
 
-# Prune to a standalone, production-only @kurzly/api directory. `--legacy`
+# Prune to a standalone, production-only @zack/api directory. `--legacy`
 # performs a real content copy (not the injected/symlinked workspace-package
 # mode pnpm 10+ defaults to) - required so the pruned output is a
 # self-contained directory safe to COPY into the runtime stage.
-RUN pnpm deploy --filter=@kurzly/api --prod --legacy /prod/api
+RUN pnpm deploy --filter=@zack/api --prod --legacy /prod/api
 
 FROM base AS runtime
 ENV NODE_ENV=production

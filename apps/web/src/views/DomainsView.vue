@@ -11,7 +11,7 @@
  * or shows actions purely for convenience, never as the access boundary.
  */
 import { ref } from "vue";
-import type { DomainDTO } from "@kurzly/shared";
+import type { DomainDTO } from "@zack/shared";
 import {
   ApiError,
   createDomain,

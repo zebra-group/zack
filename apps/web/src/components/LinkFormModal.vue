@@ -24,7 +24,7 @@
  * entfernen" action emits `null` to CLEAR (T-05-KEEPCLEAR).
  */
 import { computed, onUnmounted, ref, watch } from "vue";
-import type { DomainDTO } from "@kurzly/shared";
+import type { DomainDTO } from "@zack/shared";
 import { mapLinkFormError } from "../api";
 import { buildUtmPreview } from "../lib/utm";
 

@@ -47,7 +47,7 @@ export default defineConfig({
       BETTER_AUTH_SECRET: "vitest-test-secret-do-not-use-in-production-32-chars-min",
       SMTP_HOST: "localhost",
       SMTP_PORT: "1025",
-      SMTP_FROM: "test@kurzly.test",
+      SMTP_FROM: "test@zack.test",
     },
   },
 });

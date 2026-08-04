@@ -5,7 +5,7 @@
  * coverage for the actual server-side behavior.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { DomainDTO } from "@kurzly/shared";
+import type { DomainDTO } from "@zack/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DomainsView from "../src/views/DomainsView.vue";
 import { ApiError } from "../src/api";

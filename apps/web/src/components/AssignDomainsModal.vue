@@ -14,7 +14,7 @@
  * the last mapped error string via the `error` prop.
  */
 import { ref } from "vue";
-import type { DomainDTO } from "@kurzly/shared";
+import type { DomainDTO } from "@zack/shared";
 
 type AssignDomainsModalProps = {
   /** Active domains only — the same set InviteMemberModal uses. */

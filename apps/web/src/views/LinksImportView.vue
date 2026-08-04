@@ -15,7 +15,7 @@
  */
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import type { DomainDTO, ImportPreviewResult, LinkSkipReason } from "@kurzly/shared";
+import type { DomainDTO, ImportPreviewResult, LinkSkipReason } from "@zack/shared";
 import { commitImport, listDomains, previewImport } from "../api";
 
 const router = useRouter();

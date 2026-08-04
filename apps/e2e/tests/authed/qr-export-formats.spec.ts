@@ -102,7 +102,7 @@ test.describe("QR-E2E-03: PNG and SVG exports are both valid, independently deco
       });
 
       // The literal "qr" here IS QR_SCAN_PARAM (apps/api/src/lib/redirectEngine.ts)
-      // -- apps/e2e cannot import it (unreachable via @kurzly/api's exports
+      // -- apps/e2e cannot import it (unreachable via @zack/api's exports
       // map, `.`/`./prisma-client` only) -- so it is hardcoded here with this
       // source comment as the paper trail, mirroring
       // qr-static-customize-decode.spec.ts's identical note. Built from

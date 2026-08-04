@@ -4,7 +4,7 @@
  * no more than the GHCR image tag itself already publicly documents.
  */
 import type { FastifyInstance } from "fastify";
-import type { VersionInfo } from "@kurzly/shared";
+import type { VersionInfo } from "@zack/shared";
 import { resolveAppVersion } from "../lib/version.js";
 
 export async function versionRoute(app: FastifyInstance): Promise<void> {

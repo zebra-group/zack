@@ -50,7 +50,7 @@ async function seedDomain(hostname: string): Promise<string> {
 describe("lib/team.ts mutations (TEAM-03/04/05, D-09-05/06/07)", () => {
   describe("assignMemberDomains (TEAM-03)", () => {
     it("replaces the target's domain set exactly, and clears it when passed []", async () => {
-      await seedMember("u_assign_1", "assign1@kurzly.test");
+      await seedMember("u_assign_1", "assign1@zack.test");
       const domainA = await seedDomain("assign-a.test");
       const domainB = await seedDomain("assign-b.test");
       const domainC = await seedDomain("assign-c.test");
@@ -74,7 +74,7 @@ describe("lib/team.ts mutations (TEAM-03/04/05, D-09-05/06/07)", () => {
     });
 
     it("rejects an unknown domain id with INVALID_DOMAIN and makes no change", async () => {
-      await seedMember("u_assign_2", "assign2@kurzly.test");
+      await seedMember("u_assign_2", "assign2@zack.test");
       const domainA = await seedDomain("assign-invalid-a.test");
       await prisma.domainMembership.create({
         data: { userId: "u_assign_2", domainId: domainA, role: "member" },
@@ -95,7 +95,7 @@ describe("lib/team.ts mutations (TEAM-03/04/05, D-09-05/06/07)", () => {
 
   describe("changeMemberRole (TEAM-04, D-09-05)", () => {
     it("promoting a member with domains to admin clears ALL domain memberships atomically", async () => {
-      await seedMember("u_promote_1", "promote1@kurzly.test");
+      await seedMember("u_promote_1", "promote1@zack.test");
       const domainA = await seedDomain("promote-a.test");
       const domainB = await seedDomain("promote-b.test");
       await prisma.domainMembership.createMany({
@@ -116,10 +116,10 @@ describe("lib/team.ts mutations (TEAM-03/04/05, D-09-05/06/07)", () => {
     });
 
     it("demoting the sole extra admin (two admins present) leaves them with zero domain assignments", async () => {
-      await seedInitialAdmin(prisma, "demote-primary@kurzly.test");
-      await seedInitialAdmin(prisma, "demote-target@kurzly.test");
+      await seedInitialAdmin(prisma, "demote-primary@zack.test");
+      await seedInitialAdmin(prisma, "demote-target@zack.test");
       const target = await prisma.user.findUniqueOrThrow({
-        where: { email: "demote-target@kurzly.test" },
+        where: { email: "demote-target@zack.test" },
       });
 
       const result = await changeMemberRole(prisma, target.id, "member");
@@ -137,7 +137,7 @@ describe("lib/team.ts mutations (TEAM-03/04/05, D-09-05/06/07)", () => {
 
   describe("removeMember (TEAM-05, D-09-06)", () => {
     it("deletes the User row and cascades away their DomainMembership rows", async () => {
-      await seedMember("u_remove_1", "remove1@kurzly.test");
+      await seedMember("u_remove_1", "remove1@zack.test");
       const domainA = await seedDomain("remove-a.test");
       await prisma.domainMembership.create({
         data: { userId: "u_remove_1", domainId: domainA, role: "member" },
@@ -153,7 +153,7 @@ describe("lib/team.ts mutations (TEAM-03/04/05, D-09-05/06/07)", () => {
     });
 
     it("preserves a removed user's created Link with createdBy set to null (D-09-06)", async () => {
-      await seedMember("u_remove_2", "remove2@kurzly.test");
+      await seedMember("u_remove_2", "remove2@zack.test");
       const domainA = await seedDomain("remove-content-a.test");
       const link = await prisma.link.create({
         data: {
@@ -180,9 +180,9 @@ describe("lib/team.ts mutations (TEAM-03/04/05, D-09-05/06/07)", () => {
 
   describe("Lockout guards (D-09-07) — at least one accountRole=admin must always remain", () => {
     it("removeMember on the only admin returns LAST_ADMIN and deletes nothing", async () => {
-      await seedInitialAdmin(prisma, "sole-admin-remove@kurzly.test");
+      await seedInitialAdmin(prisma, "sole-admin-remove@zack.test");
       const admin = await prisma.user.findUniqueOrThrow({
-        where: { email: "sole-admin-remove@kurzly.test" },
+        where: { email: "sole-admin-remove@zack.test" },
       });
 
       const result = await removeMember(prisma, admin.id);
@@ -193,9 +193,9 @@ describe("lib/team.ts mutations (TEAM-03/04/05, D-09-05/06/07)", () => {
     });
 
     it("changeMemberRole('member') on the only admin returns LAST_ADMIN and changes nothing", async () => {
-      await seedInitialAdmin(prisma, "sole-admin-demote@kurzly.test");
+      await seedInitialAdmin(prisma, "sole-admin-demote@zack.test");
       const admin = await prisma.user.findUniqueOrThrow({
-        where: { email: "sole-admin-demote@kurzly.test" },
+        where: { email: "sole-admin-demote@zack.test" },
       });
 
       const result = await changeMemberRole(prisma, admin.id, "member");
@@ -206,10 +206,10 @@ describe("lib/team.ts mutations (TEAM-03/04/05, D-09-05/06/07)", () => {
     });
 
     it("with two admins, removing one succeeds and the other remains the sole admin", async () => {
-      await seedInitialAdmin(prisma, "two-admin-remove-a@kurzly.test");
-      await seedInitialAdmin(prisma, "two-admin-remove-b@kurzly.test");
+      await seedInitialAdmin(prisma, "two-admin-remove-a@zack.test");
+      await seedInitialAdmin(prisma, "two-admin-remove-b@zack.test");
       const toRemove = await prisma.user.findUniqueOrThrow({
-        where: { email: "two-admin-remove-b@kurzly.test" },
+        where: { email: "two-admin-remove-b@zack.test" },
       });
 
       const result = await removeMember(prisma, toRemove.id);
@@ -220,10 +220,10 @@ describe("lib/team.ts mutations (TEAM-03/04/05, D-09-05/06/07)", () => {
     });
 
     it("with two admins, demoting one succeeds and the other remains admin", async () => {
-      await seedInitialAdmin(prisma, "two-admin-demote-a@kurzly.test");
-      await seedInitialAdmin(prisma, "two-admin-demote-b@kurzly.test");
+      await seedInitialAdmin(prisma, "two-admin-demote-a@zack.test");
+      await seedInitialAdmin(prisma, "two-admin-demote-b@zack.test");
       const toDemote = await prisma.user.findUniqueOrThrow({
-        where: { email: "two-admin-demote-b@kurzly.test" },
+        where: { email: "two-admin-demote-b@zack.test" },
       });
 
       const result = await changeMemberRole(prisma, toDemote.id, "member");
@@ -234,13 +234,13 @@ describe("lib/team.ts mutations (TEAM-03/04/05, D-09-05/06/07)", () => {
     });
 
     it("never lets two concurrent demote requests both succeed and leave zero admins", async () => {
-      await seedInitialAdmin(prisma, "concurrent-admin-a@kurzly.test");
-      await seedInitialAdmin(prisma, "concurrent-admin-b@kurzly.test");
+      await seedInitialAdmin(prisma, "concurrent-admin-a@zack.test");
+      await seedInitialAdmin(prisma, "concurrent-admin-b@zack.test");
       const adminA = await prisma.user.findUniqueOrThrow({
-        where: { email: "concurrent-admin-a@kurzly.test" },
+        where: { email: "concurrent-admin-a@zack.test" },
       });
       const adminB = await prisma.user.findUniqueOrThrow({
-        where: { email: "concurrent-admin-b@kurzly.test" },
+        where: { email: "concurrent-admin-b@zack.test" },
       });
 
       const [resultA, resultB] = await Promise.all([
@@ -305,8 +305,8 @@ async function signInAs(app: Awaited<ReturnType<typeof buildApp>>, email: string
   return toCookieHeader(verifyRes.headers["set-cookie"]);
 }
 
-const ROUTE_ADMIN_EMAIL = "route-admin@kurzly.test";
-const ROUTE_MEMBER_EMAIL = "route-member@kurzly.test";
+const ROUTE_ADMIN_EMAIL = "route-admin@zack.test";
+const ROUTE_MEMBER_EMAIL = "route-member@zack.test";
 
 describe("Team mutation routes (TEAM-03/04/05, D-09-05/06/07)", () => {
   beforeEach(async () => {

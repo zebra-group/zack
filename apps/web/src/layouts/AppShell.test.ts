@@ -8,7 +8,7 @@
  * by `QrCodesView.test.ts`/`LinksView.test.ts`.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { SessionUser } from "@kurzly/shared";
+import type { SessionUser } from "@zack/shared";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";

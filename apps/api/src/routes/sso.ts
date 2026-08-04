@@ -19,7 +19,7 @@
  * explicitly out of scope (T-10-NO-CRED-FORM).
  *
  * The handler NEVER reads, selects, or returns `OIDC_CLIENT_SECRET` in any
- * branch (T-10-SECRET-LEAK) — `SsoStatusDTO` (`@kurzly/shared`)
+ * branch (T-10-SECRET-LEAK) — `SsoStatusDTO` (`@zack/shared`)
  * structurally has no secret field, and both `issuer`/`clientIdMasked` and
  * `callbackPath` are derived exclusively through `lib/ssoConfig.ts`'s
  * `readSsoConfig()`/`maskClientId()`/`ssoCallbackPath()` — the SAME module
@@ -27,7 +27,7 @@
  * drift from the one better-auth actually registered (T-10-CONFIG-DRIFT).
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { SsoStatusDTO } from "@kurzly/shared";
+import type { SsoStatusDTO } from "@zack/shared";
 import { maskClientId, readSsoConfig, ssoCallbackPath } from "../lib/ssoConfig.js";
 
 export function ssoRoute() {

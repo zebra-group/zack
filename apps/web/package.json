@@ -1,5 +1,5 @@
 {
-  "name": "@kurzly/web",
+  "name": "@zack/web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@kurzly/shared": "workspace:*",
+    "@zack/shared": "workspace:*",
     "vue": "^3.5.39",
     "vue-router": "^4.6.4",
     "pinia": "^3.0.4"

@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import type { CanaryResult } from "@kurzly/shared";
+import type { CanaryResult } from "@zack/shared";
 import type { PrismaClient } from "../generated/prisma/client.js";
 
 export function canaryRoute(prisma: PrismaClient) {

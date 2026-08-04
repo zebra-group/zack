@@ -12,7 +12,7 @@
  */
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
-import type { DomainDTO, LinkDTO } from "@kurzly/shared";
+import type { DomainDTO, LinkDTO } from "@zack/shared";
 import { createLink, deleteLink, listDomains, listLinks, mapLinkFormError, updateLink } from "../api";
 import { formatDate } from "../lib/format";
 import LinkFormModal from "../components/LinkFormModal.vue";

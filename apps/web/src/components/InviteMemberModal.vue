@@ -16,7 +16,7 @@
  * via the `error` prop.
  */
 import { computed, ref } from "vue";
-import type { AccountRole, DomainDTO } from "@kurzly/shared";
+import type { AccountRole, DomainDTO } from "@zack/shared";
 
 type InviteMemberModalProps = {
   /** Active domains only (member-only toggle source, same set AssignDomainsModal uses). */

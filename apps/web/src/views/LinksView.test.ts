@@ -8,7 +8,7 @@
  * server-side behavior.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { DomainDTO, LinkDTO } from "@kurzly/shared";
+import type { DomainDTO, LinkDTO } from "@zack/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 import LinksView from "./LinksView.vue";

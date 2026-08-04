@@ -23,8 +23,8 @@ vi.mock("../src/lib/mailer.js", () => ({
   sendMagicLinkEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
-const ADMIN_EMAIL = "team-admin@kurzly.test";
-const MEMBER_EMAIL = "team-member@kurzly.test";
+const ADMIN_EMAIL = "team-admin@zack.test";
+const MEMBER_EMAIL = "team-member@zack.test";
 
 /** Joins one or more raw `Set-Cookie` headers into a single `Cookie` header value. */
 function toCookieHeader(setCookie: string | string[] | undefined): string {
@@ -145,7 +145,7 @@ describe("Team routes (TEAM-01/TEAM-02, D-09-02/D-09-03/D-09-04)", () => {
         method: "POST",
         url: "/api/team/invite",
         headers: { cookie },
-        payload: { email: "should-not-work@kurzly.test", accountRole: "member" },
+        payload: { email: "should-not-work@zack.test", accountRole: "member" },
       });
 
       expect(res.statusCode).toBe(403);
@@ -181,7 +181,7 @@ describe("Team routes (TEAM-01/TEAM-02, D-09-02/D-09-03/D-09-04)", () => {
         },
       });
 
-      const inviteEmail = "new-member@kurzly.test";
+      const inviteEmail = "new-member@zack.test";
       const res = await app.inject({
         method: "POST",
         url: "/api/team/invite",
@@ -206,7 +206,7 @@ describe("Team routes (TEAM-01/TEAM-02, D-09-02/D-09-03/D-09-04)", () => {
       const cookie = await signInAs(app, ADMIN_EMAIL);
       vi.mocked(sendMagicLinkEmail).mockClear();
 
-      const inviteEmail = "new-admin@kurzly.test";
+      const inviteEmail = "new-admin@zack.test";
       const res = await app.inject({
         method: "POST",
         url: "/api/team/invite",
@@ -228,7 +228,7 @@ describe("Team routes (TEAM-01/TEAM-02, D-09-02/D-09-03/D-09-04)", () => {
       const cookie = await signInAs(app, ADMIN_EMAIL);
       vi.mocked(sendMagicLinkEmail).mockClear();
 
-      const inviteEmail = "resend-member@kurzly.test";
+      const inviteEmail = "resend-member@zack.test";
       const first = await app.inject({
         method: "POST",
         url: "/api/team/invite",
@@ -265,7 +265,7 @@ describe("Team routes (TEAM-01/TEAM-02, D-09-02/D-09-03/D-09-04)", () => {
       const adminCookie = await signInAs(app, ADMIN_EMAIL);
       vi.mocked(sendMagicLinkEmail).mockClear();
 
-      const inviteEmail = "activates@kurzly.test";
+      const inviteEmail = "activates@zack.test";
       const inviteRes = await app.inject({
         method: "POST",
         url: "/api/team/invite",

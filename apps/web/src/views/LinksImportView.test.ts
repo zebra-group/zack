@@ -6,7 +6,7 @@
  * `FileReader` fully supports.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { DomainDTO, ImportCommitResult, ImportPreviewResult } from "@kurzly/shared";
+import type { DomainDTO, ImportCommitResult, ImportPreviewResult } from "@zack/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 import LinksImportView from "./LinksImportView.vue";

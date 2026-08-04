@@ -47,7 +47,7 @@ describe("AppShell", () => {
     // this structural "all six labels render" assertion keeps its original
     // intent (a fully-visible shell), independent of the admin-gating
     // behavior covered by src/layouts/AppShell.test.ts.
-    authSession.user = { id: "u1", email: "operator@kurzly.example", accountRole: "admin" };
+    authSession.user = { id: "u1", email: "operator@zack.example", accountRole: "admin" };
   });
 
   it("renders the 212px sidebar with all six nav labels", () => {

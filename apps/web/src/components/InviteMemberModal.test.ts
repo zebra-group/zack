@@ -7,7 +7,7 @@
  * `mapTeamError` (mirrors LinkFormModal.test.ts's no-mock convention).
  */
 import { mount } from "@vue/test-utils";
-import type { DomainDTO } from "@kurzly/shared";
+import type { DomainDTO } from "@zack/shared";
 import { describe, expect, it } from "vitest";
 import InviteMemberModal from "./InviteMemberModal.vue";
 

@@ -6,7 +6,7 @@
  * The App Shell + router guard (plan 02-06) consume `user`/`isAuthenticated`
  * and call `fetchSession()`/`signOut()`.
  */
-import type { SessionUser } from "@kurzly/shared";
+import type { SessionUser } from "@zack/shared";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { getSession, logout } from "../api";

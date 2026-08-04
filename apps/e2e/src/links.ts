@@ -1,7 +1,7 @@
 /**
  * E2E fixture helper for `Link` rows (12-02-PLAN.md, REDIRECT-E2E-01..05).
  *
- * `@kurzly/api`'s `package.json` `exports` map declares exactly two entries
+ * `@zack/api`'s `package.json` `exports` map declares exactly two entries
  * (`.` -> `./dist/server.js`, `./prisma-client` -> the generated Prisma
  * client) — `lib/links.ts`'s `createLink`/`updateLink` (the codebase's SOLE
  * `prisma.link.create`/`prisma.link.update` call sites, D-01) are NOT
@@ -29,7 +29,7 @@
  */
 import { expect } from "@playwright/test";
 import bcrypt from "bcryptjs";
-import type { Prisma, PrismaClient } from "@kurzly/api/prisma-client";
+import type { Prisma, PrismaClient } from "@zack/api/prisma-client";
 import { ADMIN_EMAIL, BASELINE_DOMAIN_HOSTNAME } from "./db.js";
 
 /** Accepts either a top-level PrismaClient or a `withResetDbLock` transaction client. */

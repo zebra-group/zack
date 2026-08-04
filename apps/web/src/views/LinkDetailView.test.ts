@@ -5,7 +5,7 @@
  * `router.push` navigation resolve without a real session.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { DomainDTO, LinkAnalyticsDTO, LinkDTO, QrCodeDTO } from "@kurzly/shared";
+import type { DomainDTO, LinkAnalyticsDTO, LinkDTO, QrCodeDTO } from "@zack/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 import LinkDetailView from "./LinkDetailView.vue";

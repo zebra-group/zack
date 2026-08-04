@@ -21,7 +21,7 @@
  */
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
-import type { GlobalAnalyticsDTO } from "@kurzly/shared";
+import type { GlobalAnalyticsDTO } from "@zack/shared";
 import { getGlobalAnalytics } from "../api";
 
 const router = useRouter();

@@ -12,7 +12,7 @@
  * (T-05-PWPREFILL).
  */
 import { mount } from "@vue/test-utils";
-import type { DomainDTO } from "@kurzly/shared";
+import type { DomainDTO } from "@zack/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LinkFormModal from "./LinkFormModal.vue";
 import { ApiError, mapLinkFormError } from "../api";

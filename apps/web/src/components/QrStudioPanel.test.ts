@@ -15,7 +15,7 @@
  * `onload`.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { QrCodeDTO } from "@kurzly/shared";
+import type { QrCodeDTO } from "@zack/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import QrStudioPanel from "./QrStudioPanel.vue";
 import { ApiError } from "../api";

@@ -2,7 +2,7 @@
  * E2E fixture helper for `User` rows this phase's specs need beyond the
  * seeded baseline (13-02-PLAN.md, AUTH-E2E-05). Mirrors `apps/e2e/src/db.ts`'s
  * / `apps/e2e/src/links.ts`'s raw-Prisma-consumer convention: every write
- * goes through the SAME reused `@kurzly/api/prisma-client` (never raw SQL,
+ * goes through the SAME reused `@zack/api/prisma-client` (never raw SQL,
  * never a second driver) and accepts a Prisma client / transaction client
  * argument, exactly like `createE2eLink`.
  *
@@ -26,7 +26,7 @@
  * so rows created here persist for the spec's duration.
  */
 import { randomUUID } from "node:crypto";
-import type { Prisma, PrismaClient, User } from "@kurzly/api/prisma-client";
+import type { Prisma, PrismaClient, User } from "@zack/api/prisma-client";
 
 /** Accepts either a top-level PrismaClient or a `withResetDbLock` transaction client. */
 type E2ePrismaLike = PrismaClient | Prisma.TransactionClient;

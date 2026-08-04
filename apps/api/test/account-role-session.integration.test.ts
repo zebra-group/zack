@@ -23,7 +23,7 @@ vi.mock("../src/lib/mailer.js", () => ({
   sendMagicLinkEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
-const ADMIN_EMAIL = "account-role-session-admin@kurzly.test";
+const ADMIN_EMAIL = "account-role-session-admin@zack.test";
 
 /** Extracts the `token` query param from a captured magic-link verify URL. */
 function extractToken(magicLinkUrl: string): string {

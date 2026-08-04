@@ -34,9 +34,9 @@ import { createE2eLink } from "../../src/links.js";
 
 /**
  * Minimal shape of the two import response bodies this spec inspects,
- * defined locally rather than importing `@kurzly/shared`'s
+ * defined locally rather than importing `@zack/shared`'s
  * `ImportPreviewResult`/`ImportCommitResult` — `apps/e2e` does not depend on
- * `@kurzly/shared` (see csv-import-happy.spec.ts's identical rationale).
+ * `@zack/shared` (see csv-import-happy.spec.ts's identical rationale).
  */
 type ImportPreviewRow = {
   valid: boolean;

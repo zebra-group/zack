@@ -7,7 +7,7 @@
  * session.
  */
 import { flushPromises, mount } from "@vue/test-utils";
-import type { LinkDTO, QrCodeDTO, QrRemapHistoryEntryDTO } from "@kurzly/shared";
+import type { LinkDTO, QrCodeDTO, QrRemapHistoryEntryDTO } from "@zack/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 import QrCodesView from "./QrCodesView.vue";
