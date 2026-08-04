@@ -217,7 +217,7 @@ function requireEnv(key: string): string {
 
 /**
  * Resolves the payload string a QR encodes (QR-06). BOTH variants encode a
- * Kurzly URL — never the raw destination — so every scan is a real request
+ * Zack URL — never the raw destination — so every scan is a real request
  * to this service.
  *
  * A `static` QR encodes its bound Link's OWN short URL

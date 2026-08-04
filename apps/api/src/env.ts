@@ -25,7 +25,7 @@ import { z } from "zod";
  * boot paths can never drift apart on what that fallback actually is).
  */
 export const DOMAIN_VERIFICATION_DEFAULTS = {
-  CNAME_TARGET: "shortener.kurzly.local",
+  CNAME_TARGET: "shortener.zack.local",
   A_RECORD_IP: "0.0.0.0",
 } as const;
 
@@ -88,7 +88,7 @@ export const envSchema = z.object({
   // HTML layer (password/expiry/404 pages + bot-OG tags), NOT retrofitted
   // into the already-shipped dashboard SPA (Phase 2-4 scope). Optional with
   // a fail-safe default so a fresh instance boots unchanged without config.
-  BRAND_NAME: z.string().min(1).optional().default("Kurzly"),
+  BRAND_NAME: z.string().min(1).optional().default("Zack"),
   // Overrides --accent only in the public pages' inline <style> block.
   BRAND_ACCENT: z.string().min(1).optional().default("#d7ff01"),
   // bcryptjs hash cost (Phase 5, D-02). RESEARCH Pitfall 2: start

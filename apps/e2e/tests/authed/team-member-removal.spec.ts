@@ -81,7 +81,7 @@ test.describe("TEAM-E2E-03: removing a member immediately revokes their active s
     baseURL,
   }) => {
     const hex = randomUUID().slice(0, 8);
-    const memberEmail = `removal-${hex}@e2e.kurzly.local`;
+    const memberEmail = `removal-${hex}@e2e.zack.local`;
 
     const prisma = createE2ePrisma();
     let memberCtx: Awaited<ReturnType<typeof browser.newContext>> | undefined;

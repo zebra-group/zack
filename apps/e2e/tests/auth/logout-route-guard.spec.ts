@@ -27,14 +27,14 @@ import { findMagicLinkUrl } from "../../src/mailpit.js";
  *  re-verifies the session regardless.
  *
  * Establishes its own session inline (a dedicated, never-reused
- * `logout-<random>@e2e.kurzly.local` allowlisted user via a real magic-link
+ * `logout-<random>@e2e.zack.local` allowlisted user via a real magic-link
  * round trip, mirroring `magic-link-round-trip.spec.ts`) rather than relying
  * on the `setup` project's `storageState`, since this spec runs under the
  * standalone `auth` project (13-02-PLAN.md) with no `dependencies: ["setup"]`.
  */
 test.describe("AUTH-E2E-06: logout ends the session; unauthenticated access redirects to /login", () => {
   let prisma: PrismaClient;
-  const email = `logout-${randomUUID().slice(0, 8)}@e2e.kurzly.local`;
+  const email = `logout-${randomUUID().slice(0, 8)}@e2e.zack.local`;
 
   test.beforeAll(async () => {
     prisma = createE2ePrisma();

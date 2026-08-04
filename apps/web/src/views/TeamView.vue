@@ -541,7 +541,7 @@ loadSsoStatus();
     <div class="delete-dialog" @click.stop>
       <h3 class="delete-title">Mitglied entfernen?</h3>
       <p class="delete-body">
-        {{ deleteTarget.email }} verliert den Zugriff auf Kurzly. Bereits erstellte Links und
+        {{ deleteTarget.email }} verliert den Zugriff auf Zack. Bereits erstellte Links und
         QR-Codes bleiben erhalten.
       </p>
       <p v-if="deleteError" class="dialog-error">{{ deleteError }}</p>

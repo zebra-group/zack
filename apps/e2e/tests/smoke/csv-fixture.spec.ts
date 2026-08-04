@@ -25,14 +25,14 @@ test.describe("IMPORT_CSV_HEADER", () => {
 test.describe("buildImportCsv", () => {
   test("renders the header first, then one line per row in order, with a trailing newline", () => {
     const csv = buildImportCsv([
-      { zielUrl: "https://example.com/a", slug: "slug-a", domain: "e2e.kurzly.local" },
-      { zielUrl: "https://example.com/b", slug: "slug-b", domain: "e2e.kurzly.local" },
+      { zielUrl: "https://example.com/a", slug: "slug-a", domain: "e2e.zack.local" },
+      { zielUrl: "https://example.com/b", slug: "slug-b", domain: "e2e.zack.local" },
     ]);
 
     const lines = csv.split("\n");
     expect(lines[0]).toBe(IMPORT_CSV_HEADER);
-    expect(lines[1]).toBe("https://example.com/a,slug-a,e2e.kurzly.local");
-    expect(lines[2]).toBe("https://example.com/b,slug-b,e2e.kurzly.local");
+    expect(lines[1]).toBe("https://example.com/a,slug-a,e2e.zack.local");
+    expect(lines[2]).toBe("https://example.com/b,slug-b,e2e.zack.local");
     // A trailing newline splits into a trailing empty element.
     expect(lines[lines.length - 1]).toBe("");
   });
@@ -46,11 +46,11 @@ test.describe("buildImportCsv", () => {
 
   test("renders a provided slug and domain verbatim, in column order", () => {
     const csv = buildImportCsv([
-      { zielUrl: "https://example.com/full", slug: "my-slug", domain: "e2e.kurzly.local" },
+      { zielUrl: "https://example.com/full", slug: "my-slug", domain: "e2e.zack.local" },
     ]);
 
     const lines = csv.split("\n");
-    expect(lines[1]).toBe("https://example.com/full,my-slug,e2e.kurzly.local");
+    expect(lines[1]).toBe("https://example.com/full,my-slug,e2e.zack.local");
   });
 
   test("emits only the header line (plus trailing newline) for a zero-row input", () => {
@@ -90,19 +90,19 @@ test.describe("buildImportCsv", () => {
   });
 
   test("quote-wraps a field containing a newline", () => {
-    const csv = buildImportCsv([{ zielUrl: "https://example.com/c", domain: "e2e.kurzly.local\nmalicious" }]);
+    const csv = buildImportCsv([{ zielUrl: "https://example.com/c", domain: "e2e.zack.local\nmalicious" }]);
 
     const lines = csv.split("\n");
     // The embedded newline means this row itself spans two physical lines
     // once split on "\n" -- reconstruct it by re-joining the quoted span.
-    expect(lines[1]).toBe("https://example.com/c,,\"e2e.kurzly.local");
+    expect(lines[1]).toBe("https://example.com/c,,\"e2e.zack.local");
     expect(lines[2]).toBe('malicious"');
   });
 
   test("does not quote-wrap a field with none of comma/quote/newline", () => {
-    const csv = buildImportCsv([{ zielUrl: "https://example.com/plain", slug: "plain-slug", domain: "e2e.kurzly.local" }]);
+    const csv = buildImportCsv([{ zielUrl: "https://example.com/plain", slug: "plain-slug", domain: "e2e.zack.local" }]);
 
     const lines = csv.split("\n");
-    expect(lines[1]).toBe("https://example.com/plain,plain-slug,e2e.kurzly.local");
+    expect(lines[1]).toBe("https://example.com/plain,plain-slug,e2e.zack.local");
   });
 });

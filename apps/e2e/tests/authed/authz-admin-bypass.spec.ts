@@ -64,7 +64,7 @@ test.describe("AUTHZ-E2E-02: an account-admin with zero DomainMembership rows re
     page,
   }) => {
     const hex = randomUUID().slice(0, 8);
-    const hostname = `bypass-${hex}.kurzly.local`;
+    const hostname = `bypass-${hex}.zack.local`;
     const slug = `e2e-bypass-${hex}`;
 
     const prisma = createE2ePrisma();

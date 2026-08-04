@@ -19,7 +19,7 @@ async function seedUser() {
     data: {
       id: `u_meta_${userSeq}`,
       name: `Meta Test User ${userSeq}`,
-      email: `links-meta-${userSeq}@test.kurzly`,
+      email: `links-meta-${userSeq}@test.zack`,
     },
   });
 }
@@ -29,10 +29,10 @@ async function seedOwnedDomain(userId: string) {
   domainSeq += 1;
   const domain = await prisma.domain.create({
     data: {
-      hostname: `links-meta-${domainSeq}.test.kurzly`,
+      hostname: `links-meta-${domainSeq}.test.zack`,
       type: "subdomain",
       status: "active",
-      verificationTarget: "shortener.kurzly.local",
+      verificationTarget: "shortener.zack.local",
     },
   });
   await prisma.domainMembership.create({

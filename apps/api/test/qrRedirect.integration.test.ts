@@ -47,7 +47,7 @@ async function seedOwnedDomain(userId: string, hostname: string): Promise<string
       hostname,
       type: "subdomain",
       status: "active",
-      verificationTarget: "shortener.kurzly.local",
+      verificationTarget: "shortener.zack.local",
     },
   });
   await prisma.domainMembership.create({

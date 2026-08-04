@@ -17,7 +17,7 @@ import {
  * `apps/api/test/redirect.integration.test.ts`'s REDIR-03 case and its
  * "Precedence (D-14): expiry beats the password gate" case verbatim.
  *
- * Every request pins `Host: e2e.kurzly.local` (never localhost, CR-07) and an
+ * Every request pins `Host: e2e.zack.local` (never localhost, CR-07) and an
  * explicit `BROWSER_UA` (Playwright's own default UA is bot-classified by the
  * installed isbot@5.2.0), so these requests exercise the real redirect
  * engine's human branch.

@@ -14,14 +14,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const VALID_SOURCE: NodeJS.ProcessEnv = {
   NODE_ENV: "production",
   PORT: "4000",
-  DATABASE_URL: "postgresql://kurzly:secret@db:5432/kurzly",
+  DATABASE_URL: "postgresql://zack:secret@db:5432/zack",
   SMTP_HOST: "smtp.example.com",
   SMTP_PORT: "587",
   SMTP_SECURE: "true",
   SMTP_USER: "smtp-user",
   SMTP_PASS: "smtp-pass",
   SMTP_FROM: "no-reply@example.com",
-  BASE_URL: "https://kurzly.example.com",
+  BASE_URL: "https://zack.example.com",
   BETTER_AUTH_SECRET: "a".repeat(32),
   INITIAL_ADMIN_EMAIL: "admin@example.com",
 };

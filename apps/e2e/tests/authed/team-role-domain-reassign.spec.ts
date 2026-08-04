@@ -74,7 +74,7 @@ test.describe("TEAM-E2E-02: admin's role/domain reassignment reaches the member'
     baseURL,
   }) => {
     const hex = randomUUID().slice(0, 8);
-    const memberEmail = `reassign-${hex}@e2e.kurzly.local`;
+    const memberEmail = `reassign-${hex}@e2e.zack.local`;
     const slug = `e2e-reassign-${hex}`;
 
     const prisma = createE2ePrisma();

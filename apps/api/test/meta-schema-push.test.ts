@@ -13,10 +13,10 @@ describe("Schema push: UTM + custom OG metadata (META-01/02, D-08-01..05)", () =
   it("a Link created with no metadata has all six columns null", async () => {
     const domain = await prisma.domain.create({
       data: {
-        hostname: "meta-schema-push-empty.test.kurzly",
+        hostname: "meta-schema-push-empty.test.zack",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
     const link = await prisma.link.create({
@@ -38,10 +38,10 @@ describe("Schema push: UTM + custom OG metadata (META-01/02, D-08-01..05)", () =
   it("a Link created with all six values round-trips them unchanged through create + findUnique", async () => {
     const domain = await prisma.domain.create({
       data: {
-        hostname: "meta-schema-push-full.test.kurzly",
+        hostname: "meta-schema-push-full.test.zack",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
     const created = await prisma.link.create({
@@ -72,10 +72,10 @@ describe("Schema push: UTM + custom OG metadata (META-01/02, D-08-01..05)", () =
     const { toLinkDto } = await import("../src/lib/links.js");
     const domain = await prisma.domain.create({
       data: {
-        hostname: "meta-schema-push-dto.test.kurzly",
+        hostname: "meta-schema-push-dto.test.zack",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
     const link = await prisma.link.create({

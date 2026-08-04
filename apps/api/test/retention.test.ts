@@ -36,7 +36,7 @@ async function seedLinkWithEvents(): Promise<{ linkId: string }> {
       hostname: `retention-${userSeq}.example.com`,
       type: "subdomain",
       status: "active",
-      verificationTarget: "shortener.kurzly.local",
+      verificationTarget: "shortener.zack.local",
     },
   });
   await prisma.domainMembership.create({ data: { userId, domainId: domain.id, role: "owner" } });

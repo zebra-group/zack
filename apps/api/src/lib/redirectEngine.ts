@@ -74,7 +74,7 @@ export function resolveLinkState(
  * by the path itself — but a static code encodes the link's plain short URL
  * and would otherwise be indistinguishable from any other visit.
  *
- * Kurzly-internal: `routes/redirect.ts` strips it before merging the incoming
+ * Zack-internal: `routes/redirect.ts` strips it before merging the incoming
  * query onto the destination, so it never reaches the target.
  */
 export const QR_SCAN_PARAM = "qr";

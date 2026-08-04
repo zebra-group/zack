@@ -26,10 +26,10 @@ describe("Schema push: tracking data model (TRACK-01, T-06-SCHEMA)", () => {
   it("a Link created with no tracking fields set defaults trackingEnabled:true and lifetimeClicks:0", async () => {
     const domain = await prisma.domain.create({
       data: {
-        hostname: "tracking-schema-push.test.kurzly",
+        hostname: "tracking-schema-push.test.zack",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
     const link = await prisma.link.create({

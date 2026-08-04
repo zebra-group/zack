@@ -142,7 +142,7 @@ describe("Domain registration + list (DOMAIN-01, D-04, RESEARCH A1)", () => {
       expect(domainRow.status).toBe("pending");
       // env.ts's documented default (no CNAME_TARGET set in vitest.config.ts's
       // test env — this exercises the fail-safe-default path, D-02).
-      expect(domainRow.verificationTarget).toBe("shortener.kurzly.local");
+      expect(domainRow.verificationTarget).toBe("shortener.zack.local");
 
       // Look up the owner membership directly via the session's user id
       // (better-auth generates the id — no hardcoded value to assert against).
@@ -393,7 +393,7 @@ describe("Domain registration + list (DOMAIN-01, D-04, RESEARCH A1)", () => {
 
   describe("POST /api/domains/:id/verify (DOMAIN-02, D-04)", () => {
     it("owner/admin + matching fake resolver → 200, status flips to active, verifiedAt + lastCheckedAt set", async () => {
-      const matchingResolver = fakeDnsResolver(["shortener.kurzly.local"], []);
+      const matchingResolver = fakeDnsResolver(["shortener.zack.local"], []);
       const app = await buildApp({ prisma, dnsResolver: matchingResolver });
       const cookieHeader = await signInAs(app, ADMIN_EMAIL);
 

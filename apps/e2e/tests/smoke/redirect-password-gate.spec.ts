@@ -13,8 +13,8 @@ import { createE2eLink, CANARY_TARGET, BROWSER_UA, fetchWithFixtureRaceRetry } f
  *
  * A real browser CANNOT set a forbidden `Host` header via `page.goto`, so
  * this file targets the registered redirect domain by navigating to
- * `http://e2e.kurzly.local:<port>/...` with a Chromium host-resolution rule
- * mapping `e2e.kurzly.local -> 127.0.0.1` (hermetic, no `/etc/hosts`
+ * `http://e2e.zack.local:<port>/...` with a Chromium host-resolution rule
+ * mapping `e2e.zack.local -> 127.0.0.1` (hermetic, no `/etc/hosts`
  * mutation — resolves the STATE blocker "confirm custom-domain testing
  * approach: /etc/hosts vs. host-header" for the browser path). This is a
  * strictly harder version of the `APIRequestContext` Host-header approach
@@ -67,7 +67,7 @@ import { createE2eLink, CANARY_TARGET, BROWSER_UA, fetchWithFixtureRaceRetry } f
  *      mismatch) AND cannot actually connect (`ERR_SSL_PROTOCOL_ERROR` if it
  *      were the CSP that let it through). This upgrade is exempted ONLY for
  *      literally-named `localhost`/loopback-IP-literal hosts (never for a
- *      custom hostname like `e2e.kurzly.local`, regardless of DNS/host-
+ *      custom hostname like `e2e.zack.local`, regardless of DNS/host-
  *      resolver-rules mapping) — confirmed empirically: `window.isSecureContext`
  *      stays `false` even with Chromium's `--unsafely-treat-insecure-
  *      origin-as-secure` flag, and CDP `Fetch.continueResponse` stripping
@@ -82,7 +82,7 @@ import { createE2eLink, CANARY_TARGET, BROWSER_UA, fetchWithFixtureRaceRetry } f
  *      unlock cookie is ALWAYS `Secure`. A real Chromium `page` navigation
  *      (unlike Playwright's own `page.request`/`APIRequestContext`
  *      networking layer) enforces the Secure-cookie-requires-a-trustworthy-
- *      origin rule when SENDING a cookie back, and `e2e.kurzly.local` is not
+ *      origin rule when SENDING a cookie back, and `e2e.zack.local` is not
  *      Chromium's literal `localhost`/loopback-IP-literal allowlist —
  *      confirmed by manually injecting the cookie via
  *      `context.addCookies()` under the correct domain/path and observing a
@@ -114,7 +114,7 @@ import { createE2eLink, CANARY_TARGET, BROWSER_UA, fetchWithFixtureRaceRetry } f
  */
 test.use({
   launchOptions: {
-    args: ["--host-resolver-rules=MAP e2e.kurzly.local 127.0.0.1"],
+    args: ["--host-resolver-rules=MAP e2e.zack.local 127.0.0.1"],
   },
   userAgent: BROWSER_UA,
 });
@@ -122,7 +122,7 @@ test.use({
 /**
  * The registered redirect domain's origin from the BROWSER's point of view.
  * The Chromium `--host-resolver-rules` flag above maps only
- * `e2e.kurzly.local`'s HOSTNAME to `127.0.0.1` — it never touches the port,
+ * `e2e.zack.local`'s HOSTNAME to `127.0.0.1` — it never touches the port,
  * so this origin's port must match whatever host port the compose app
  * container actually publishes on. `docker-compose.e2e.yml`/CI always
  * publish `3000` (the canonical, hardcoded default here). `E2E_APP_PORT`
@@ -139,14 +139,14 @@ const TARGET_ORIGIN = `http://${BASELINE_DOMAIN_HOSTNAME}:${process.env.E2E_APP_
  * HTTP client — a SEPARATE network stack from Chromium's browser process,
  * unaffected by the `--host-resolver-rules` flag above (that flag is a
  * Chromium launch argument). It therefore cannot resolve the custom
- * `e2e.kurzly.local` hostname on its own; instead it connects to the real,
+ * `e2e.zack.local` hostname on its own; instead it connects to the real,
  * always-resolvable `localhost` and presents an explicit `Host` header
  * override — the exact mechanism 12-01's spike proved Fastify honors
  * unmodified. Because Playwright's request-context cookie jar is SHARED
  * with `page`, and the app's `Set-Cookie` response is driven by the `Host`
- * header (matching the real registered `e2e.kurzly.local` Domain) rather
+ * header (matching the real registered `e2e.zack.local` Domain) rather
  * than the literal connection target, this still exercises the real
- * `e2e.kurzly.local`-scoped redirect engine end to end.
+ * `e2e.zack.local`-scoped redirect engine end to end.
  */
 const LOCAL_ORIGIN = `http://localhost:${process.env.E2E_APP_PORT ?? "3000"}`;
 
@@ -183,7 +183,7 @@ test.describe("REDIRECT-E2E-02: password gate over a real browser page + cookie 
 
       expect(navResponse?.status()).toBe(200);
       // Can ONLY render if the browser reached the redirect engine on
-      // e2e.kurzly.local via the host-resolver rule above — not the CR-07
+      // e2e.zack.local via the host-resolver rule above — not the CR-07
       // SPA fallback (which would serve the app's own dashboard shell for
       // its own BASE_URL host instead).
       expect(body).toContain("Dieser Link ist geschützt");

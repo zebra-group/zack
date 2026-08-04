@@ -54,7 +54,7 @@ test.describe("TEAM-E2E-01: admin invites a new member via the real Team UI; mag
     baseURL,
   }) => {
     const hex = randomUUID().slice(0, 8);
-    const inviteeEmail = `team-invite-${hex}@e2e.kurzly.local`;
+    const inviteeEmail = `team-invite-${hex}@e2e.zack.local`;
 
     // --- Step 1: real-UI invite send (chromium-admin, already authenticated
     // via storageState — no login needed) ---

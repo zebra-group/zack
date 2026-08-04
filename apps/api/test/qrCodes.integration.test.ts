@@ -138,7 +138,7 @@ async function seedOwnedDomainForRoute(userId: string, hostname: string): Promis
       hostname,
       type: "subdomain",
       status: "active",
-      verificationTarget: "shortener.kurzly.local",
+      verificationTarget: "shortener.zack.local",
     },
   });
   await prisma.domainMembership.create({
@@ -184,7 +184,7 @@ describe("QrCode core (QR-02/03/04, single-write-path)", () => {
   async function seedUser() {
     seq += 1;
     return prisma.user.create({
-      data: { id: `u_qr_${seq}`, name: `QR Test User ${seq}`, email: `qr-${seq}@test.kurzly` },
+      data: { id: `u_qr_${seq}`, name: `QR Test User ${seq}`, email: `qr-${seq}@test.zack` },
     });
   }
 
@@ -193,10 +193,10 @@ describe("QrCode core (QR-02/03/04, single-write-path)", () => {
     seq += 1;
     return prisma.domain.create({
       data: {
-        hostname: `qr-domain-${seq}.test.kurzly`,
+        hostname: `qr-domain-${seq}.test.zack`,
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
   }
@@ -1415,7 +1415,7 @@ describe("GET /api/qr-codes/:id/render.png and .svg (route layer, QR-06)", () =>
   // QR-01 / 07-CONTEXT.md:11 / ROADMAP Phase 7 success criterion 1: a static
   // QR is a QR *for the short link*, so it must encode the Link's OWN short
   // URL (`https://{domain.hostname}/{slug}`), never the raw destination.
-  // Encoding `targetUrl` would route every scanner around Kurzly entirely —
+  // Encoding `targetUrl` would route every scanner around Zack entirely —
   // bypassing the password gate and the expiry gate, and making the code's
   // scan count permanently 0.
   it("render.png returns image/png bytes that decode back to the static QR's own short-link URL — NOT the raw destination", async () => {

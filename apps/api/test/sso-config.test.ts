@@ -74,14 +74,14 @@ describe("ssoDiscoveryUrl (D-10-01)", () => {
 
 describe("ssoCallbackPath (D-10-06, the REAL better-auth callback shape)", () => {
   it("yields {BASE_URL}/api/auth/oauth2/callback/{SSO_PROVIDER_ID} — never the prototype's /api/auth/callback/oidc guess", () => {
-    expect(ssoCallbackPath("https://kurzly.example.com")).toBe(
-      `https://kurzly.example.com/api/auth/oauth2/callback/${SSO_PROVIDER_ID}`,
+    expect(ssoCallbackPath("https://zack.example.com")).toBe(
+      `https://zack.example.com/api/auth/oauth2/callback/${SSO_PROVIDER_ID}`,
     );
   });
 
   it("strips a trailing slash on baseUrl before appending the callback path", () => {
-    expect(ssoCallbackPath("https://kurzly.example.com/")).toBe(
-      `https://kurzly.example.com/api/auth/oauth2/callback/${SSO_PROVIDER_ID}`,
+    expect(ssoCallbackPath("https://zack.example.com/")).toBe(
+      `https://zack.example.com/api/auth/oauth2/callback/${SSO_PROVIDER_ID}`,
     );
   });
 });

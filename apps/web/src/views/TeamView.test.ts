@@ -485,7 +485,7 @@ describe("TeamView remove flow (09-07 Task 3, UI-09-06/07, TEAM-05)", () => {
     await wrapper.find(".action-menu-item").trigger("click");
 
     expect(wrapper.text()).toContain("Mitglied entfernen?");
-    expect(wrapper.text()).toContain("mo@example.com verliert den Zugriff auf Kurzly");
+    expect(wrapper.text()).toContain("mo@example.com verliert den Zugriff auf Zack");
 
     await wrapper.find(".delete-confirm-button").trigger("click");
     await flushPromises();

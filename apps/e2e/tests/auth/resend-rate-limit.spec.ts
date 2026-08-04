@@ -56,7 +56,7 @@ import { test, expect } from "@playwright/test";
 test("tripped rate limit surfaces the exact German UI copy, not a silent failure (AUTH-E2E-07)", async ({
   page,
 }) => {
-  const email = `ratelimit-${randomUUID().slice(0, 8)}@e2e.kurzly.local`;
+  const email = `ratelimit-${randomUUID().slice(0, 8)}@e2e.zack.local`;
 
   // Trip the bucket: MAGIC_LINK_RATE_LIMIT.max is 5, so a 6th same-IP
   // request within the 15-minute window is guaranteed to 429. NO

@@ -159,7 +159,7 @@ async function seedOwnedDomain(userId: string, hostname: string): Promise<string
       hostname,
       type: "subdomain",
       status: "active",
-      verificationTarget: "shortener.kurzly.local",
+      verificationTarget: "shortener.zack.local",
     },
   });
   await prisma.domainMembership.create({
@@ -183,7 +183,7 @@ async function seedLink(userId: string, domainId: string, slug: string): Promise
  * doesn't leak.
  */
 async function seedForeignFixtures(ownerId: string, suffix: string) {
-  const domainId = await seedOwnedDomain(ownerId, `denial-${suffix}.kurzly.test`);
+  const domainId = await seedOwnedDomain(ownerId, `denial-${suffix}.zack.test`);
   const linkId = await seedLink(ownerId, domainId, `link-${suffix}`);
 
   const staticCreated = await createQrCode(prisma, {
@@ -366,7 +366,7 @@ describe("TEAM-06 exhaustive domain-scoped denial suite (D-09-08)", () => {
     const { linkId: foreignLinkId, staticQrId: foreignQrId } = await seedForeignFixtures(ownerId, "list-leak");
 
     // The Member's OWN domain — proves the list is scoped, not just empty.
-    const ownDomainId = await seedOwnedDomain(memberId, "denial-list-leak-own.kurzly.test");
+    const ownDomainId = await seedOwnedDomain(memberId, "denial-list-leak-own.zack.test");
     const ownLinkId = await seedLink(memberId, ownDomainId, "own-link-list-leak");
     const ownQrCreated = await createQrCode(prisma, {
       userId: memberId,
@@ -401,11 +401,11 @@ describe("TEAM-06 exhaustive domain-scoped denial suite (D-09-08)", () => {
 
     const { domainId: foreignDomainId } = await seedForeignFixtures(ownerId, "import");
     const foreignHostname = (await prisma.domain.findUniqueOrThrow({ where: { id: foreignDomainId } })).hostname;
-    const ownDomainId = await seedOwnedDomain(memberId, "denial-import-own.kurzly.test");
+    const ownDomainId = await seedOwnedDomain(memberId, "denial-import-own.zack.test");
 
     const csv = [
       "ziel_url,slug,domain",
-      `https://example.com/own-import,own-import-slug,denial-import-own.kurzly.test`,
+      `https://example.com/own-import,own-import-slug,denial-import-own.zack.test`,
       `https://example.com/foreign-import,foreign-import-slug,${foreignHostname}`,
     ].join("\n");
 
@@ -463,7 +463,7 @@ describe("TEAM-06 exhaustive domain-scoped denial suite (D-09-08)", () => {
 
     // Member's OWN domain: 1 click — proves the Member's own scope still
     // works while the foreign domain contributes nothing.
-    const ownDomainId = await seedOwnedDomain(memberId, "denial-analytics-own.kurzly.test");
+    const ownDomainId = await seedOwnedDomain(memberId, "denial-analytics-own.zack.test");
     const ownLinkId = await seedLink(memberId, ownDomainId, "own-analytics-link");
     await prisma.clickEvent.create({ data: { linkId: ownLinkId, visitorHash: "v-own-1", source: "link" } });
 

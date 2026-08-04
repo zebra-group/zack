@@ -1,4 +1,4 @@
-# Kurzly CI (D-11 — the TDD mandate is only real if it's enforced on every
+# Zack CI (D-11 — the TDD mandate is only real if it's enforced on every
 # change). Runs on every push and pull_request: install, generate the
 # Prisma client explicitly, build the workspace topologically
 # (packages/shared before apps/*), typecheck, and run the FULL Vitest

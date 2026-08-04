@@ -84,7 +84,7 @@
  *
  * The fix below (`account.accountLinking.requireLocalEmailVerified: false`)
  * is deliberately scoped, not a blanket "email verification never matters"
- * statement: Kurzly has NO public signup (D-01) — every `User` row exists
+ * statement: Zack has NO public signup (D-01) — every `User` row exists
  * ONLY because an admin already vetted and invited that exact email
  * address. "Unverified local User row" and "admin-invited, not yet
  * activated" are therefore the SAME closed set today, so relaxing this
@@ -186,7 +186,7 @@ export function createAuth(prisma: PrismaClient) {
     secret: requireEnv("BETTER_AUTH_SECRET"),
     database: prismaAdapter(prisma, { provider: "postgresql" }),
     // D-13-01 (see this file's header comment for the full rationale and
-    // security tradeoff): Kurzly's invite-only model already vets every
+    // security tradeoff): Zack's invite-only model already vets every
     // local User row's email, so an admin-invited-but-unverified row is
     // safe to link to a first SSO login for the same address.
     //

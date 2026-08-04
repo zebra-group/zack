@@ -74,7 +74,7 @@ async function handleLogout(): Promise<void> {
     <aside class="sidebar">
       <div class="logo-row">
         <div class="logo-mark">K</div>
-        <span class="brand-name">Kurzly</span>
+        <span class="brand-name">Zack</span>
       </div>
 
       <nav class="nav-list">

@@ -41,7 +41,7 @@ async function seedDomain(hostname: string): Promise<string> {
       hostname,
       type: "subdomain",
       status: "active",
-      verificationTarget: "shortener.kurzly.local",
+      verificationTarget: "shortener.zack.local",
     },
   });
   return domain.id;

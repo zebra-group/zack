@@ -12,7 +12,7 @@
       <h1>Übersicht</h1>
     </div>
     <p class="welcome-body">
-      Willkommen bei Kurzly. Deine Übersicht füllt sich, sobald du Links, Domains und QR-Codes
+      Willkommen bei Zack. Deine Übersicht füllt sich, sobald du Links, Domains und QR-Codes
       anlegst.
     </p>
   </div>

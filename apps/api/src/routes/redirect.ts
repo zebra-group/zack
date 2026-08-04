@@ -63,7 +63,7 @@ import { computeVisitorHash, resolveDailySalt } from "../lib/visitorHash.js";
 /** Branding context (D-10) shared by every public-HTML render call below — read directly from `process.env` (not `loadEnv()`), mirroring `lib/links.ts`'s `resolvePasswordHashCost` convention so this module works under Vitest without a boot-time ENV parse. Exported (Phase 7, 07-06) so `routes/qrRedirect.ts` reuses the identical branding read instead of a second copy. */
 export function brandCtx(): { brand: string; accent: string } {
   return {
-    brand: process.env.BRAND_NAME ?? "Kurzly",
+    brand: process.env.BRAND_NAME ?? "Zack",
     accent: process.env.BRAND_ACCENT ?? "#d7ff01",
   };
 }
@@ -360,7 +360,7 @@ export function redirectRoute(prisma: PrismaClient) {
           await incrementLifetimeScans(prisma, scannedQrCodeId, request.log);
         }
 
-        // The marker is Kurzly-internal plumbing — strip it so `forwardQuery`
+        // The marker is Zack-internal plumbing — strip it so `forwardQuery`
         // never leaks it to the destination.
         incoming.delete(QR_SCAN_PARAM);
         const forwarded = incoming.toString();

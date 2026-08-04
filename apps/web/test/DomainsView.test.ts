@@ -150,8 +150,8 @@ describe("DomainsView", () => {
     getDomainInstructions.mockResolvedValueOnce({
       hostname: "s.meinefirma.de",
       type: "subdomain",
-      verificationTarget: "shortener.kurzly.local",
-      instructions: "s.meinefirma.de.  300  IN  CNAME  shortener.kurzly.local.",
+      verificationTarget: "shortener.zack.local",
+      instructions: "s.meinefirma.de.  300  IN  CNAME  shortener.zack.local.",
       alternativeForApex: null,
     });
 
@@ -164,10 +164,10 @@ describe("DomainsView", () => {
     expect(getDomainInstructions).toHaveBeenCalledWith("d1");
     expect(wrapper.find(".instructions-panel").exists()).toBe(true);
     expect(wrapper.find(".dns-code-block code").text()).toBe(
-      "s.meinefirma.de.  300  IN  CNAME  shortener.kurzly.local.",
+      "s.meinefirma.de.  300  IN  CNAME  shortener.zack.local.",
     );
     expect(wrapper.find(".copy-button").exists()).toBe(true);
-    expect(wrapper.text()).toContain("nicht Kurzly");
+    expect(wrapper.text()).toContain("nicht Zack");
   });
 
   it("the delete icon opens the confirmation dialog and does NOT call deleteDomain until confirmed", async () => {

@@ -5,7 +5,7 @@
 # referenced by docker-compose.yml or docker-compose.dev.yml themselves, and
 # never used outside dev/CI.
 #
-# Usage: docker compose -p kurzly-e2e \
+# Usage: docker compose -p zack-e2e \
 #          -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.e2e.yml \
 #          up -d --wait
 # (see scripts/e2e-compose.sh for the full boot/run/always-teardown flow)
@@ -40,8 +40,8 @@ services:
       OIDC_MOCK_INTERNAL_URL: "http://oidc-mock:9000"
       # What the host browser is redirected to for the authorization hop.
       OIDC_MOCK_PUBLIC_URL: "http://localhost:9000"
-      OIDC_MOCK_CLIENT_ID: "kurzly-e2e-oidc-client"
-      OIDC_MOCK_CLIENT_SECRET: "kurzly-e2e-oidc-secret"
+      OIDC_MOCK_CLIENT_ID: "zack-e2e-oidc-client"
+      OIDC_MOCK_CLIENT_SECRET: "zack-e2e-oidc-secret"
       # MUST equal ssoConfig.ts's ssoCallbackPath("http://localhost:3000")
       # for provider id "oidc" (D-10-06) -- both sides derive the same
       # genericOAuth callback path.
@@ -76,14 +76,14 @@ services:
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
       SMTP_SECURE: "false"
-      SMTP_FROM: no-reply@e2e.kurzly.local
+      SMTP_FROM: no-reply@e2e.zack.local
       # Host-followable magic-link URLs - the built image is published on
       # :3000, the same origin the host Playwright browser/request context
       # talks to.
       BASE_URL: http://localhost:3000
       # Deterministic first-admin bootstrap so auth.setup.ts's seeded admin
       # row passes the invite-only allowlist (isEmailAllowed).
-      INITIAL_ADMIN_EMAIL: admin@e2e.kurzly.local
+      INITIAL_ADMIN_EMAIL: admin@e2e.zack.local
       # Narrow rate-limit bypass secret (INFRA-06, T-11-01) - interpolated
       # from the script's/CI's own environment, NEVER a literal default
       # here and NEVER present in docker-compose.yml/prod.
@@ -104,5 +104,5 @@ services:
       # docker-compose.dev.yml, or .env.example -- SSO stays structurally
       # absent from every real config surface.
       OIDC_ISSUER_URL: "http://oidc-mock:9000"
-      OIDC_CLIENT_ID: "kurzly-e2e-oidc-client"
-      OIDC_CLIENT_SECRET: "kurzly-e2e-oidc-secret"
+      OIDC_CLIENT_ID: "zack-e2e-oidc-client"
+      OIDC_CLIENT_SECRET: "zack-e2e-oidc-secret"

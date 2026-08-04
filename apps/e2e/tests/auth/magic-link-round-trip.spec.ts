@@ -36,7 +36,7 @@ test("magic-link round trip: request -> Mailpit -> open link -> active, server-v
   page,
   request,
 }) => {
-  const email = `roundtrip-${randomUUID().slice(0, 8)}@e2e.kurzly.local`;
+  const email = `roundtrip-${randomUUID().slice(0, 8)}@e2e.zack.local`;
 
   const prisma = createE2ePrisma();
   try {

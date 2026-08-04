@@ -57,7 +57,7 @@ describe("escapeHtml (Pitfall 1, reflected-XSS guard)", () => {
 
 describe("renderPasswordPage (UI-04, REDIR-04)", () => {
   const baseCtx = {
-    brand: "Kurzly",
+    brand: "Zack",
     accent: "#d7ff01",
     domain: "go.example.com",
     slug: "promo",
@@ -71,7 +71,7 @@ describe("renderPasswordPage (UI-04, REDIR-04)", () => {
     expect(html).toContain("go.example.com/promo");
     expect(html).toContain('<form method="POST" action="/promo/verify"');
     expect(html).toContain("Weiter →");
-    expect(html).toContain("Kurzly · self-hosted");
+    expect(html).toContain("Zack · self-hosted");
   });
 
   it("includes the inline error and destructive input border when errorState is true", () => {
@@ -116,7 +116,7 @@ describe("renderPasswordPage (UI-04, REDIR-04)", () => {
 
 describe("renderExpiredPage (UI-05, REDIR-03)", () => {
   const baseCtx = {
-    brand: "Kurzly",
+    brand: "Zack",
     accent: "#d7ff01",
     domain: "go.example.com",
     slug: "summer-sale",
@@ -160,7 +160,7 @@ describe("renderExpiredPage (UI-05, REDIR-03)", () => {
 
 describe("renderNotFoundPage (D-11)", () => {
   const baseCtx = {
-    brand: "Kurzly",
+    brand: "Zack",
     accent: "#d7ff01",
     domain: "go.example.com",
     slug: "does-not-exist",
@@ -193,7 +193,7 @@ describe("renderNotFoundPage (D-11)", () => {
 
 describe("renderBotOgPage (REDIR-05, D-05/D-06)", () => {
   const baseCtx = {
-    brand: "Kurzly",
+    brand: "Zack",
     accent: "#d7ff01",
     domain: "go.example.com",
     slug: "promo",
@@ -205,7 +205,7 @@ describe("renderBotOgPage (REDIR-05, D-05/D-06)", () => {
     expect(html).toContain('property="og:description"');
     expect(html).toContain('property="og:image"');
     expect(html).toContain('property="og:url"');
-    expect(html).toContain("Kurzly");
+    expect(html).toContain("Zack");
   });
 
   it("includes the noindex meta tag", () => {
@@ -240,7 +240,7 @@ describe("renderBotOgPage (REDIR-05, D-05/D-06)", () => {
       const html = renderBotOgPage({ ...baseCtx, ogTitle: "Sommer-Sale 2026" });
       expect(html).toContain('<meta property="og:title" content="Sommer-Sale 2026" />');
       expect(html).toContain("<title>Sommer-Sale 2026</title>");
-      expect(html).toContain('<meta property="og:description" content="Kurzly · self-hosted URL shortener" />');
+      expect(html).toContain('<meta property="og:description" content="Zack · self-hosted URL shortener" />');
       expect(html).toContain('<meta property="og:image" content="https://go.example.com/favicon.ico" />');
     });
 

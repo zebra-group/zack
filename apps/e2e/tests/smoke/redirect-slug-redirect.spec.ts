@@ -11,7 +11,7 @@ import { createE2eLink, BROWSER_UA, fetchWithFixtureRaceRetry } from "../../src/
  * REDIR-01 case and its Reflected-XSS-guard case verbatim, adapted to
  * Playwright's `APIRequestContext`.
  *
- * Every request pins `Host: e2e.kurzly.local` (never localhost, per CR-07 —
+ * Every request pins `Host: e2e.zack.local` (never localhost, per CR-07 —
  * 12-RESEARCH.md Pitfall 2) and an explicit `BROWSER_UA` (Playwright's own
  * default UA is itself bot-classified by the installed isbot@5.2.0 — Pitfall
  * 1), so these requests exercise the real redirect engine's human branch, not

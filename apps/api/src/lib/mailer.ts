@@ -54,7 +54,7 @@ export async function sendMagicLinkEmail({ to, url }: SendMagicLinkEmailInput): 
   await transporter.sendMail({
     from,
     to,
-    subject: "Dein Kurzly Magic Link",
-    html: `<p>Klicke auf den folgenden Link, um dich bei Kurzly anzumelden:</p><p><a href="${url}">${url}</a></p><p>Dieser Link ist 15 Minuten gültig und kann nur einmal verwendet werden.</p>`,
+    subject: "Dein Zack Magic Link",
+    html: `<p>Klicke auf den folgenden Link, um dich bei Zack anzumelden:</p><p><a href="${url}">${url}</a></p><p>Dieser Link ist 15 Minuten gültig und kann nur einmal verwendet werden.</p>`,
   });
 }

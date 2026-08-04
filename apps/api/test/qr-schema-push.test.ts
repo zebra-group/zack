@@ -27,10 +27,10 @@ describe("Schema push: QrCode + QrRemapHistory models (QR-02/03/04/07, T-07-SCHE
   it("creates a static QrCode bound to a Link", async () => {
     const domain = await prisma.domain.create({
       data: {
-        hostname: "qr-schema-push-static.test.kurzly",
+        hostname: "qr-schema-push-static.test.zack",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
     const link = await prisma.link.create({
@@ -62,10 +62,10 @@ describe("Schema push: QrCode + QrRemapHistory models (QR-02/03/04/07, T-07-SCHE
   it("creates a dynamic QrCode with its own /q code, current target Link, and logo bytes", async () => {
     const domain = await prisma.domain.create({
       data: {
-        hostname: "qr-schema-push-dynamic.test.kurzly",
+        hostname: "qr-schema-push-dynamic.test.zack",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
     const link = await prisma.link.create({
@@ -111,10 +111,10 @@ describe("Schema push: QrCode + QrRemapHistory models (QR-02/03/04/07, T-07-SCHE
   it("creates a QrRemapHistory row and cascade-deletes it with its QrCode", async () => {
     const domain = await prisma.domain.create({
       data: {
-        hostname: "qr-schema-push-remap.test.kurzly",
+        hostname: "qr-schema-push-remap.test.zack",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
     const fromLink = await prisma.link.create({
@@ -173,10 +173,10 @@ describe("DB constraint: QrCode_linkId_static_key (WR-09, T-d72-01)", () => {
   async function seedDomainAndLink(hostnameSuffix: string) {
     const domain = await prisma.domain.create({
       data: {
-        hostname: `qr-static-unique-${hostnameSuffix}.test.kurzly`,
+        hostname: `qr-static-unique-${hostnameSuffix}.test.zack`,
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
     const link = await prisma.link.create({

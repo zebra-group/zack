@@ -70,7 +70,7 @@ export function deriveExpiresAt(date: string): Date {
 export type CreateE2eLinkOptions = {
   slug: string;
   targetUrl: string;
-  /** Defaults to `BASELINE_DOMAIN_HOSTNAME` (`e2e.kurzly.local`) — this phase never seeds a second Domain. */
+  /** Defaults to `BASELINE_DOMAIN_HOSTNAME` (`e2e.zack.local`) — this phase never seeds a second Domain. */
   domainHostname?: string;
   /** Plaintext password to hash via `derivePasswordHash`; omitted -> `passwordHash: null` (not protected). */
   password?: string;

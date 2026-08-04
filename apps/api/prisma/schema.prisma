@@ -1,4 +1,4 @@
-// Prisma schema for Kurzly's API.
+// Prisma schema for Zack's API.
 //
 // Prisma 7 makes `prisma-client` the default generator and requires an
 // explicit `output` path (RESEARCH Pattern 4). This path is fixed now so

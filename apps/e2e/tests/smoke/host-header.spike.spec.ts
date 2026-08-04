@@ -9,7 +9,7 @@ import { BASELINE_DOMAIN_HOSTNAME } from "../../src/db.js";
  * Proves ONLY that Playwright's `APIRequestContext` (`request.get`) delivers
  * a caller-supplied `Host` header UNMODIFIED to the built app's Fastify
  * instance, driving `resolveActiveDomainByHost` to resolve the real
- * registered baseline Domain (`e2e.kurzly.local`) rather than
+ * registered baseline Domain (`e2e.zack.local`) rather than
  * `routes/redirect.ts`'s `isAppOwnHost(localhost)` CR-07 SPA-fallback
  * branch. This is the load-bearing mechanism every feature spec in this
  * phase (12-03/12-04/12-05) depends on to target a real redirect Domain
@@ -42,7 +42,7 @@ test.describe("host-header spike (RESEARCH OQ-1 / A1)", () => {
     const missingSlug = `spike-nonexistent-${randomUUID()}`;
 
     // Positive assertion (load-bearing): with an explicit `Host:
-    // e2e.kurzly.local` header, `resolveActiveDomainByHost` must resolve the
+    // e2e.zack.local` header, `resolveActiveDomainByHost` must resolve the
     // real registered baseline Domain, then find no such slug -> branded 404
     // echoing the host. This can ONLY happen if Playwright delivered the
     // Host header unmodified to Fastify's `request.hostname`.

@@ -23,7 +23,7 @@ describe("GET /api/tls-check (ask endpoint, D-01)", () => {
         hostname: "active.example.com",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 
@@ -56,7 +56,7 @@ describe("GET /api/tls-check (ask endpoint, D-01)", () => {
         hostname: "pending.example.com",
         type: "subdomain",
         status: "pending",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 
@@ -77,7 +77,7 @@ describe("GET /api/tls-check (ask endpoint, D-01)", () => {
         hostname: "failed.example.com",
         type: "subdomain",
         status: "failed",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 
@@ -98,7 +98,7 @@ describe("GET /api/tls-check (ask endpoint, D-01)", () => {
         hostname: "exact.example.com",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 
@@ -130,7 +130,7 @@ describe("GET /api/tls-check (ask endpoint, D-01)", () => {
         hostname: "arrayquery.example.com",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 
@@ -151,7 +151,7 @@ describe("GET /api/tls-check (ask endpoint, D-01)", () => {
         hostname: "nosession.example.com",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 

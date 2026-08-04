@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# Multi-stage Dockerfile for Kurzly (D-01 single-image deployment).
+# Multi-stage Dockerfile for Zack (D-01 single-image deployment).
 #
 # Stages:
 #   base    - node:24-alpine + pnpm via corepack (shared by build/runtime)

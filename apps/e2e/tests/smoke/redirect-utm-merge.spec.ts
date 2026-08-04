@@ -11,7 +11,7 @@ import { createE2eLink, BROWSER_UA, fetchWithFixtureRaceRetry } from "../../src/
  * canonical UTM ordering (`utm_source`, `utm_medium`, `utm_campaign`) proven
  * by `apps/api/test/redirect.integration.test.ts`'s own assertion string.
  *
- * Every request pins `Host: e2e.kurzly.local` (never localhost, per CR-07 —
+ * Every request pins `Host: e2e.zack.local` (never localhost, per CR-07 —
  * 12-RESEARCH.md Pitfall 2) and the shared `BROWSER_UA` constant — a bot UA
  * would divert to the OG branch and never produce a `Location` header at
  * all (12-RESEARCH.md Pitfall 1).

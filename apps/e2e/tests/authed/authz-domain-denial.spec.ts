@@ -75,7 +75,7 @@ test.describe("AUTHZ-E2E-01: a zero-domain member is denied a Link (404), a QR (
     request,
   }) => {
     const hex = randomUUID().slice(0, 8);
-    const memberEmail = `authz-deny-${hex}@e2e.kurzly.local`;
+    const memberEmail = `authz-deny-${hex}@e2e.zack.local`;
     const slug = `e2e-authz-${hex}`;
 
     const prisma = createE2ePrisma();

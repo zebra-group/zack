@@ -20,7 +20,7 @@ function requestNewLink(): void {
   <div class="auth-wrapper">
     <div class="brand-row">
       <div class="logo-mark">K</div>
-      <h1 class="brand-name">Kurzly</h1>
+      <h1 class="brand-name">Zack</h1>
     </div>
 
     <div class="card">

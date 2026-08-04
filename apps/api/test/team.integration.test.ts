@@ -177,7 +177,7 @@ describe("Team routes (TEAM-01/TEAM-02, D-09-02/D-09-03/D-09-04)", () => {
           hostname: "team-invite-domain.test",
           type: "subdomain",
           status: "active",
-          verificationTarget: "shortener.kurzly.local",
+          verificationTarget: "shortener.zack.local",
         },
       });
 

@@ -201,14 +201,14 @@ describe("CR-05 regression: docker-compose.e2e.yml's exact merged boot env must 
   const E2E_COMPOSE_MERGED_ENV: NodeJS.ProcessEnv = {
     NODE_ENV: "production",
     PORT: "3000",
-    DATABASE_URL: "postgresql://kurzly:changeme@db:5432/kurzly",
+    DATABASE_URL: "postgresql://zack:changeme@db:5432/zack",
     SMTP_HOST: "mailpit",
     SMTP_PORT: "1025",
     SMTP_SECURE: "false",
-    SMTP_FROM: "no-reply@e2e.kurzly.local",
+    SMTP_FROM: "no-reply@e2e.zack.local",
     BASE_URL: "http://localhost:3000",
     BETTER_AUTH_SECRET: "a".repeat(32),
-    INITIAL_ADMIN_EMAIL: "admin@e2e.kurzly.local",
+    INITIAL_ADMIN_EMAIL: "admin@e2e.zack.local",
     E2E_RATE_LIMIT_BYPASS_SECRET: "some-generated-hex-secret",
     E2E_COMPOSE_OVERLAY: "true",
   };

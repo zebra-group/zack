@@ -25,7 +25,7 @@ import { findMagicLinkUrl } from "../../src/mailpit.js";
  * being proven.
  *
  * Uses a DEDICATED, never-seeded recipient (`not-invited-<random>@nobody
- * .kurzly.local`) so the short 4s no-email timeout below is deterministic —
+ * .zack.local`) so the short 4s no-email timeout below is deterministic —
  * no baseline seed, no other spec, and no earlier task in this phase ever
  * creates a `User` row for this address, and it is never reused elsewhere.
  *
@@ -39,7 +39,7 @@ test("non-invited email yields zero Mailpit message and zero session (AUTH-E2E-0
   browser,
   baseURL,
 }) => {
-  const nonInvitedEmail = `not-invited-${randomUUID().slice(0, 8)}@nobody.kurzly.local`;
+  const nonInvitedEmail = `not-invited-${randomUUID().slice(0, 8)}@nobody.zack.local`;
 
   const bypassSecret = process.env.E2E_RATE_LIMIT_BYPASS_SECRET;
   const magicLinkResponse = await request.post("/api/auth/sign-in/magic-link", {

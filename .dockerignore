@@ -1,4 +1,4 @@
-# Kurzly Docker build context exclusions.
+# Zack Docker build context exclusions.
 #
 # Keeps the build context small and forces the image build to produce its
 # own fresh artifacts rather than trusting whatever happens to exist on the

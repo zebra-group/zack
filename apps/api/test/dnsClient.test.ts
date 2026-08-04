@@ -23,11 +23,11 @@ describe("dnsClient.verifyDomain (DOMAIN-02, SSRF-safe by construction)", () => 
   });
 
   it("subdomain CNAME match → verified: true, no error", async () => {
-    const resolver = fakeDnsResolver(["shortener.kurzly.local"], []);
+    const resolver = fakeDnsResolver(["shortener.zack.local"], []);
     const result = await verifyDomain(
       "s.example.com",
       "subdomain",
-      "shortener.kurzly.local",
+      "shortener.zack.local",
       resolver,
     );
     expect(result).toEqual({ verified: true });
@@ -38,7 +38,7 @@ describe("dnsClient.verifyDomain (DOMAIN-02, SSRF-safe by construction)", () => 
     const result = await verifyDomain(
       "s.example.com",
       "subdomain",
-      "shortener.kurzly.local",
+      "shortener.zack.local",
       resolver,
     );
     expect(result.verified).toBe(false);
@@ -52,11 +52,11 @@ describe("dnsClient.verifyDomain (DOMAIN-02, SSRF-safe by construction)", () => 
   });
 
   it("normalizes trailing dot and case on both the record and the target", async () => {
-    const resolver = fakeDnsResolver(["SHORTENER.KURZLY.LOCAL."], []);
+    const resolver = fakeDnsResolver(["SHORTENER.ZACK.LOCAL."], []);
     const result = await verifyDomain(
       "s.example.com",
       "subdomain",
-      "shortener.kurzly.local",
+      "shortener.zack.local",
       resolver,
     );
     expect(result.verified).toBe(true);
@@ -70,7 +70,7 @@ describe("dnsClient.verifyDomain (DOMAIN-02, SSRF-safe by construction)", () => 
     const result = await verifyDomain(
       "s.example.com",
       "subdomain",
-      "shortener.kurzly.local",
+      "shortener.zack.local",
       neverSettles,
       50,
     );
@@ -89,7 +89,7 @@ describe("dnsClient.verifyDomain (DOMAIN-02, SSRF-safe by construction)", () => 
     const result = await verifyDomain(
       "s.example.com",
       "subdomain",
-      "shortener.kurzly.local",
+      "shortener.zack.local",
       throwing,
     );
     expect(result).toEqual({ verified: false, error: "ENOTFOUND" });
@@ -108,17 +108,17 @@ describe("dnsClient.verifyDomain (DOMAIN-02, SSRF-safe by construction)", () => 
 
   it("WR-03: clears the DNS-timeout timer once the resolver settles first (no dangling timer handle)", async () => {
     const clearTimeoutSpy = vi.spyOn(global, "clearTimeout");
-    const resolver = fakeDnsResolver(["shortener.kurzly.local"], []);
+    const resolver = fakeDnsResolver(["shortener.zack.local"], []);
 
-    await verifyDomain("s.example.com", "subdomain", "shortener.kurzly.local", resolver, 5000);
+    await verifyDomain("s.example.com", "subdomain", "shortener.zack.local", resolver, 5000);
 
     expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
   });
 
   it("SSRF canary: verifyDomain never issues an HTTP fetch — global fetch spy recorded 0 calls", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
-    const resolver = fakeDnsResolver(["shortener.kurzly.local"], []);
-    await verifyDomain("s.example.com", "subdomain", "shortener.kurzly.local", resolver);
+    const resolver = fakeDnsResolver(["shortener.zack.local"], []);
+    await verifyDomain("s.example.com", "subdomain", "shortener.zack.local", resolver);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

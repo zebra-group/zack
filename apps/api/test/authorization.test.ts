@@ -26,7 +26,7 @@ describe("Authorization core (D-02)", () => {
       data: {
         id: `u_authz_${userSeq}`,
         name: `Authz Test User ${userSeq}`,
-        email: `authz-${userSeq}@test.kurzly`,
+        email: `authz-${userSeq}@test.zack`,
       },
     });
   }
@@ -43,7 +43,7 @@ describe("Authorization core (D-02)", () => {
       data: {
         id: `u_authz_admin_${userSeq}`,
         name: `Authz Admin Test User ${userSeq}`,
-        email: `authz-admin-${userSeq}@test.kurzly`,
+        email: `authz-admin-${userSeq}@test.zack`,
         accountRole: "admin",
       },
     });
@@ -60,9 +60,9 @@ describe("Authorization core (D-02)", () => {
     domainSeq += 1;
     return prisma.domain.create({
       data: {
-        hostname: `authz-domain-${domainSeq}.test.kurzly`,
+        hostname: `authz-domain-${domainSeq}.test.zack`,
         type: "subdomain",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
   }

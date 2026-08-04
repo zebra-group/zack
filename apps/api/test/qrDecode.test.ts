@@ -36,7 +36,7 @@ import {
 } from "../src/lib/qr.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TARGET = "https://kurzly.example.com/promo";
+const TARGET = "https://zack.example.com/promo";
 
 const LOGO_PNG = { bytes: readFileSync(path.join(__dirname, "fixtures", "qr-logo.png")) };
 const LOGO_SVG = { bytes: readFileSync(path.join(__dirname, "fixtures", "qr-logo.svg")) };

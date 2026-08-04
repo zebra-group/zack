@@ -20,9 +20,9 @@ describe("resolveAppVersion", () => {
   });
 
   it("reads the version field from a real package.json-shaped file", async () => {
-    dir = await mkdtemp(path.join(tmpdir(), "kurzly-version-"));
+    dir = await mkdtemp(path.join(tmpdir(), "zack-version-"));
     const file = path.join(dir, "package.json");
-    await writeFile(file, JSON.stringify({ name: "kurzly", version: "1.2.3" }));
+    await writeFile(file, JSON.stringify({ name: "zack", version: "1.2.3" }));
 
     expect(await resolveAppVersion(file)).toBe("1.2.3");
   });
@@ -32,7 +32,7 @@ describe("resolveAppVersion", () => {
   });
 
   it("degrades to FALLBACK_VERSION when the file is not valid JSON", async () => {
-    dir = await mkdtemp(path.join(tmpdir(), "kurzly-version-"));
+    dir = await mkdtemp(path.join(tmpdir(), "zack-version-"));
     const file = path.join(dir, "package.json");
     await writeFile(file, "not json");
 
@@ -40,9 +40,9 @@ describe("resolveAppVersion", () => {
   });
 
   it("degrades to FALLBACK_VERSION when the parsed JSON has no version field", async () => {
-    dir = await mkdtemp(path.join(tmpdir(), "kurzly-version-"));
+    dir = await mkdtemp(path.join(tmpdir(), "zack-version-"));
     const file = path.join(dir, "package.json");
-    await writeFile(file, JSON.stringify({ name: "kurzly" }));
+    await writeFile(file, JSON.stringify({ name: "zack" }));
 
     expect(await resolveAppVersion(file)).toBe(FALLBACK_VERSION);
   });

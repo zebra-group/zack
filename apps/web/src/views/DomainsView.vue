@@ -291,7 +291,7 @@ loadDomains();
           <p class="tls-hint">
             Sobald diese Domain auf „Aktiv" steht, kann dein Reverse-Proxy (z. B. Caddy
             On-Demand-TLS, Traefik) automatisch ein Let's-Encrypt-Zertifikat ausstellen — TLS
-            terminiert dein eigener Proxy, nicht Kurzly.
+            terminiert dein eigener Proxy, nicht Zack.
           </p>
           <p v-if="domain.lastCheckedAt" class="last-checked" :class="{ error: !!domain.lastCheckError }">
             Zuletzt geprüft: {{ relativeTime(domain.lastCheckedAt) }}

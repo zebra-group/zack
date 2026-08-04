@@ -22,7 +22,7 @@ describe("resolveActiveDomainByHost (Pattern 4, deny-by-default)", () => {
         hostname: "active.example.com",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 
@@ -41,7 +41,7 @@ describe("resolveActiveDomainByHost (Pattern 4, deny-by-default)", () => {
         hostname: "pending.example.com",
         type: "subdomain",
         status: "pending",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 
@@ -55,7 +55,7 @@ describe("resolveActiveDomainByHost (Pattern 4, deny-by-default)", () => {
         hostname: "failed.example.com",
         type: "subdomain",
         status: "failed",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 
@@ -69,7 +69,7 @@ describe("resolveActiveDomainByHost (Pattern 4, deny-by-default)", () => {
         hostname: "mixedcase.example.com",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 
@@ -83,7 +83,7 @@ describe("resolveActiveDomainByHost (Pattern 4, deny-by-default)", () => {
         hostname: "trailingdot.example.com",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 
@@ -97,7 +97,7 @@ describe("resolveActiveDomainByHost (Pattern 4, deny-by-default)", () => {
         hostname: "porttest.example.com",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 
@@ -117,7 +117,7 @@ describe("resolveActiveDomainByHost (Pattern 4, deny-by-default)", () => {
         hostname: "first.example.com",
         type: "subdomain",
         status: "active",
-        verificationTarget: "shortener.kurzly.local",
+        verificationTarget: "shortener.zack.local",
       },
     });
 

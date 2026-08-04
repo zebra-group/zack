@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/smoke-compose.sh - INFRA-01 boot smoke test.
 #
-# Proves `docker compose up` boots the full Kurzly stack with ZERO manual
+# Proves `docker compose up` boots the full Zack stack with ZERO manual
 # steps beyond supplying `.env`: migrations apply automatically at
 # container start (D-05), `/health` returns 200, and a POST /api/canary
 # succeeds (which can only happen if the PersistenceCanary table already

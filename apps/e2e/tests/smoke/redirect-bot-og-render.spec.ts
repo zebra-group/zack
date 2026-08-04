@@ -19,7 +19,7 @@ import {
  * custom-OG, partial-OG, bot+protected-custom-OG) verbatim, adapted to
  * Playwright's `APIRequestContext`.
  *
- * Every request pins `Host: e2e.kurzly.local` (never localhost, per CR-07 —
+ * Every request pins `Host: e2e.zack.local` (never localhost, per CR-07 —
  * 12-RESEARCH.md Pitfall 2) and an EXPLICIT `user-agent` — either the real
  * `BOT_UA` or `BROWSER_UA` — on every single request, bot and human alike.
  * Playwright's own default UA is itself bot-classified by the installed

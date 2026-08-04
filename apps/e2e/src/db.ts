@@ -24,16 +24,16 @@ import { Prisma, PrismaClient } from "@zack/api/prisma-client";
 /** Seeded admin User (accountRole "admin"). Matches
  * `docker-compose.e2e.yml`'s `INITIAL_ADMIN_EMAIL` so this row also passes
  * the app's own boot-time admin-seed idempotently. */
-export const ADMIN_EMAIL = "admin@e2e.kurzly.local";
+export const ADMIN_EMAIL = "admin@e2e.zack.local";
 
 /** Seeded least-privilege Member User (accountRole "member", exactly one
  * DomainMembership at role "member" — T-11-03: never account-admin, never
  * an extra membership "for convenience"). */
-export const MEMBER_EMAIL = "member@e2e.kurzly.local";
+export const MEMBER_EMAIL = "member@e2e.zack.local";
 
 /** Baseline seeded Domain's hostname, reused by downstream specs/fixtures
  * needing a domain-scoped Link/QR fixture without re-seeding a Domain. */
-export const BASELINE_DOMAIN_HOSTNAME = "e2e.kurzly.local";
+export const BASELINE_DOMAIN_HOSTNAME = "e2e.zack.local";
 
 /**
  * Fixed integer key for `pg_advisory_xact_lock` around

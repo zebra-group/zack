@@ -32,7 +32,7 @@
  *
  * BRAND_NAME itself is a backend-only ENV var (apps/api/src/env.ts,
  * server-rendered redirect pages only) — never exposed to the frontend.
- * The rest of the SPA already hardcodes the literal "Kurzly" brand text
+ * The rest of the SPA already hardcodes the literal "Zack" brand text
  * (AppShell.vue/LoginView.vue/AuthErrorView.vue) rather than reading it
  * dynamically, so the placeholder tile mirrors that same established
  * convention with a hardcoded initial instead of adding a new public

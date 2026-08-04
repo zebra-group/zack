@@ -42,7 +42,7 @@ import { findMagicLinkUrl } from "../../src/mailpit.js";
 /** Dedicated allowlisted email for this file only — never `ADMIN_EMAIL`/
  * `MEMBER_EMAIL` (owned by the `setup` project) and never reused by any
  * other spec in this phase. */
-const EMAIL = `token-reject-${randomUUID().slice(0, 8)}@e2e.kurzly.local`;
+const EMAIL = `token-reject-${randomUUID().slice(0, 8)}@e2e.zack.local`;
 
 async function requestMagicLink(request: APIRequestContext, email: string): Promise<void> {
   const bypassSecret = process.env.E2E_RATE_LIMIT_BYPASS_SECRET;

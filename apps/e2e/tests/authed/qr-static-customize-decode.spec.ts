@@ -18,11 +18,11 @@ import { decodeQrImage } from "../../src/qr.js";
  * The crux assertion: the server-rendered PNG bytes (fetched via an
  * authenticated `page.request.get`, 15-RESEARCH.md Pitfall 2) decode via
  * `decodeQrImage` (verbatim `sharp`+`jsQR` port, apps/e2e/src/qr.ts) back
- * to the EXACT short URL Kurzly constructs for a static QR —
+ * to the EXACT short URL Zack constructs for a static QR —
  * `https://{hostname}/{slug}?qr={id}` — NEVER `Link.targetUrl`
  * (`resolveQrPayload`, apps/api/src/routes/qrCodes.ts; 15-RESEARCH.md
  * Summary point 1, Pitfall 1). A QR never encodes the raw destination —
- * only Kurzly's own short URL, so every scan is a real, trackable request.
+ * only Zack's own short URL, so every scan is a real, trackable request.
  *
  * Scoped to chromium-admin only (see the `beforeEach` skip below) —
  * nothing here exercises role-differentiated behaviour; member/domain-scoped
