@@ -1,11 +1,11 @@
 # Deployment
 
-This document describes how to build, deploy, and troubleshoot the Kurzly
+This document describes how to build, deploy, and troubleshoot the Zack
 stack from the actual files in this repo (`docker-compose.yml`,
 `docker-compose.dev.yml`, `Dockerfile`, `apps/api/entrypoint.sh`,
 `.env.example`, `apps/api/src/env.ts`, `.github/workflows/ci.yml`). No step
 here requires anything beyond a Docker host and this repository — you
-should not need to ask DevOps to build or run Kurzly.
+should not need to ask DevOps to build or run Zack.
 
 ## 1. Infrastructure overview
 
@@ -27,7 +27,7 @@ the volume is mounted directly at `.../data` instead (see the comment in
 change this mount path.
 
 TLS termination and the reverse proxy in front of the `app` port are the
-**operator's own responsibility** — Kurzly does not bundle one. See
+**operator's own responsibility** — Zack does not bundle one. See
 [`docs/deployment/reverse-proxy.md`](./deployment/reverse-proxy.md) for
 copy-pasteable Caddy/nginx/Traefik configs, including the on-demand TLS
 integration for dynamically-registered custom domains.
@@ -56,11 +56,11 @@ The image is built from the multi-stage `Dockerfile`:
      `packages/shared` builds before `apps/web`/`apps/api`, which both
      depend on it.
    - Bakes the DB-IP GeoIP `.mmdb` database into the image at **build
-     time only** (downloaded via `curl`, then `gunzip`'d) — Kurzly never
+     time only** (downloaded via `curl`, then `gunzip`'d) — Zack never
      fetches this at runtime, so the image works fully offline/air-gapped
      out of the box.
    - Prunes to a standalone production-only directory via
-     `pnpm deploy --filter=@kurzly/api --prod --legacy /prod/api`. The
+     `pnpm deploy --filter=@zack/api --prod --legacy /prod/api`. The
      `--legacy` flag matters: it performs a real content copy instead of
      pnpm 10+'s default injected/symlinked workspace mode, so the pruned
      output is self-contained and safe to `COPY` into the runtime stage.
@@ -132,7 +132,7 @@ docker compose up -d --wait
 ## 4. Required ENV vars / secrets
 
 `apps/api/src/env.ts` is the **single source of truth** for every
-environment variable Kurzly reads. Its fail-fast validator
+environment variable Zack reads. Its fail-fast validator
 (`loadEnv()`) runs before the server touches the database, SMTP, or
 anything else — an invalid or missing required variable prints a clear
 error to stderr and aborts the process with `exit(1)` rather than
@@ -169,6 +169,57 @@ the image and then auto-creates `.env` from `.env.example` inside
 is present. Those scripts also generate a real `BETTER_AUTH_SECRET` at
 that point (via `openssl rand -base64 32`) — see Troubleshooting below
 for the exact failure this replaces.
+
+### Migration note: `POSTGRES_USER` / `POSTGRES_DB` default value changed
+
+**What changed:** this rebrand changed `docker-compose.yml`'s built-in
+fallbacks for `POSTGRES_USER` and `POSTGRES_DB` from the project's
+previous product name to `zack`.
+
+**Who is affected:** only installs that relied on those built-in
+`${VAR:-...}` fallbacks rather than setting `POSTGRES_USER`/`POSTGRES_DB`
+explicitly in their own `.env`. Their persisted `db-data` volume still
+holds a Postgres role and database named after the previous product name,
+so `app` would try to authenticate as a role that no longer matches the
+new default.
+
+Pick one of two remediation paths:
+
+- **Option 1 (least invasive) — pin the old values explicitly in `.env`:**
+  set `POSTGRES_USER` and `POSTGRES_DB` explicitly to whatever value your
+  running Postgres role/database were actually created with (the project's
+  previous product name, if you never overrode it), and keep
+  `DATABASE_URL` consistent with those same values. Nothing in the
+  database changes; the app keeps connecting exactly as before.
+- **Option 2 (align with the new default) — rename the role/database
+  inside the running Postgres:**
+
+  ```sql
+  ALTER ROLE <old_role_name> RENAME TO zack;
+  ALTER DATABASE <old_db_name> RENAME TO zack;
+  ```
+
+  Then update `POSTGRES_USER`, `POSTGRES_DB`, and `DATABASE_URL` in `.env`
+  to match. Note that `ALTER DATABASE ... RENAME` requires no other
+  session to be connected to that database at the time — stop the `app`
+  container first (`docker compose stop app`), run the two statements
+  against `db` directly, update `.env`, then `docker compose up -d --wait`.
+
+**Why this was accepted as-is:** `.env.example` already prescribes
+explicit `POSTGRES_USER`/`POSTGRES_DB` values rather than relying on the
+compose fallback, and this repository is private/pre-release, so no
+production install is known to depend on the old fallback. This is a
+deliberate, recorded tradeoff, not an oversight.
+
+**Local hygiene (optional, dev/test only):** the e2e Compose project name
+also changed to `zack-e2e`. A developer with a stale stack from the old
+project name can clean it up once with:
+
+```bash
+docker compose -p <old-project-name> down -v --remove-orphans
+```
+
+This only removes throwaway e2e test volumes, never production data.
 
 ## 5. Troubleshooting
 

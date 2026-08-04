@@ -2,9 +2,9 @@
 
 ## Project
 
-**Kurzly**
+**Zack**
 
-Kurzly ist ein self-hosted, quelloffener URL-Shortener (in der Klasse von bit.ly / dub.co) für Teams, die ihre Kurzlinks auf eigener Infrastruktur betreiben wollen. Betrieben wird der gesamte Dienst als Docker/Compose-Setup; das Dashboard verwaltet Kurzlinks auf beliebigen eigenen Domains, dynamische und statische QR-Codes, internes datenschutzfreundliches Klick-Tracking sowie ein rollenbasiertes Team-Management. Zielnutzer sind Agenturen, Firmen und technisch versierte Betreiber, die Datenhoheit und eigene Domains ohne Drittanbieter-Tracking wollen.
+Zack ist ein self-hosted, quelloffener URL-Shortener (in der Klasse von bit.ly / dub.co) für Teams, die ihre Kurzlinks auf eigener Infrastruktur betreiben wollen. Betrieben wird der gesamte Dienst als Docker/Compose-Setup; das Dashboard verwaltet Kurzlinks auf beliebigen eigenen Domains, dynamische und statische QR-Codes, internes datenschutzfreundliches Klick-Tracking sowie ein rollenbasiertes Team-Management. Zielnutzer sind Agenturen, Firmen und technisch versierte Betreiber, die Datenhoheit und eigene Domains ohne Drittanbieter-Tracking wollen.
 
 **Core Value:** Kurzlinks auf eigenen Domains zuverlässig kürzen und weiterleiten — self-hosted, ohne Drittanbieter-Tracking. Wenn alles andere ausfällt, muss der Redirect-Handler (Domain → Slug → Ziel-URL) korrekt und schnell funktionieren.
 

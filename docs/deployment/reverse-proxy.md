@@ -1,18 +1,18 @@
 # Reverse Proxy & TLS
 
-Kurzly's `docker-compose.yml` intentionally exposes **only the app port**
+Zack's `docker-compose.yml` intentionally exposes **only the app port**
 (`3000`, mapped as `3000:3000`) on the host. Postgres (`db`) is reachable
 from `app` over the internal compose network only and is never published to
 the host.
 
 **TLS termination and the reverse proxy in front of that app port are the
-operator's own responsibility.** Kurzly does not bundle or hard-wire any
+operator's own responsibility.** Zack does not bundle or hard-wire any
 particular proxy (D-03) — instead, this document gives copy-pasteable
 configs for the common choices (D-04). Pick whichever fits your existing
 infrastructure; all three examples below terminate TLS and forward plain
 HTTP to `app:3000`.
 
-> **Multi-domain note:** Kurzly resolves short links by the incoming `Host`
+> **Multi-domain note:** Zack resolves short links by the incoming `Host`
 > header (custom domains per link, see the project's later multi-domain
 > phase). Whichever proxy you choose must forward the original `Host`
 > header unmodified to the `app` service — every example below already
@@ -25,7 +25,7 @@ HTTP to `app:3000`.
 
 - DNS for every domain you intend to serve (dashboard domain and/or any
   custom short-link domains) already points at the host running the proxy.
-- The Kurzly stack is running via `docker compose up -d` with only the
+- The Zack stack is running via `docker compose up -d` with only the
   `app` port bound to the host (the default in `docker-compose.yml` — do
   not additionally publish `db`'s port).
 - Ports `80` and `443` on the host are free for the proxy to bind (needed
@@ -42,7 +42,7 @@ ACME HTTP-01 challenge — no separate certbot step required.
 `Caddyfile`:
 
 ```caddyfile
-kurzly.example.com {
+zack.example.com {
     reverse_proxy app:3000
 }
 
@@ -84,13 +84,13 @@ redeploy.
 
 ### On-Demand TLS Integration (Caddy `ask` → `/api/tls-check`)
 
-**Kurzly does not issue or terminate TLS certificates itself (D-01).** It
+**Zack does not issue or terminate TLS certificates itself (D-01).** It
 never runs an in-app ACME client and never handles private keys — TLS
 issuance and termination are entirely the operator's own reverse proxy's
-responsibility. What Kurzly *does* provide is a read-only, session-free
+responsibility. What Zack *does* provide is a read-only, session-free
 status endpoint — `GET /api/tls-check` — that your proxy can query before
 it decides whether to request a Let's Encrypt certificate for a hostname it
-doesn't already have a static site block for. This matters for Kurzly's
+doesn't already have a static site block for. This matters for Zack's
 multi-domain model: teams register custom short-link domains dynamically
 through the dashboard, so the proxy can't know the full domain list ahead
 of time the way a single static `Caddyfile` block does.
@@ -121,12 +121,12 @@ How this works: on the *first* TLS handshake for a hostname Caddy doesn't
 recognize, it calls `GET http://app:3000/api/tls-check?domain=<sni-hostname>`
 — appending the hostname it just saw in the TLS SNI as the `domain` query
 parameter — and only proceeds to request a Let's Encrypt certificate if
-Kurzly responds `200`. A `404` (unregistered, still pending DNS
+Zack responds `200`. A `404` (unregistered, still pending DNS
 verification, or failed verification) tells Caddy to refuse the handshake
 instead of provisioning a certificate for a domain nobody has verified
 ownership of. Both responses are empty-bodied and carry no other
 information (no target URL, no account, no distinguishing detail beyond
-the status code) — Kurzly's `resolveActiveDomainByHost` guard behind this
+the status code) — Zack's `resolveActiveDomainByHost` guard behind this
 endpoint does an exact-match, deny-by-default lookup against the `Domain`
 table, so a spoofed or partial hostname can never slip through. Once
 issued, the certificate is cached and renewed by Caddy as usual — the ask
@@ -135,7 +135,7 @@ endpoint is only consulted again on a fresh, previously-unseen hostname.
 Use the `ask`-only form shown above — do **not** add the older
 `interval`/`burst` options some examples online still show alongside
 `ask`; those are deprecated in favor of Caddy's `permission` module, and
-are redundant here anyway since Kurzly's own `Domain.status === 'active'`
+are redundant here anyway since Zack's own `Domain.status === 'active'`
 check is already the authoritative gate on whether a certificate should be
 issued.
 
@@ -152,7 +152,7 @@ nginx at the resulting certificate files.
 ```nginx
 server {
     listen 80;
-    server_name kurzly.example.com;
+    server_name zack.example.com;
 
     # ACME HTTP-01 challenge path — certbot needs this reachable over
     # plain HTTP even after you also serve HTTPS below.
@@ -167,10 +167,10 @@ server {
 
 server {
     listen 443 ssl http2;
-    server_name kurzly.example.com;
+    server_name zack.example.com;
 
-    ssl_certificate     /etc/letsencrypt/live/kurzly.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/kurzly.example.com/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/zack.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/zack.example.com/privkey.pem;
 
     location / {
         proxy_pass http://app:3000;
@@ -187,7 +187,7 @@ let certbot's own cron/systemd timer or container handle renewal):
 
 ```bash
 certbot certonly --webroot -w /var/www/certbot \
-  -d kurzly.example.com \
+  -d zack.example.com \
   --email you@example.com --agree-tos --non-interactive
 ```
 
@@ -239,10 +239,10 @@ services:
     # `app` purely over the internal Docker network.
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.kurzly.rule=Host(`kurzly.example.com`)"
-      - "traefik.http.routers.kurzly.entrypoints=websecure"
-      - "traefik.http.routers.kurzly.tls.certresolver=letsencrypt"
-      - "traefik.http.services.kurzly.loadbalancer.server.port=3000"
+      - "traefik.http.routers.zack.rule=Host(`zack.example.com`)"
+      - "traefik.http.routers.zack.entrypoints=websecure"
+      - "traefik.http.routers.zack.tls.certresolver=letsencrypt"
+      - "traefik.http.services.zack.loadbalancer.server.port=3000"
 
 volumes:
   traefik-certs:
@@ -250,7 +250,7 @@ volumes:
 
 For each additional custom short-link domain, add another router with its
 own `Host(...)` rule (or extend the existing rule with `||`) pointing at
-the same `kurzly` service — Traefik will request a separate Let's Encrypt
+the same `zack` service — Traefik will request a separate Let's Encrypt
 certificate per new hostname automatically.
 
 Mounting the Docker socket gives Traefik read access to container labels
@@ -271,7 +271,7 @@ practical options are:
   `GET /api/domains`, filters for `status === "active"`, and rewrites a
   dynamic-config file (Traefik's file provider) with one router per active
   hostname. Traefik picks up file-provider changes automatically without a
-  restart. This keeps issuance in sync with Kurzly's verified-domain state
+  restart. This keeps issuance in sync with Zack's verified-domain state
   without needing a real-time `ask` hook.
 - **certbot, polled the same way:** if you're on the nginx+certbot setup
   from Option 2 instead, the same polling script can drive a
