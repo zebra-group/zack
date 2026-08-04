@@ -52,7 +52,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import "@fastify/cookie";
 import type { Link } from "../generated/prisma/client.js";
 
-const COOKIE_PREFIX = "kurzly_unlock_";
+const COOKIE_PREFIX = "zack_unlock_";
 
 /** Stable per-link cookie name. */
 export function cookieName(linkId: string): string {

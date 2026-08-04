@@ -2,7 +2,7 @@
  * Theme Pinia store (UI-02/UI-03). Holds light/dark state, applies it to
  * `<body data-theme>` (drives the LOCKED CSS custom properties in
  * tokens.css), and persists the choice to localStorage under
- * `kurzly-theme`.
+ * `zack-theme`.
  *
  * The App Shell (plan 02-06) and main.ts (pre-paint FOUC guard) both
  * consume this store's `theme`/`toggle()`.
@@ -12,7 +12,7 @@ import { ref, watch } from "vue";
 
 export type Theme = "light" | "dark";
 
-const STORAGE_KEY = "kurzly-theme";
+const STORAGE_KEY = "zack-theme";
 
 function readStoredTheme(): Theme {
   const stored = localStorage.getItem(STORAGE_KEY);

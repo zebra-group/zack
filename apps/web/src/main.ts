@@ -8,7 +8,7 @@ import "./styles/tokens.css";
 // BEFORE createApp().mount() so there is no flash of the wrong theme. The
 // theme Pinia store (stores/theme.ts) re-applies + keeps this in sync once
 // it's instantiated, but this synchronous read/write must happen first.
-const storedTheme = localStorage.getItem("kurzly-theme");
+const storedTheme = localStorage.getItem("zack-theme");
 document.body.dataset.theme = storedTheme === "dark" ? "dark" : "";
 
 const app = createApp(App);
