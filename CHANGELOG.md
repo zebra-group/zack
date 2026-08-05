@@ -1,3 +1,11 @@
+## [1.3.1](https://github.com/zebra-group/zack/compare/v1.3.0...v1.3.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **deps:** close 17 alerts from the 2026-08-03 advisory batch ([6932f6d](https://github.com/zebra-group/zack/commit/6932f6dd6d3365320d93b5e32181b5db958c1eed))
+* **deps:** pin the undici 8.x and fast-uri 4.x majors too ([a37bb0e](https://github.com/zebra-group/zack/commit/a37bb0e53ba78f17cc1b94f509db0cf4fad5b771))
+
 # [1.3.0](https://github.com/zebra-group/zack/compare/v1.2.0...v1.3.0) (2026-08-05)
 
 
