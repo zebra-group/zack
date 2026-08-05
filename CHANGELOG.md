@@ -1,3 +1,12 @@
+## [1.3.2](https://github.com/zebra-group/zack/compare/v1.3.1...v1.3.2) (2026-08-05)
+
+
+### Bug Fixes
+
+* **deps:** bump @fastify/rate-limit from 11.1.0 to 11.2.0 ([#5](https://github.com/zebra-group/zack/issues/5)) ([d91d84c](https://github.com/zebra-group/zack/commit/d91d84ce12508868a79c9ada9ebe32f31b0b81fa))
+* **deps:** bump better-auth from 1.6.23 to 1.6.25 ([#7](https://github.com/zebra-group/zack/issues/7)) ([c52914a](https://github.com/zebra-group/zack/commit/c52914a0dab690372463b07dbc1a1ec24d7e59de))
+* **deps:** bump fastify from 5.10.0 to 5.11.0 ([#4](https://github.com/zebra-group/zack/issues/4)) ([b0c4552](https://github.com/zebra-group/zack/commit/b0c4552a66f8131388cc984527c4c308dd4edde7))
+
 ## [1.3.1](https://github.com/zebra-group/zack/compare/v1.3.0...v1.3.1) (2026-08-05)
 
 
