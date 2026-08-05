@@ -45,7 +45,7 @@ minimumReleaseAgeExclude:
 overrides:
   find-my-way@<9.7.0: ^9.7.0
   fast-uri@3: ^3.1.5
-  fast-uri@4: ^4.1.1
+  fast-uri@4: ^4.1.2
   postcss@<8.5.18: ^8.5.18
   brace-expansion@5: ^5.0.9
   brace-expansion@2: ^5.0.9
@@ -54,11 +54,18 @@ overrides:
   # published 2026-08-03 superseded the pins from 260728-fxv: brace-expansion
   # 5.0.8 and fast-uri 3.1.4 above were themselves the fixed versions at the
   # time and are now the vulnerable ones. `hono` is a DIFFERENT package from
-  # `@hono/node-server` directly above — both are needed. undici 8.x is not
-  # affected, so it is deliberately not pinned.
+  # `@hono/node-server` directly above — both are needed.
+  #
+  # EVERY major line in use needs its own entry. The first pass here pinned only
+  # undici 6/7 and left fast-uri@4 at ^4.1.1, on the mistaken reading that 8.x
+  # and 4.1.1 were unaffected. They were not: the same advisories carry separate
+  # affected ranges per major (undici >=8.0.0 <8.9.0, fast-uri >=4.0.0 <4.1.2),
+  # which surface as separate alerts sharing one GHSA id. Deduplicating an alert
+  # list by GHSA hides them — check the per-alert vulnerable_version_range.
   hono@4: ^4.12.34
   undici@6: ^6.28.0
   undici@7: ^7.29.0
+  undici@8: ^8.9.0
   valibot@1: ^1.4.2
   drizzle-orm@<0.45.2: ^0.45.2
   esbuild@0.27: 0.28.1
