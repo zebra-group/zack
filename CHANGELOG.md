@@ -1,3 +1,15 @@
+# [1.3.0](https://github.com/zebra-group/zack/compare/v1.2.0...v1.3.0) (2026-08-05)
+
+
+### Bug Fixes
+
+* **quick-260805-k2u:** add required DB-IP attribution to the analytics view ([6215841](https://github.com/zebra-group/zack/commit/621584124408671876c1033e4b0e21f6d367beb5))
+
+
+### Features
+
+* **quick-260805-jcs:** license Zack under AGPL-3.0 ([be50496](https://github.com/zebra-group/zack/commit/be5049662b9adf324fbd3e293d66a1a6e40c15a2))
+
 # [1.2.0](https://github.com/zebra-group/zack/compare/v1.1.1...v1.2.0) (2026-08-05)
 
 
