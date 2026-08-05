@@ -44,12 +44,21 @@ minimumReleaseAgeExclude:
 # elsewhere in the tree (see 260728-fxv-PLAN.md <override_matrix>).
 overrides:
   find-my-way@<9.7.0: ^9.7.0
-  fast-uri@3: ^3.1.4
+  fast-uri@3: ^3.1.5
   fast-uri@4: ^4.1.1
   postcss@<8.5.18: ^8.5.18
-  brace-expansion@5: ^5.0.8
-  brace-expansion@2: ^5.0.8
+  brace-expansion@5: ^5.0.9
+  brace-expansion@2: ^5.0.9
   '@hono/node-server@1': ^1.19.13
+  # Second remediation round (quick task 260805-ntj). A batch of advisories
+  # published 2026-08-03 superseded the pins from 260728-fxv: brace-expansion
+  # 5.0.8 and fast-uri 3.1.4 above were themselves the fixed versions at the
+  # time and are now the vulnerable ones. `hono` is a DIFFERENT package from
+  # `@hono/node-server` directly above — both are needed. undici 8.x is not
+  # affected, so it is deliberately not pinned.
+  hono@4: ^4.12.34
+  undici@6: ^6.28.0
+  undici@7: ^7.29.0
   valibot@1: ^1.4.2
   drizzle-orm@<0.45.2: ^0.45.2
   esbuild@0.27: 0.28.1
