@@ -11,7 +11,13 @@ apps/api/src/generated/
 
 # Coverage
 coverage/
-.planning/research/.cache/
+
+# GSD planning artifacts (plans, summaries, research, debug journals).
+# Intentionally local-only: these are internal working documents, not part of
+# the published project. They were also purged from the git history when the
+# repository was prepared for open-source release, so re-adding them here would
+# undo that. Keep them out of commits.
+.planning/
 
 # Playwright E2E (apps/e2e) — live session cookies and run artifacts, never committed
 apps/e2e/playwright/.auth/
