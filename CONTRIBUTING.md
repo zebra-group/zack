@@ -109,6 +109,14 @@ environment variables, troubleshooting, image releases) and
 [`docs/deployment/reverse-proxy.md`](docs/deployment/reverse-proxy.md). The
 environment surface is summarised in the [README](README.md#configuration).
 
+## Dependency updates
+
+Dependabot opens update pull requests weekly. Patch and minor bumps are merged
+automatically once CI passes — `.github/workflows/dependabot-auto-merge.yml`
+triggers on a successful CI run rather than on the pull request itself, so no
+update lands without a green suite. Major bumps are deliberately left for a
+human to review and merge.
+
 ## Security
 
 Do not report vulnerabilities in a public issue or pull request. See

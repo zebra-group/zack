@@ -1,0 +1,113 @@
+# Auto-merge Dependabot PRs — patch and minor only, after CI has passed.
+#
+# WHY THIS IS NOT THE USUAL `gh pr merge --auto` RECIPE
+#
+# GitHub's native auto-merge is unavailable here: the org is on the Free plan
+# and this repository is private, a combination that offers neither auto-merge
+# nor branch protection. And even where it is available, `--auto` only waits if
+# *required status checks* are configured. Without them a PR counts as mergeable
+# immediately, so `--auto` merges at once — without waiting for CI, which is the
+# opposite of the intent.
+#
+# So this workflow triggers on a COMPLETED, SUCCESSFUL CI run instead and merges
+# directly. That gates on CI by construction, works on the Free plan, and stays
+# correct once the repository becomes public (at which point adding branch
+# protection with required checks is a sensible belt-and-braces addition).
+#
+# SECURITY: `workflow_run` executes in the base-repository context with write
+# permissions. It therefore MUST NOT check out or execute anything from the pull
+# request — a malicious dependency update could otherwise run arbitrary code
+# with those permissions. This workflow only reads metadata through the GitHub
+# API. That is why there is deliberately no `actions/checkout` here.
+name: Dependabot auto-merge
+
+on:
+  workflow_run:
+    # Must match `name:` in .github/workflows/ci.yml exactly (verified: "CI").
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Merge patch and minor Dependabot updates
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'
+    steps:
+      - name: Resolve the pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # `workflow_run.pull_requests` is frequently empty for Dependabot
+          # runs, so resolve via the head SHA instead of trusting that field.
+          number=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/pulls" \
+            --jq 'map(select(.state == "open")) | .[0].number // empty')
+          if [ -z "$number" ]; then
+            echo "No open pull request for ${HEAD_SHA} — nothing to do."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          title=$(gh api "repos/${REPO}/pulls/${number}" --jq '.title')
+          echo "Resolved PR #${number}: ${title}"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "number=${number}" >> "$GITHUB_OUTPUT"
+          echo "title=${title}" >> "$GITHUB_OUTPUT"
+
+      - name: Classify the update
+        id: classify
+        if: steps.pr.outputs.found == 'true'
+        env:
+          TITLE: ${{ steps.pr.outputs.title }}
+        # Explicit rather than relying on the runner default: the matching below
+        # uses BASH_REMATCH, which only bash populates.
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Dependabot single-package titles read "... bump <pkg> from A to B".
+          # Compare the leading numeric component of A and B.
+          if [[ "$TITLE" =~ bump[[:space:]]+.+[[:space:]]+from[[:space:]]+([0-9]+)[^[:space:]]*[[:space:]]+to[[:space:]]+([0-9]+) ]]; then
+            from_major="${BASH_REMATCH[1]}"
+            to_major="${BASH_REMATCH[2]}"
+            if [ "$from_major" != "$to_major" ]; then
+              echo "Major bump (${from_major} -> ${to_major}) — leaving this for manual review."
+              echo "merge=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "Same major (${from_major}) — eligible."
+              echo "merge=true" >> "$GITHUB_OUTPUT"
+            fi
+          elif [[ "$TITLE" =~ bump[[:space:]]+the[[:space:]]+.+[[:space:]]+group ]]; then
+            # Grouped PRs carry no versions in the title. They are safe by
+            # construction: .github/dependabot.yml restricts the only group
+            # ("dev-dependencies") to update-types [minor, patch], so a major
+            # can never appear inside one. If a new group is ever added WITHOUT
+            # that restriction, this branch becomes unsound — keep the two files
+            # in sync.
+            echo "Grouped update, constrained to minor/patch by dependabot.yml — eligible."
+            echo "merge=true" >> "$GITHUB_OUTPUT"
+          else
+            # Fail safe rather than guess. A silent merge on an unrecognised
+            # title would be the worst outcome; a skipped merge is visible here.
+            echo "::warning::Could not parse version range from title: ${TITLE}"
+            echo "Not merging. If Dependabot changed its title format, update this workflow."
+            echo "merge=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Merge
+        if: steps.pr.outputs.found == 'true' && steps.classify.outputs.merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Squash so the PR title lands on main as the commit message —
+          # semantic-release derives the release type from it.
+          NUMBER: ${{ steps.pr.outputs.number }}
+        run: gh pr merge "$NUMBER" --squash --delete-branch --repo "${{ github.repository }}"
