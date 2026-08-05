@@ -352,26 +352,35 @@ commands above work as-is on any host.
 
 ### GHCR package visibility is separate from repository visibility
 
-This is the single most likely thing to go wrong when opening the
-repository up, because nothing warns you about it.
+`ghcr.io/zebra-group/zack` is **already public**, so the pull commands
+above need no login. This section exists because that is a property of
+the package, not of the repository — worth knowing if you fork Zack or
+re-publish it under your own namespace.
 
-A GHCR package's visibility is **not** derived from the repository's.
-When a package is first published from a private repository it inherits
-PRIVATE visibility, and it **stays private even after the repository
-becomes public**. The result is a public repo whose documented
-`docker pull` fails for everyone but the maintainers.
+A GHCR package's visibility is **not** derived from the repository's. A
+package first published from a private repository inherits PRIVATE
+visibility and **keeps it even after the repository becomes public**. The
+result is a public repo whose own documented `docker pull` fails for
+everyone but the maintainers — and nothing warns you about it.
 
-Switch it explicitly, once, after making the repository public:
-GitHub → the repository's **Packages** section → the `zack` package →
-**Package settings** → **Change visibility** → Public. Then verify from
-a machine that is not logged in to `ghcr.io`:
+Where to change it: GitHub → the repository's **Packages** section → the
+`zack` package → **Package settings** → **Change visibility**.
+
+To verify that a package really is anonymously pullable, check without
+using your local Docker credentials at all:
 
 ```bash
-docker logout ghcr.io
-docker pull ghcr.io/zebra-group/zack:latest
+TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:zebra-group/zack:pull&service=ghcr.io" \
+  | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Accept: application/vnd.oci.image.index.v1+json' \
+  https://ghcr.io/v2/zebra-group/zack/manifests/latest
 ```
 
-If that succeeds, self-hosters can consume the image.
+`200` means anonymous pulls work. This is more reliable than
+`docker logout && docker pull`, which can still succeed from a cached
+credential helper or a warm local layer cache and give a false positive.
 
 **When the package is deliberately kept private** (a fork, an internal
 build, or before publication), an out-of-band pull needs a GitHub
