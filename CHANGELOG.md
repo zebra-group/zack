@@ -3,295 +3,295 @@
 
 ### Features
 
-* **quick-260804-oln:** rename unlock-cookie prefix and theme storage key to zack ([7420416](https://github.com/zebra-group/zack/commit/74204168d29a415700f1f670c60e9530b39c9522))
+* **quick-260804-oln:** rename unlock-cookie prefix and theme storage key to zack
 
 ## [1.1.1](https://github.com/zebra-group/zack/compare/v1.1.0...v1.1.1) (2026-07-28)
 
 
 ### Bug Fixes
 
-* **deps:** close remaining brace-expansion DoS alert ([#27](https://github.com/zebra-group/zack/issues/27)) ([7b1fc24](https://github.com/zebra-group/zack/commit/7b1fc247ccb06b7b3c3c014a2c29d0e84dfdfb75))
-* **deps:** resolve dependabot security alerts via override and unused-devDependency removal ([61b1a7c](https://github.com/zebra-group/zack/commit/61b1a7cbd4245bcf064f5f8b4d1ee95e6f2f9810))
+* **deps:** close remaining brace-expansion DoS alert ([#27](https://github.com/zebra-group/zack/issues/27))
+* **deps:** resolve dependabot security alerts via override and unused-devDependency removal
 
 # [1.1.0](https://github.com/zebra-group/zack/compare/v1.0.2...v1.1.0) (2026-07-26)
 
 
 ### Bug Fixes
 
-* **11:** CR-01 exclude @kurzly/e2e from root recursive test job ([87ee3b2](https://github.com/zebra-group/zack/commit/87ee3b2764d81a9b686a9d8860bee36883eea824))
-* **11:** CR-02 gate E2E rate-limit bypass on non-production nodeEnv ([f05fcb3](https://github.com/zebra-group/zack/commit/f05fcb3820b2f176b50eef8988f1c502b5f5342a))
-* **11:** CR-03 pin resetDb's advisory lock to a single connection via $transaction ([e20b59e](https://github.com/zebra-group/zack/commit/e20b59e3a2b11f763c9fcf863cd5832f094de92a))
-* **11:** CR-04 widen db-isolation.spec.ts's critical section to cover create+read, not just the truncate ([f2b5580](https://github.com/zebra-group/zack/commit/f2b5580ada7ba17875f2d30de8effc1d23852947))
-* **11:** CR-05 stop E2E_COMPOSE_OVERLAY-marked E2E boots from crash-looping under NODE_ENV=production ([cc51fbd](https://github.com/zebra-group/zack/commit/cc51fbdb8873c8aa3953ae4b71480fdc880504bb))
-* **11:** CR-06 disable better-auth's own internal rate limiter (double-gated the E2E bypass) ([bf86e7e](https://github.com/zebra-group/zack/commit/bf86e7e99d25894e4c45d0d7460ea08a66c82a26))
-* **11:** CR-07 dashboard SPA routes 404 through the redirect engine on hard navigation ([4966305](https://github.com/zebra-group/zack/commit/496630557ff9deff2fe0ed39cecc1e3f7570fb75))
-* **11:** IN-02 remove now-dead resetDb() truncate-only wrapper ([8308dc7](https://github.com/zebra-group/zack/commit/8308dc78fcf0536725995ebbe10413144bf8270d))
-* **11:** WR-01 make release job depend on e2e passing ([adec192](https://github.com/zebra-group/zack/commit/adec19260153b420651f7bb1856a2ce56a588228))
-* **11:** WR-02 make smoke project depend on setup to avoid shared-email magic-link race ([9fdf43e](https://github.com/zebra-group/zack/commit/9fdf43e45825b697f47a005909452bcc2a273716))
-* **11:** WR-03 fail boot loudly if E2E_RATE_LIMIT_BYPASS_SECRET is present under NODE_ENV=production ([e46ccfe](https://github.com/zebra-group/zack/commit/e46ccfe6f9c5e5b8fc898effb3bb069fd16a8307))
-* **11:** WR-04 extract shared isE2EComposeOverlay() helper (dedupe CR-05 marker check) ([dce5078](https://github.com/zebra-group/zack/commit/dce5078a6b90042615374169eac047785587f8d0))
-* **12-05:** parse application/x-www-form-urlencoded on POST /:slug/verify ([4ace047](https://github.com/zebra-group/zack/commit/4ace047f70b4417bd9a11704c8eefda66c48c1b0))
-* **12:** WR-01 apply fetchWithFixtureRaceRetry consistently across password-gate and bot-og-render specs ([b35cb0c](https://github.com/zebra-group/zack/commit/b35cb0c69ca384df5d46c22ce43bf83ab988f688))
-* **12:** WR-02 add unit test coverage for fetchWithFixtureRaceRetry ([34defdb](https://github.com/zebra-group/zack/commit/34defdb716234a2f5cf328825a305f5174c4abe8))
-* **12:** WR-03 log discarded retry attempts and inspect them for canary leaks ([b6ae5a4](https://github.com/zebra-group/zack/commit/b6ae5a47f35b3f1f2f39ee79c18f5a0e8aae4eae))
-* **12:** WR-04 add regression test proving the urlencoded content-type parser stays scoped to POST /:slug/verify ([3d241db](https://github.com/zebra-group/zack/commit/3d241db916d43900dd996940c813fe2e33513b2a))
-* **13-07:** add openid/email/profile scopes to genericOAuth config ([2d76481](https://github.com/zebra-group/zack/commit/2d7648131787bec84a77401a4ab9d09a2fed4fc2))
-* **13-08:** add account.accountLinking to merge invited-unverified users on SSO ([6b7b918](https://github.com/zebra-group/zack/commit/6b7b918c8612b060f72f96e8eb41f7e717687984))
-* **13:** CR-01 document SSO email_verified gate and add rejection test coverage ([6cc6987](https://github.com/zebra-group/zack/commit/6cc69870cbce125ac488d8e6e2b66fd979e9861b))
-* **13:** WR-01 declare @koa/router as a direct oidc-mock dependency ([eb1ea76](https://github.com/zebra-group/zack/commit/eb1ea76421c0d2be637ad1069e1de9f4e969ed03))
-* **13:** WR-02 document verified allowList/rate-limit isolation in resend-rate-limit.spec.ts ([f794c8e](https://github.com/zebra-group/zack/commit/f794c8e179150a3b165e2b297afef639e3bb5f8b))
-* **13:** WR-03 fail loudly when E2E_RATE_LIMIT_BYPASS_SECRET is unset ([45c87a6](https://github.com/zebra-group/zack/commit/45c87a6188bd736ba51fae23e463b3e72abe9dae))
-* **14-review:** WR-01 log retry attribution for whole-test db-race retries ([5ea944e](https://github.com/zebra-group/zack/commit/5ea944e0a8574c3b04b15ae8fa72380983865b55))
-* **14-review:** WR-02 add RFC 4180 CSV field escaping to buildImportCsv ([c6dc311](https://github.com/zebra-group/zack/commit/c6dc3117d7d53c2ab36df278b3b0cc92bc33dd1b))
-* **15-01:** correct requirements frontmatter to [] for Wave 0 infra plan ([b0c4e6c](https://github.com/zebra-group/zack/commit/b0c4e6c0c3b9f92fb6f7a339a390d4b65458493d))
-* **15-review:** WR-01 document coarse whole-test-retry tradeoff in QR specs ([8e2a3b5](https://github.com/zebra-group/zack/commit/8e2a3b5aec6db72c578064b88a70a3979b648f32))
-* **15-review:** WR-02 assert persisted style fields after QR customization ([8071906](https://github.com/zebra-group/zack/commit/8071906c73cb04936cf98751817df438a4ba13dc))
-* **16-review:** WR-01 harden Top Links rollup spec against shared-domain top-5 flakiness ([2fe4dce](https://github.com/zebra-group/zack/commit/2fe4dce29102b6f7645dbe84c70da74adef16b6e))
-* **17-review:** CR-01 add missing storageState: undefined to team-invite-accept.spec.ts's acceptance context ([46e16ff](https://github.com/zebra-group/zack/commit/46e16ff0c81492870ef8b38b5129f30b6dd63a7d))
-* **17-review:** WR-01 teardown fixture rows created by phase-17 specs ([85e2b90](https://github.com/zebra-group/zack/commit/85e2b90c1385caf561f14d7fd1b3823371eebe58))
-* **ci:** generate Prisma client in the e2e job before running Playwright ([3df6c75](https://github.com/zebra-group/zack/commit/3df6c750f14e93685d9850edafff25d7e1854027))
-* **ci:** resolve D-17-05-01 rate-limit-bucket exhaustion in the full E2E suite ([c43adc3](https://github.com/zebra-group/zack/commit/c43adc309ba5d72575898cdc9eb639d0030d19eb))
-* **ci:** resolve D-17-05-02 residual E2E 429s on /health and OIDC callback ([f1cb7e3](https://github.com/zebra-group/zack/commit/f1cb7e314b7a598758f45ecfe6e1bae30eafecfb))
-* **e2e:** add missing @types/node devDependency ([e366b41](https://github.com/zebra-group/zack/commit/e366b4157c7031a66d5b0d34d4daf394b49fea5a))
-* **security:** bump @fastify/static to 10.1.2 ([732061e](https://github.com/zebra-group/zack/commit/732061ea3dc13b10279e02c0f528b195323c3ea8))
+* **11:** CR-01 exclude @kurzly/e2e from root recursive test job
+* **11:** CR-02 gate E2E rate-limit bypass on non-production nodeEnv
+* **11:** CR-03 pin resetDb's advisory lock to a single connection via $transaction
+* **11:** CR-04 widen db-isolation.spec.ts's critical section to cover create+read, not just the truncate
+* **11:** CR-05 stop E2E_COMPOSE_OVERLAY-marked E2E boots from crash-looping under NODE_ENV=production
+* **11:** CR-06 disable better-auth's own internal rate limiter (double-gated the E2E bypass)
+* **11:** CR-07 dashboard SPA routes 404 through the redirect engine on hard navigation
+* **11:** IN-02 remove now-dead resetDb() truncate-only wrapper
+* **11:** WR-01 make release job depend on e2e passing
+* **11:** WR-02 make smoke project depend on setup to avoid shared-email magic-link race
+* **11:** WR-03 fail boot loudly if E2E_RATE_LIMIT_BYPASS_SECRET is present under NODE_ENV=production
+* **11:** WR-04 extract shared isE2EComposeOverlay() helper (dedupe CR-05 marker check)
+* **12-05:** parse application/x-www-form-urlencoded on POST /:slug/verify
+* **12:** WR-01 apply fetchWithFixtureRaceRetry consistently across password-gate and bot-og-render specs
+* **12:** WR-02 add unit test coverage for fetchWithFixtureRaceRetry
+* **12:** WR-03 log discarded retry attempts and inspect them for canary leaks
+* **12:** WR-04 add regression test proving the urlencoded content-type parser stays scoped to POST /:slug/verify
+* **13-07:** add openid/email/profile scopes to genericOAuth config
+* **13-08:** add account.accountLinking to merge invited-unverified users on SSO
+* **13:** CR-01 document SSO email_verified gate and add rejection test coverage
+* **13:** WR-01 declare @koa/router as a direct oidc-mock dependency
+* **13:** WR-02 document verified allowList/rate-limit isolation in resend-rate-limit.spec.ts
+* **13:** WR-03 fail loudly when E2E_RATE_LIMIT_BYPASS_SECRET is unset
+* **14-review:** WR-01 log retry attribution for whole-test db-race retries
+* **14-review:** WR-02 add RFC 4180 CSV field escaping to buildImportCsv
+* **15-01:** correct requirements frontmatter to [] for Wave 0 infra plan
+* **15-review:** WR-01 document coarse whole-test-retry tradeoff in QR specs
+* **15-review:** WR-02 assert persisted style fields after QR customization
+* **16-review:** WR-01 harden Top Links rollup spec against shared-domain top-5 flakiness
+* **17-review:** CR-01 add missing storageState: undefined to team-invite-accept.spec.ts's acceptance context
+* **17-review:** WR-01 teardown fixture rows created by phase-17 specs
+* **ci:** generate Prisma client in the e2e job before running Playwright
+* **ci:** resolve D-17-05-01 rate-limit-bucket exhaustion in the full E2E suite
+* **ci:** resolve D-17-05-02 residual E2E 429s on /health and OIDC callback
+* **e2e:** add missing @types/node devDependency
+* **security:** bump @fastify/static to 10.1.2
 
 
 ### Features
 
-* **11-01:** add prisma-client subpath export to apps/api ([8b07daa](https://github.com/zebra-group/zack/commit/8b07daa2be8bda02abbe33057c2108e5d1c1d6a3))
-* **11-01:** scaffold @kurzly/e2e workspace package with Playwright config ([81de1c0](https://github.com/zebra-group/zack/commit/81de1c000ee4c296fdcda91b43099cd23fec8603))
-* **11-02:** extend registerRateLimit with env-gated x-e2e-bypass allowList ([59b8e31](https://github.com/zebra-group/zack/commit/59b8e3132b00fe73af90cdd1ab5ab8535c178334))
-* **11-03:** add docker-compose.e2e.yml additive overlay ([45ff6b1](https://github.com/zebra-group/zack/commit/45ff6b1b1ede17a9882a2b0c1a2521e18f471022))
-* **11-03:** add scripts/e2e-compose.sh boot/run/always-teardown entrypoint ([0cdd9e3](https://github.com/zebra-group/zack/commit/0cdd9e3a1da0721f0b93caec867eceab3f3124f0))
-* **11-04:** E2E DB helper — reused Prisma client, FK-safe resetDb, least-privilege seedBaseline ([853a9ee](https://github.com/zebra-group/zack/commit/853a9ee5514ce9e6231844ef711fb3b76c3657f1))
-* **11-04:** Mailpit REST client + Playwright global-setup/global-teardown wiring ([fe53e39](https://github.com/zebra-group/zack/commit/fe53e39a185a98205e209090d3448ceae20cb9a5))
-* **11-05:** auth.setup.ts real magic-link round trip per role, storageState fixture ([00ba3b8](https://github.com/zebra-group/zack/commit/00ba3b8d7819c374359c950fb8dce34071cd4b2d))
-* **11-06:** wire the Playwright e2e job into CI after test/smoke ([7ba4962](https://github.com/zebra-group/zack/commit/7ba49627c217b6e1f9abf8749197c8ce935ee2ba))
-* **12-02:** implement apps/e2e/src/links.ts raw-insert fixture helper + shared vocabulary ([97378c0](https://github.com/zebra-group/zack/commit/97378c0635d71c1ea10a0b6e1e8d62a4d6cda4cb))
-* **13-01:** create apps/e2e/oidc-mock package (Task 2) ([2a66153](https://github.com/zebra-group/zack/commit/2a661539330afc19c9000ece62809f8c064a08cd))
-* **13-01:** wire oidc-mock into docker-compose.e2e.yml + app OIDC env (Task 3) ([cf8bdfb](https://github.com/zebra-group/zack/commit/cf8bdfb8b26ba807cc0b626b27805b560b96090c))
-* **13-02:** add allowlisted + invited-unverified User fixtures ([b23a0b7](https://github.com/zebra-group/zack/commit/b23a0b77d7b382f6939ca3344796a69353fc21a0))
-* **13-02:** add typed mock-IdP control client ([457baea](https://github.com/zebra-group/zack/commit/457baea4118baf203c317f49cc259a0d6ba65988))
-* **13-02:** register standalone auth Playwright project ([6b06b58](https://github.com/zebra-group/zack/commit/6b06b580c01c52deb3c9d8c9445008aeec00801f))
-* **13-03:** magic-link round trip proves an active, server-verified session ([e5018e1](https://github.com/zebra-group/zack/commit/e5018e1ab16958a221a61655be78527ad56260c5))
-* **13-03:** reject consumed/expired/malformed magic-link tokens ([83b95c5](https://github.com/zebra-group/zack/commit/83b95c578bcef98a182480e082145341c2e8b780))
-* **13-04:** AUTH-E2E-03 -- non-invited email gets zero email and zero session ([0480ce4](https://github.com/zebra-group/zack/commit/0480ce480b4dbce1ef450bb47f6502ba98e2045a))
-* **13-05:** AUTH-E2E-06 — logout ends session, unauthenticated access redirects to /login ([b180cca](https://github.com/zebra-group/zack/commit/b180ccaba564f1529f8d129695963243ee96106d))
-* **13-06:** AUTH-E2E-07 tripped rate limit shows exact German UI copy ([4e96599](https://github.com/zebra-group/zack/commit/4e9659972268c1f9fe966cd2ff654a294ee910ee))
-* **14-01:** implement apps/e2e/src/csv.ts buildImportCsv fixture builder ([72dcb9a](https://github.com/zebra-group/zack/commit/72dcb9a23eebd75dfa06c2db7517e2a1b0fa8fe8))
-* **14-02:** LINKS-E2E-01 canonical link lifecycle through the real UI ([fda3854](https://github.com/zebra-group/zack/commit/fda3854eb9f25d4b07423e5db6caf714ff98384a))
-* **14-03:** LINKS-E2E-02 CSV import happy path (preview -> commit, DB-asserted) ([842850b](https://github.com/zebra-group/zack/commit/842850b13781378edcb45e04c284805d7787a267))
-* **14-04:** LINKS-E2E-03 CSV import slug conflict (preview surfaces it, commit skips it) ([fe70a78](https://github.com/zebra-group/zack/commit/fe70a78030d685f251ad2c9b898100cd5dd8646c))
-* **15-01:** implement apps/e2e/src/qr.ts createE2eQrCode + decodeQrImage ([af2ae06](https://github.com/zebra-group/zack/commit/af2ae06322077245e661395a1c99ddb304d0b320)), closes [#000000](https://github.com/zebra-group/zack/issues/000000)
-* **15-02:** QR-E2E-01 static QR create+customize+decode round-trip ([dc07331](https://github.com/zebra-group/zack/commit/dc0733173af096e7989c2713ef02c55427aee628))
-* **15-03:** QR-E2E-02 dynamic /q/:code remap A->B + ordered history ([6552196](https://github.com/zebra-group/zack/commit/6552196b90298faf32b79805a7ed01dd22ba132b))
-* **17-01:** TEAM-E2E-01 real-UI invite -> Mailpit -> accept -> status flip ([04ec229](https://github.com/zebra-group/zack/commit/04ec229321cd1db195e4754621b911c290783a7e))
-* **17-02:** TEAM-E2E-02 role/domain reassignment reaches member's own re-navigated session ([4497d96](https://github.com/zebra-group/zack/commit/4497d96c177199306b9f89fc8c025bb198f56cc0))
+* **11-01:** add prisma-client subpath export to apps/api
+* **11-01:** scaffold @kurzly/e2e workspace package with Playwright config
+* **11-02:** extend registerRateLimit with env-gated x-e2e-bypass allowList
+* **11-03:** add docker-compose.e2e.yml additive overlay
+* **11-03:** add scripts/e2e-compose.sh boot/run/always-teardown entrypoint
+* **11-04:** E2E DB helper — reused Prisma client, FK-safe resetDb, least-privilege seedBaseline
+* **11-04:** Mailpit REST client + Playwright global-setup/global-teardown wiring
+* **11-05:** auth.setup.ts real magic-link round trip per role, storageState fixture
+* **11-06:** wire the Playwright e2e job into CI after test/smoke
+* **12-02:** implement apps/e2e/src/links.ts raw-insert fixture helper + shared vocabulary
+* **13-01:** create apps/e2e/oidc-mock package (Task 2)
+* **13-01:** wire oidc-mock into docker-compose.e2e.yml + app OIDC env (Task 3)
+* **13-02:** add allowlisted + invited-unverified User fixtures
+* **13-02:** add typed mock-IdP control client
+* **13-02:** register standalone auth Playwright project
+* **13-03:** magic-link round trip proves an active, server-verified session
+* **13-03:** reject consumed/expired/malformed magic-link tokens
+* **13-04:** AUTH-E2E-03 -- non-invited email gets zero email and zero session
+* **13-05:** AUTH-E2E-06 — logout ends session, unauthenticated access redirects to /login
+* **13-06:** AUTH-E2E-07 tripped rate limit shows exact German UI copy
+* **14-01:** implement apps/e2e/src/csv.ts buildImportCsv fixture builder
+* **14-02:** LINKS-E2E-01 canonical link lifecycle through the real UI
+* **14-03:** LINKS-E2E-02 CSV import happy path (preview -> commit, DB-asserted)
+* **14-04:** LINKS-E2E-03 CSV import slug conflict (preview surfaces it, commit skips it)
+* **15-01:** implement apps/e2e/src/qr.ts createE2eQrCode + decodeQrImage, closes [#000000](https://github.com/zebra-group/zack/issues/000000)
+* **15-02:** QR-E2E-01 static QR create+customize+decode round-trip
+* **15-03:** QR-E2E-02 dynamic /q/:code remap A->B + ordered history
+* **17-01:** TEAM-E2E-01 real-UI invite -> Mailpit -> accept -> status flip
+* **17-02:** TEAM-E2E-02 role/domain reassignment reaches member's own re-navigated session
 
 ## [1.0.2](https://github.com/zebra-group/zack/compare/v1.0.1...v1.0.2) (2026-07-24)
 
 
 ### Bug Fixes
 
-* **quick-260724-uiversion:** show the actual deployed version instead of a hardcoded UI literal ([67ba746](https://github.com/zebra-group/zack/commit/67ba7469f4861b43323517f026c8e731b23bc7b7))
+* **quick-260724-uiversion:** show the actual deployed version instead of a hardcoded UI literal
 
 ## [1.0.1](https://github.com/zebra-group/zack/compare/v1.0.0...v1.0.1) (2026-07-24)
 
 
 ### Bug Fixes
 
-* **quick-260724-qrlogo:** stop the decorative logo tile from masking a real saved logo ([702cbcd](https://github.com/zebra-group/zack/commit/702cbcdcfd041c5b2fc22938b69fef89b984309e))
-* **quick-260724-qrname:** make QR code names editable in the Studio panel ([e7f205f](https://github.com/zebra-group/zack/commit/e7f205ff4f990e99e57a1d2768d13a427109fa70))
+* **quick-260724-qrlogo:** stop the decorative logo tile from masking a real saved logo
+* **quick-260724-qrname:** make QR code names editable in the Studio panel
 
 # 1.0.0 (2026-07-24)
 
 
 ### Bug Fixes
 
-* **01:** allow compose-only POSTGRES_* keys in env drift guard ([753f22a](https://github.com/zebra-group/zack/commit/753f22a0edf38afa7f18c6284218e595f8cf1b07))
-* **01:** WR-01 fail-fast db.ts on missing DATABASE_URL ([8934ba8](https://github.com/zebra-group/zack/commit/8934ba8c90df63876cae34d2788fa0cb0618eb3c))
-* **01:** WR-03 run Docker runtime container as non-root node user ([e15f0cd](https://github.com/zebra-group/zack/commit/e15f0cdb491c900d48dfcdffed8b3d0a0d9fd65a))
-* **01:** WR-05 load dotenv in server.ts so pnpm dev reads .env ([e577d53](https://github.com/zebra-group/zack/commit/e577d53aa5be72ca3cdf212e275999883fe988b5))
-* **01:** WR-06 reject .env.example placeholder BETTER_AUTH_SECRET ([a768ee4](https://github.com/zebra-group/zack/commit/a768ee47a93aedb11bdb9bf09442af656c13c7a8))
-* **01:** WR-07 make dev CORS opt-in for known non-production NODE_ENV values ([4ebc8fc](https://github.com/zebra-group/zack/commit/4ebc8fc1cdad7157910da8fa5130343effa760ca))
-* **02:** CR-01 close authorization fail-open on invalid role ([5f68e26](https://github.com/zebra-group/zack/commit/5f68e26ce31cd9be8d061f6e57c159a60930bda6))
-* **02:** CR-02 route failed magic-link verification to D-05 error screen ([91c470e](https://github.com/zebra-group/zack/commit/91c470ee07cd3f7bcda149410c1e951ec32aabfe))
-* **02:** IN-01 document admin-seed's ?? email fallback as intentional ([801f92e](https://github.com/zebra-group/zack/commit/801f92edd9fede811fecb22dcb40046e7b48a168))
-* **02:** IN-02 assert SameSite=Lax session cookie attribute in tests ([f566038](https://github.com/zebra-group/zack/commit/f56603813ec481a18f3841c86aef8caa07086192))
-* **02:** IN-03 redirect authenticated users away from /login ([e38d936](https://github.com/zebra-group/zack/commit/e38d936a091fe9f818f330b99b41dbc2a44cad9f))
-* **02:** WR-01 remove timing side-channel on neutral magic-link response ([14bf8e9](https://github.com/zebra-group/zack/commit/14bf8e9b308ee9c9aac0bf76346d27bc4322970a))
-* **02:** WR-02 add TRUST_PROXY env and wire Fastify trustProxy ([3051535](https://github.com/zebra-group/zack/commit/3051535e033d174af670bb4a650ed30278e4e9c4))
-* **03:** CR-01 normalize hostname before persist + uniqueness check ([2be536a](https://github.com/zebra-group/zack/commit/2be536aeedcad5adf6930dddb6e18129be5368e5))
-* **03:** IN-01 add dedicated rate limit for POST /api/domains ([2926c47](https://github.com/zebra-group/zack/commit/2926c475172ebc7f3207011754dadcc4c15a767e))
-* **03:** IN-02 de-duplicate CNAME_TARGET/A_RECORD_IP fallback literals ([aa1af97](https://github.com/zebra-group/zack/commit/aa1af97bf1ea82150e59b212059b97820ed09b36))
-* **03:** WR-01 return 404 not 500 for malformed tls-check ?domain= param ([047b877](https://github.com/zebra-group/zack/commit/047b87773f6e0a9878a551b845550d18b292a604))
-* **03:** WR-02 add hostname format validation on domain creation ([c33127a](https://github.com/zebra-group/zack/commit/c33127aab534e973318f34db20fabfced6656791))
-* **03:** WR-03 clear DNS-verify timeout timer when resolver settles first ([2e10508](https://github.com/zebra-group/zack/commit/2e10508ff95e9a9a5a23e107b59252e5d84ba6b7))
-* **04:** IN-02 make CSV import body size ceiling explicit ([893b139](https://github.com/zebra-group/zack/commit/893b13939335595021f972ed24f15ebcf535ba39))
-* **04:** IN-04 give a clear error when CSV headers don't match ziel_url/slug/domain ([b83b97f](https://github.com/zebra-group/zack/commit/b83b97f584a91b05a2f34e71595ef13b3ec97347))
-* **04:** WR-01/WR-02 stop silent slug regeneration and enable title:null clearing on PATCH ([f0279f3](https://github.com/zebra-group/zack/commit/f0279f3a73a075c9e24a183167f300f605f30931))
-* **04:** WR-03 enforce Domain.status===active for manual create and CSV import ([fe569ce](https://github.com/zebra-group/zack/commit/fe569ce52675a7305d1e8bb9d9b50552e5bf5a62))
-* **04:** WR-04 close the not-found/forbidden timing side channel in resolveOwnedLink ([63f83e2](https://github.com/zebra-group/zack/commit/63f83e28c646fac5190297105dccda790544e32c))
-* **04:** WR-06 make auto-generated slugs honor RESERVED_SLUGS too ([6375862](https://github.com/zebra-group/zack/commit/63758622639c37231082fa2188541f552cb70134))
-* **04:** WR-07 give slug shape failures a distinct SLUG_INVALID_SHAPE error code ([1c36024](https://github.com/zebra-group/zack/commit/1c3602410a3a832165eaf31c52e3cd691a4f90a5))
-* **04:** WR-08 debounce link search and discard out-of-order responses ([930931c](https://github.com/zebra-group/zack/commit/930931c896407607fe1dcb465d7735e041a91010))
-* **04:** WR-09 surface unmapped create/edit errors via toast instead of failing silently ([7911c6c](https://github.com/zebra-group/zack/commit/7911c6ca74b06c95abd8481c15a4b368166fe239))
-* **04:** WR-10 stop CSV commit from losing partial state on a mid-loop error ([199242d](https://github.com/zebra-group/zack/commit/199242d144eda7d4f0e229ce7c66e9af4de31a20))
-* **07-03:** reject non-hex QR colors to close SVG attribute-injection XSS ([ae9c618](https://github.com/zebra-group/zack/commit/ae9c618ad4b1aaaf4b1e499d3e47e659fe0c40a1)), closes [RGB/#RRGGBB](https://github.com/zebra-group/zack/issues/RRGGBB)
-* **07-10:** CR-01 encode the short-link URL in static QR codes ([fc82dc0](https://github.com/zebra-group/zack/commit/fc82dc040d2940ee45f9fe974add05cefdbb3567))
-* **07-10:** CR-02 type every logo decode failure as InvalidLogoError ([1ae2635](https://github.com/zebra-group/zack/commit/1ae263524cf65716f1e8bd662c411ea54e5a1d5a))
-* **07-10:** WR-01 use one fit mode for the logo in both exports ([2d88675](https://github.com/zebra-group/zack/commit/2d88675f30845c0c704b884841110e3fc87c2e1d))
-* **07-10:** WR-02 resize the logo before embedding it in render.svg ([415013a](https://github.com/zebra-group/zack/commit/415013ad7f68731f1b4d1def1850aded075742c0))
-* **07-12:** IN-01 make validateQrCodeInput private and name the real shared gate ([e7bc695](https://github.com/zebra-group/zack/commit/e7bc6950f82d60a674e6818e3e6582541678b6b1))
-* **07-12:** IN-03 encode the QR module matrix once per render ([229a324](https://github.com/zebra-group/zack/commit/229a324956aeae39a8d28617c4885c3af9880a68))
-* **07-12:** IN-04 cancel the pending render debounce on QR switch and unmount ([6f1cb0c](https://github.com/zebra-group/zack/commit/6f1cb0cf33202a7777bea0db36012813dbbe639f))
-* **07-12:** IN-05 accept multi-parameter data URIs for logo uploads ([4bb401f](https://github.com/zebra-group/zack/commit/4bb401f7de5af2fa60b2c15f4202e7ef9ac55113))
-* **07-12:** IN-07 shape-guard the /q/:code param before lookup or cookie write ([daddb66](https://github.com/zebra-group/zack/commit/daddb66ed55526aa7e99d6c1d5a7441a650487e4))
-* **07-12:** IN-08 give synthetic remap-history entries collision-free ids ([8e041ff](https://github.com/zebra-group/zack/commit/8e041ffc325075e24863bd13a3830f4b1976c0c5))
-* **07-12:** WR-03 align the client logo size cap with the server's ([32138d9](https://github.com/zebra-group/zack/commit/32138d9d688a97d0479865b2d7146ed796ac4a7a))
-* **07-12:** WR-04 handle FileReader failure instead of dropping the rejection ([e2bc660](https://github.com/zebra-group/zack/commit/e2bc6603379086a7e11f0d2d2f385b28554f3072))
-* **07-12:** WR-05 keep optimistic QR style state local instead of mutating the prop ([3d8e2db](https://github.com/zebra-group/zack/commit/3d8e2db27c2dcf1aa05a31ce76ed633953497a06))
-* **07-12:** WR-06 discard superseded QR style PATCH responses ([b6cd850](https://github.com/zebra-group/zack/commit/b6cd850f4eb3f3b87ccea5ccfa61a467d3dc85d9))
-* **07-12:** WR-08 clear logoEnabled alongside logoData on logo removal ([edd9279](https://github.com/zebra-group/zack/commit/edd92797520e874c965a98959aa2f1f4f899ce68))
-* **08-06:** preload the OG image preview on edit-mode open ([2ec49b9](https://github.com/zebra-group/zack/commit/2ec49b97fc61efc98b4675db38256306a2e527d7))
-* **08-13:** CR-01 apply owner UTM params on password-unlock redirect in both handlers ([eebdb69](https://github.com/zebra-group/zack/commit/eebdb69802beaa63d08699251521e112312289db))
-* **08-13:** WR-01 preserve unset embedded utm keys in applyUtmParams and buildUtmPreview ([94aacfa](https://github.com/zebra-group/zack/commit/94aacfa050226a6de73d2e0c85c079cdbfbb7a3d))
-* **09-02:** stop reusing seedInitialAdmin as a plain test-user fixture ([0573bfc](https://github.com/zebra-group/zack/commit/0573bfc431ae329817652b77562bac162db5684d))
-* **09-08:** make inviteMember atomic so a failed membership write cannot orphan a User (WR-01) ([7be837c](https://github.com/zebra-group/zack/commit/7be837c31ef51b453051bf1d3b7fb015625778e4))
-* **09-08:** map lockout-guard P2028 contention to a typed CONFLICT (409), not a 500 (WR-02) ([b773a69](https://github.com/zebra-group/zack/commit/b773a69313abb78a7e15d1d72e6b64891264a1d5))
-* **09-08:** stop inviteMember validating domainIds it discards on resend (WR-03) ([466b87e](https://github.com/zebra-group/zack/commit/466b87ed5a1379a0916be5e410ac2f30a5f2bfde))
-* **10-06:** CR-01 normalize empty optional env vars to unset so verbatim .env.example boots SSO-off ([12132a0](https://github.com/zebra-group/zack/commit/12132a0544fca9457ec028ecf2211f956867f78f))
-* **10-06:** WR-02 send errorCallbackURL on SSO sign-in so callback failures reach /auth/error ([63fd445](https://github.com/zebra-group/zack/commit/63fd445769276d2848a04247a3f4a07013b83168))
-* **api:** give each test file its own database ([e9542e0](https://github.com/zebra-group/zack/commit/e9542e048c5443e84e4cdbeabcec8a93a65f147d))
-* **quick-260724-d1m:** thread trackingEnabled through LinkDetailView edit flow ([7f15d45](https://github.com/zebra-group/zack/commit/7f15d45ae84fd763bc2bb99161c7cd12080edef5))
-* **quick-260724-ecl:** generate real BETTER_AUTH_SECRET in smoke scripts ([205327a](https://github.com/zebra-group/zack/commit/205327a594ba851d662d6c6b8a86dcd30428a48d))
+* **01:** allow compose-only POSTGRES_* keys in env drift guard
+* **01:** WR-01 fail-fast db.ts on missing DATABASE_URL
+* **01:** WR-03 run Docker runtime container as non-root node user
+* **01:** WR-05 load dotenv in server.ts so pnpm dev reads .env
+* **01:** WR-06 reject .env.example placeholder BETTER_AUTH_SECRET
+* **01:** WR-07 make dev CORS opt-in for known non-production NODE_ENV values
+* **02:** CR-01 close authorization fail-open on invalid role
+* **02:** CR-02 route failed magic-link verification to D-05 error screen
+* **02:** IN-01 document admin-seed's ?? email fallback as intentional
+* **02:** IN-02 assert SameSite=Lax session cookie attribute in tests
+* **02:** IN-03 redirect authenticated users away from /login
+* **02:** WR-01 remove timing side-channel on neutral magic-link response
+* **02:** WR-02 add TRUST_PROXY env and wire Fastify trustProxy
+* **03:** CR-01 normalize hostname before persist + uniqueness check
+* **03:** IN-01 add dedicated rate limit for POST /api/domains
+* **03:** IN-02 de-duplicate CNAME_TARGET/A_RECORD_IP fallback literals
+* **03:** WR-01 return 404 not 500 for malformed tls-check ?domain= param
+* **03:** WR-02 add hostname format validation on domain creation
+* **03:** WR-03 clear DNS-verify timeout timer when resolver settles first
+* **04:** IN-02 make CSV import body size ceiling explicit
+* **04:** IN-04 give a clear error when CSV headers don't match ziel_url/slug/domain
+* **04:** WR-01/WR-02 stop silent slug regeneration and enable title:null clearing on PATCH
+* **04:** WR-03 enforce Domain.status===active for manual create and CSV import
+* **04:** WR-04 close the not-found/forbidden timing side channel in resolveOwnedLink
+* **04:** WR-06 make auto-generated slugs honor RESERVED_SLUGS too
+* **04:** WR-07 give slug shape failures a distinct SLUG_INVALID_SHAPE error code
+* **04:** WR-08 debounce link search and discard out-of-order responses
+* **04:** WR-09 surface unmapped create/edit errors via toast instead of failing silently
+* **04:** WR-10 stop CSV commit from losing partial state on a mid-loop error
+* **07-03:** reject non-hex QR colors to close SVG attribute-injection XSS, closes [RGB/#RRGGBB](https://github.com/zebra-group/zack/issues/RRGGBB)
+* **07-10:** CR-01 encode the short-link URL in static QR codes
+* **07-10:** CR-02 type every logo decode failure as InvalidLogoError
+* **07-10:** WR-01 use one fit mode for the logo in both exports
+* **07-10:** WR-02 resize the logo before embedding it in render.svg
+* **07-12:** IN-01 make validateQrCodeInput private and name the real shared gate
+* **07-12:** IN-03 encode the QR module matrix once per render
+* **07-12:** IN-04 cancel the pending render debounce on QR switch and unmount
+* **07-12:** IN-05 accept multi-parameter data URIs for logo uploads
+* **07-12:** IN-07 shape-guard the /q/:code param before lookup or cookie write
+* **07-12:** IN-08 give synthetic remap-history entries collision-free ids
+* **07-12:** WR-03 align the client logo size cap with the server's
+* **07-12:** WR-04 handle FileReader failure instead of dropping the rejection
+* **07-12:** WR-05 keep optimistic QR style state local instead of mutating the prop
+* **07-12:** WR-06 discard superseded QR style PATCH responses
+* **07-12:** WR-08 clear logoEnabled alongside logoData on logo removal
+* **08-06:** preload the OG image preview on edit-mode open
+* **08-13:** CR-01 apply owner UTM params on password-unlock redirect in both handlers
+* **08-13:** WR-01 preserve unset embedded utm keys in applyUtmParams and buildUtmPreview
+* **09-02:** stop reusing seedInitialAdmin as a plain test-user fixture
+* **09-08:** make inviteMember atomic so a failed membership write cannot orphan a User (WR-01)
+* **09-08:** map lockout-guard P2028 contention to a typed CONFLICT (409), not a 500 (WR-02)
+* **09-08:** stop inviteMember validating domainIds it discards on resend (WR-03)
+* **10-06:** CR-01 normalize empty optional env vars to unset so verbatim .env.example boots SSO-off
+* **10-06:** WR-02 send errorCallbackURL on SSO sign-in so callback failures reach /auth/error
+* **api:** give each test file its own database
+* **quick-260724-d1m:** thread trackingEnabled through LinkDetailView edit flow
+* **quick-260724-ecl:** generate real BETTER_AUTH_SECRET in smoke scripts
 
 
 ### Features
 
-* **01-02:** make packages/shared buildable and importable by both apps ([85fdd1a](https://github.com/zebra-group/zack/commit/85fdd1aec89f81beb0522738d835e049e9c7315d))
-* **01-02:** scaffold pnpm workspace root and install Phase 1 dependencies ([d880012](https://github.com/zebra-group/zack/commit/d880012339ed6a8a36b0c0010b30e48198bf3b90))
-* **01-02:** scaffold web build/test config and base API vitest/tsup config ([0dbe761](https://github.com/zebra-group/zack/commit/0dbe761efa3732be80a6e6cfc4f4173bcd468801))
-* **01-03:** author Prisma schema, initial migration, and generated client ([25c783d](https://github.com/zebra-group/zack/commit/25c783d6b6da4e05302abadc6c1c9b13e679810c))
-* **01-04:** add .env.example and schema-drift guard test ([3b6a3fa](https://github.com/zebra-group/zack/commit/3b6a3faa16d5bdf6da8e22308c0495df7f3ccb81))
-* **01-04:** implement fail-fast ENV validation module ([46f58e7](https://github.com/zebra-group/zack/commit/46f58e7d18db806a2aec4f3ada14ebc027a40b96))
-* **01-05:** wire testcontainers Postgres globalSetup + per-test rollback ([c5660a6](https://github.com/zebra-group/zack/commit/c5660a6784d9091585c14cad3ff18b691811d17d))
-* **01-06:** Fastify app factory, health + redirect-stub routes, static SPA fallback, dev CORS ([a5073f3](https://github.com/zebra-group/zack/commit/a5073f3240dad55c1a771c0be0d694fe8ec2fb35))
-* **01-06:** implement PersistenceCanary read/write route (GREEN) ([06561a1](https://github.com/zebra-group/zack/commit/06561a15ab1ca0b2842963ca72165cf17f1e7c79))
-* **01-07:** wire Vue dashboard to live canary API via typed client ([481ec51](https://github.com/zebra-group/zack/commit/481ec5149e2a05960891e6e97efed6c08e83bc2f))
-* **01-08:** multi-stage Dockerfile with migration-on-start entrypoint ([f32d81f](https://github.com/zebra-group/zack/commit/f32d81f2bd62039aed75df24dfa05e28ab310ba8))
-* **01-08:** production compose (app+db) + dev-only Mailpit overlay ([eceb036](https://github.com/zebra-group/zack/commit/eceb036b051edc662e1eab4fd99fb0b2672f9e98))
-* **01-09:** add CI workflow running full suite on every change ([2cf0219](https://github.com/zebra-group/zack/commit/2cf0219fd31cb2eb14165070f660d024730f5e02))
-* **02-01:** install auth/security packages and INITIAL_ADMIN_EMAIL ENV contract ([235a2f5](https://github.com/zebra-group/zack/commit/235a2f5ad5d927fa031da352f9d82f28c7efd954))
-* **02-02:** add better-auth instance, mailer, allowlist, and shared auth DTOs ([99649a2](https://github.com/zebra-group/zack/commit/99649a2fb5095cabdd3b64d2384b993b02227265))
-* **02-02:** apply auth/domain schema to Postgres, regenerate client, prove queryability ([d85dc14](https://github.com/zebra-group/zack/commit/d85dc14c028170d9771e239b774bfbe096d927f9))
-* **02-02:** generate better-auth tables and add Domain/DomainMembership models ([572928b](https://github.com/zebra-group/zack/commit/572928b328a95015130ef8d6e29cad48a31bd831))
-* **02-03:** implement requireDomainAccess/scopedDomainIds authorization core ([3d9d595](https://github.com/zebra-group/zack/commit/3d9d59562934ba29ca8fc74c5ff8f6c82c1620e8))
-* **02-04:** add @fastify/helmet + @fastify/rate-limit plugins (D-07) ([ba01c7a](https://github.com/zebra-group/zack/commit/ba01c7a23b0932946779aa696971ee05599fbce8))
-* **02-04:** mount /api/auth/* + admin seed + extend registration order ([ec67814](https://github.com/zebra-group/zack/commit/ec6781414f075d085c0a6abc978df4a346d0fb5f))
-* **02-05:** add authSession store + typed getSession/logout API client ([3197b27](https://github.com/zebra-group/zack/commit/3197b271e99c796ca1d7c707e01adfb72f278583))
-* **02-05:** add LoginView (Idle/Sent) + AuthErrorView + component tests ([1051070](https://github.com/zebra-group/zack/commit/10510705c44d55bee05ca957896c9612083dca4d))
-* **02-05:** add theme engine — LOCKED tokens.css + Geist fonts + theme store ([7448231](https://github.com/zebra-group/zack/commit/74482316c7998687ae97a30d698487a6106cf98e))
-* **02-06:** App.vue/main.ts wiring + AppShell component test ([efa5072](https://github.com/zebra-group/zack/commit/efa5072844f1bda68a91eec237c7f6ef7bc20f40))
-* **02-06:** AppShell layout + Dashboard + Coming-soon views ([6ac5ab0](https://github.com/zebra-group/zack/commit/6ac5ab079268ca674d194ad8e3a5d914e9167572))
-* **02-06:** Vue Router with session-aware auth guard ([e0d5fd8](https://github.com/zebra-group/zack/commit/e0d5fd8ebb74547fa94073326a5667751820d0a6))
-* **03-01:** extend Domain schema with lifecycle fields + DomainDTO ([51053c8](https://github.com/zebra-group/zack/commit/51053c8eddaabcd35659d8b1233aa77571928a19))
-* **03-01:** implement domainsRoute POST/GET /api/domains (DOMAIN-01) ([91921e4](https://github.com/zebra-group/zack/commit/91921e4c076332361cbd85625bc8553d741d42be))
-* **03-02:** add CNAME_TARGET/A_RECORD_IP env vars + verify/tls-check rate limits ([a988d08](https://github.com/zebra-group/zack/commit/a988d085cc5275a600979590f5f02efd45575597))
-* **03-02:** add verify/delete/instructions routes, admin-gated + resolver-injected ([618bf13](https://github.com/zebra-group/zack/commit/618bf13484ca297c4eb184e1fc64be6345f1f050))
-* **03-02:** implement dnsClient.verifyDomain (injectable, SSRF-safe, timeout-bounded) ([5cda540](https://github.com/zebra-group/zack/commit/5cda54075dddb6ae0611d2acf762560a6a2381c4))
-* **03-03:** add GET /api/tls-check ask endpoint, wire into app.ts ([b439d9b](https://github.com/zebra-group/zack/commit/b439d9ba8a886783125109bc1bf38e761904f68b))
-* **03-03:** add resolveActiveDomainByHost exact-match deny-by-default host guard ([01bec1f](https://github.com/zebra-group/zack/commit/01bec1f3102791d7ef92051b8795078cddc7c9dd))
-* **03-04:** build DomainsView and swap /domains to it ([864877b](https://github.com/zebra-group/zack/commit/864877b26d76ba730edaffdfdcdb8646cdb98c75))
-* **03-04:** extend typed API client with domain CRUD/verify/instructions ([84ebacb](https://github.com/zebra-group/zack/commit/84ebacbf95c71280327f4b2005d9548d1d422f42))
-* **04-01:** install csv-parse and nanoid for links/CSV import ([c4e377f](https://github.com/zebra-group/zack/commit/c4e377f97afef6df31fe94f8865fba616bcb8494))
-* **04-02:** add Link model, migration, shared DTOs, and link rate limits ([350ea64](https://github.com/zebra-group/zack/commit/350ea648459f69526806b1073f0487062c04b218))
-* **04-02:** implement the D-01 single-write-path link core ([993b6cf](https://github.com/zebra-group/zack/commit/993b6cf3f6f2351de03ba87e29817c5b2f977531))
-* **04-02:** wire POST/GET /api/links routes into app.ts ([721c5c2](https://github.com/zebra-group/zack/commit/721c5c269aadb71af158b5f6cda661bf20dee036))
-* **04-03:** implement GET/DELETE /api/links/:id with the IDOR guard ([189b95b](https://github.com/zebra-group/zack/commit/189b95b54a07e82894e0a6ed54a4326259b146c4))
-* **04-03:** implement PATCH /api/links/:id via the validated updateLink core ([1db2e1d](https://github.com/zebra-group/zack/commit/1db2e1dd768088cddf6ba36dcd65d83d1f03967f))
-* **04-04:** add CSV import preview/commit routes (GREEN) ([c30b6d6](https://github.com/zebra-group/zack/commit/c30b6d651f217ecfad1d1bd82d79a6fb119dd5a8))
-* **04-04:** add runImport shared CSV import core to lib/links.ts ([8dc884e](https://github.com/zebra-group/zack/commit/8dc884e1ebfe4276502cf28bc15a5e2ea0c3ad20))
-* **04-05:** LinkDetailView — attributes, placeholder stats, copy/edit/delete ([3e4c7fb](https://github.com/zebra-group/zack/commit/3e4c7fb483fc9d0083e4e1271ec94556f774274e))
-* **04-05:** Links list — api client, routes, shared modal, search/filter/CRUD ([cd22b01](https://github.com/zebra-group/zack/commit/cd22b01ee8ddcf7edfd04ae4f41f19c7d9d19665))
-* **04-05:** LinksImportView — file picker, live server-driven preview, commit ([5a95719](https://github.com/zebra-group/zack/commit/5a9571915dc2d49807b30b7ba745520dcf42e938))
-* **05-01:** add BRAND_NAME/BRAND_ACCENT/PASSWORD_HASH_COST env keys ([af5699d](https://github.com/zebra-group/zack/commit/af5699d507362f6a93c9852a2b7943e008e9cac0)), closes [#d7ff01](https://github.com/zebra-group/zack/issues/d7ff01)
-* **05-02:** add Link password/expiry/forwardQuery columns and migrate ([0b3c40a](https://github.com/zebra-group/zack/commit/0b3c40ad5c73d03b7d397f8a29d71f65c3c3b112))
-* **05-02:** hash+persist+expose password/expiry/forwardQuery (GREEN) ([5792d51](https://github.com/zebra-group/zack/commit/5792d51ce5c25fa06158204307094f665dbd075e))
-* **05-03:** implement shared public-HTML render layer with escapeHtml ([e13a9c0](https://github.com/zebra-group/zack/commit/e13a9c09d3662b865922114f0c56bd0818047dc5))
-* **05-04:** implement botDetection, unlockCookie, and new rate-limit configs ([07a96bd](https://github.com/zebra-group/zack/commit/07a96bd3b0db209775003f48143cacbe20940807))
-* **05-04:** implement resolveLinkState + mergeQuery redirect engine ([6d61398](https://github.com/zebra-group/zack/commit/6d6139835bca17ad023695ae8cd3ad36ba51b2f2))
-* **05-05:** add Security accordion + forwardQuery toggle to LinkFormModal ([e8fbcd6](https://github.com/zebra-group/zack/commit/e8fbcd6283d08d2af6cb300a1ef78d4b44aa5a48))
-* **05-05:** thread password/expiresAt/forwardQuery through LinksView + LinkDetailView ([114027e](https://github.com/zebra-group/zack/commit/114027e3b4aa7e7c5d7dd685ec86cf7606ab0f59))
-* **05-06:** implement redirect precedence engine route with no-leak canary (GREEN) ([ca8dec0](https://github.com/zebra-group/zack/commit/ca8dec0261cbc24a1a4855792036f58dbb2bb982))
-* **06-01:** install maxmind and add GEOIP_DB_PATH/CLICK_RETENTION_DAYS env keys ([4366b64](https://github.com/zebra-group/zack/commit/4366b6469f910fc6b143903e9891ab2c3e62f490))
-* **06-02:** add click tracking schema and migration ([27bc45e](https://github.com/zebra-group/zack/commit/27bc45e08572ffee73affb6f9a318877b257bcd1))
-* **06-02:** thread trackingEnabled through the single Link write path ([b7f381a](https://github.com/zebra-group/zack/commit/b7f381a7103e0427fcfda4f0249b1005f7da601a))
-* **06-03:** bake DB-IP Country Lite .mmdb into the Docker image ([590e115](https://github.com/zebra-group/zack/commit/590e115a019af6512191c93e5148fa2143ba4669))
-* **06-03:** implement local GeoIP country lookup with graceful degradation ([bda45bb](https://github.com/zebra-group/zack/commit/bda45bb5c798742396d9cf5f16d5647f423b54ba))
-* **06-03:** implement referrer + visitorHash privacy transforms ([2f533fa](https://github.com/zebra-group/zack/commit/2f533fa899a793fa0dd3a0c96668e77e48d9c697))
-* **06-04:** add retention pruning + daily scheduler wiring (D-12) ([e0243f0](https://github.com/zebra-group/zack/commit/e0243f06b33fbc5b3206d5700d257dfa078cf7ba))
-* **06-04:** fill recordClickHook with atomic privacy-first click write ([42972d6](https://github.com/zebra-group/zack/commit/42972d667fcb9e939ab38cf6c75b82f19401f8ec))
-* **06-05:** add IDOR-guarded/session-gated analytics endpoints (TRACK-04/05) ([f615e27](https://github.com/zebra-group/zack/commit/f615e27548560c3fa69936f129257ad9ec4e58f4))
-* **06-05:** implement lib/analytics.ts parameterized aggregation (TRACK-04/05, D-10) ([21e1340](https://github.com/zebra-group/zack/commit/21e134098c93bf364998175790855685a416c5d0))
-* **06-06:** add footer tracking toggle to LinkFormModal ([c04b32f](https://github.com/zebra-group/zack/commit/c04b32f7f943e794361cdba2ca677ae6d2dcc604))
-* **06-06:** add Klicks column and Tracking-aus badge to LinksView ([30f4f2d](https://github.com/zebra-group/zack/commit/30f4f2dc17e9fefee9bae97856d73279acb3e06f))
-* **06-07:** add getLinkAnalytics typed API client ([2a1499f](https://github.com/zebra-group/zack/commit/2a1499fc48ac66b0da36d85389608fff040496e0))
-* **06-07:** replace LinkDetailView placeholder with live per-link analytics (Surface A) ([2891049](https://github.com/zebra-group/zack/commit/289104969c9182056eb9c47ee5161e45fe360cae))
-* **06-08:** add global analytics overview (Surface B, TRACK-05) ([5e07302](https://github.com/zebra-group/zack/commit/5e073028e51264ffc44007af8778d98301785875))
-* **06-08:** route /analytics to AnalyticsView ([97f0285](https://github.com/zebra-group/zack/commit/97f0285e513885be4ec51a098d904bfe8ba6763e))
-* **07-02:** add QrCode + QrRemapHistory models and migrate schema ([ceb33b0](https://github.com/zebra-group/zack/commit/ceb33b0eaaaae23aea72f4887363a3072a74ed3b))
-* **07-02:** install qrcode, sharp (prod) and jsqr, @types/qrcode (dev) for @kurzly/api ([5331227](https://github.com/zebra-group/zack/commit/53312278e98ee4f20b1be60bdb5d403649b95c25))
-* **07-03:** centered logo overlay with forced level-H, decode-verified for PNG and SVG ([052d5c5](https://github.com/zebra-group/zack/commit/052d5c506704ab448ee1ecc53c526fb16e5b2842))
-* **07-03:** module-matrix QR renderer with SVG/PNG parity and forced EC-H ([d213bc6](https://github.com/zebra-group/zack/commit/d213bc65e4d5d835e9abca0565d309f3e62d5c45))
-* **07-04:** QrCode single-write-path create + validation + code generation ([7bdb1b2](https://github.com/zebra-group/zack/commit/7bdb1b29cf23bee4b6b3ad88e4593fb6d256cb12))
-* **07-04:** QrCode style update + remap transaction + remap history ([5e1a8d0](https://github.com/zebra-group/zack/commit/5e1a8d0753cc14681308c5ade93fcf9bcef35457))
-* **07-05:** QR management CRUD + remap routes with IDOR + mass-assignment guards ([17f84ce](https://github.com/zebra-group/zack/commit/17f84ce655337058712f4c883347bb3094bf166d))
-* **07-05:** QR render endpoints + validated logo upload with dedicated rate limit ([0ab8a99](https://github.com/zebra-group/zack/commit/0ab8a99dfe287938a069b76d55bc0d6062a398c5))
-* **07-06:** /q/:code dynamic redirect with gate reuse and qr scan tracking ([e25fc90](https://github.com/zebra-group/zack/commit/e25fc902958a5dd5fb20fabcb87e06eb4533d0e7))
-* **07-06:** /q/:code password unlock flow reusing redirect verify ([9a5e4fc](https://github.com/zebra-group/zack/commit/9a5e4fcd1ad8597c204544e9fbfd75a694816814))
-* **07-07:** optimistic QR remap + full remap-history expander ([55c265c](https://github.com/zebra-group/zack/commit/55c265cde0d3fc7b9bbaefaeafbe752351f777bc))
-* **07-07:** QR web API client + route swap to QrCodesView ([c325d8e](https://github.com/zebra-group/zack/commit/c325d8e88047e107e929cdbe6135a3f6869723a4))
-* **07-07:** QrCodesView list surface with four states and instant dynamic create ([be68dec](https://github.com/zebra-group/zack/commit/be68dec1827050391815ec15754518c7d4dc9265))
-* **07-08:** QR Studio panel — preview, style controls, logo upload, export ([0a6c188](https://github.com/zebra-group/zack/commit/0a6c18801b580575ffdd22fff24b11bd61241fee))
-* **07-09:** QR-Code entry point on link detail (create-or-deep-link) ([691b159](https://github.com/zebra-group/zack/commit/691b1597994adf28783c7ba3d399049656365a71))
-* **07-11:** count scans of static QR codes (QR-07) ([5a76988](https://github.com/zebra-group/zack/commit/5a7698810f7e97126b01e9647c20fc15b6ea2b5d))
-* **08-01:** add UTM + custom OG columns to Link with migration ([39ad248](https://github.com/zebra-group/zack/commit/39ad24837ab42ea75bf0bbeeba6123ba4d3898b1))
-* **08-01:** allowlist UTM/OG fields on the links HTTP surface ([2b0a931](https://github.com/zebra-group/zack/commit/2b0a931bf3669b203f61b2a3486984a7bbeeca99))
-* **08-01:** validate and thread UTM/OG fields through the single write path ([635af51](https://github.com/zebra-group/zack/commit/635af51a63b06182f354e45cd47193a0f120a9f4))
-* **08-02:** applyUtmParams with owner-wins override and safe encoding ([7af1600](https://github.com/zebra-group/zack/commit/7af16009d6db1304af86d3882995e864611acb8a))
-* **08-02:** serve owner-typed OG title/description/image to bots ([968106e](https://github.com/zebra-group/zack/commit/968106e12cefab1689f3735d8243196f4b319586))
-* **08-03:** append owner UTM parameters when building the redirect target ([bbbd46d](https://github.com/zebra-group/zack/commit/bbbd46d79e84b78f406dd4a36d431c7b55cf0a66))
-* **08-03:** serve custom OG values to bots on both redirect handlers ([908080e](https://github.com/zebra-group/zack/commit/908080ee9647ecef6f9a5e96389bda77abca088e))
-* **08-04:** buildUtmPreview mirroring the server plus UTM/OG inline error mapping ([711d13c](https://github.com/zebra-group/zack/commit/711d13c34cd16c8d81a6f1766e931fd09a899c1e))
-* **08-04:** UTM builder section with live destination preview ([ddf5bf2](https://github.com/zebra-group/zack/commit/ddf5bf2603252f9402221eca1fa78b185a92696c))
-* **08-05:** custom OG-tag section with input column and length guidance ([797e733](https://github.com/zebra-group/zack/commit/797e7337e8a01d85dd2cbb5ded8da4147094cb0e))
-* **08-05:** social-card live preview with debounced image and hatched fallback ([08f0315](https://github.com/zebra-group/zack/commit/08f0315a906693c80437e5020b2bf114b38f150e))
-* **08-06:** thread UTM/OG through link detail and add metadata chips ([2af3a3c](https://github.com/zebra-group/zack/commit/2af3a3c4ae2aab8ff551d4ba58baca3f533db59b))
-* **08-06:** thread UTM/OG through the links list and add attribute badges ([e950cef](https://github.com/zebra-group/zack/commit/e950cefaa746d510940687a58f32a74bd5b7e232))
-* **09-01:** add global AccountRole enum, User.accountRole column, isAccountAdmin ([a5169ce](https://github.com/zebra-group/zack/commit/a5169ce6cf004bd41012f4743f957661f4d3fa28))
-* **09-01:** seed initial admin as account admin, expose accountRole in session ([22f3936](https://github.com/zebra-group/zack/commit/22f3936908d6cf5f84cb25020f7e433e95a36152))
-* **09-02:** account-admin bypass in requireDomainAccess/scopedDomainIds ([ddc8243](https://github.com/zebra-group/zack/commit/ddc8243222f86755a7de1b687fa65ed59d397ce1))
-* **09-03:** admin-gated GET /api/team + POST /api/team/invite ([794fbf8](https://github.com/zebra-group/zack/commit/794fbf867c41366fbe2c8c9e45f26344ef03b54c))
-* **09-03:** team DTOs + lib/team.ts list/invite with emailVerified-derived status ([6f0de07](https://github.com/zebra-group/zack/commit/6f0de0745593c2a1d18a65763662540591741e43))
-* **09-04:** PATCH role / PUT domains / DELETE member routes with typed-error mapping ([590da52](https://github.com/zebra-group/zack/commit/590da52ee6223e2d1136543753af32d30e7ed971))
-* **09-04:** team mutations with atomic promote-clear and lockout guards ([6d5ffe6](https://github.com/zebra-group/zack/commit/6d5ffe600c13abb94d9b947827e496cdcc04a2b1))
-* **09-06:** admin-only Team nav, requiresAdmin guard, TeamView route swap, listTeamMembers ([1d5dc33](https://github.com/zebra-group/zack/commit/1d5dc337446ac6d2ea7af1b54db923ffe8f786d4))
-* **09-06:** TeamView read-only member table + role-model card ([efbd0c3](https://github.com/zebra-group/zack/commit/efbd0c339edc9a891dc9ad5b644fae3855bca676))
-* **09-07:** AssignDomainsModal and remove flow with last-admin lockout ([cb605fd](https://github.com/zebra-group/zack/commit/cb605fd6ae17d781a9aa5d0c71f54acd62cdb078))
-* **09-07:** InviteMemberModal and invite flow with re-invite resend ([11dfcea](https://github.com/zebra-group/zack/commit/11dfcea687624f605fec78a800fa801ff8cca4d3))
-* **09-07:** team mutation client + immediate role change with revert and last-admin guard ([096b8d3](https://github.com/zebra-group/zack/commit/096b8d3db71016de0ba9e4e76dd4bcf8f9b5b288))
-* **10-01:** add ssoConfig reader, SSO primitives, and SsoStatusDTO ([2d6de50](https://github.com/zebra-group/zack/commit/2d6de504df6369e40ead762093feff097bced908))
-* **10-01:** register optional OIDC env vars with all-three-or-none boot guard ([4e3f266](https://github.com/zebra-group/zack/commit/4e3f266c0d061d54c90bb0cb367cd82624d1c5a7))
-* **10-02:** conditionally register genericOAuth OIDC when configured, least-privilege by default ([0e17114](https://github.com/zebra-group/zack/commit/0e1711477ef2b373c863a38cededca79ea24c44e))
-* **10-03:** add read-only GET /api/sso/status endpoint ([2b2b7cd](https://github.com/zebra-group/zack/commit/2b2b7cd59f2542a72f12762489c5b4e10a88092f))
-* **10-04:** add getSsoStatus client and /login preview escape hatch ([7345223](https://github.com/zebra-group/zack/commit/7345223f72fca7cd1e065ae8aa6bf134aa696994))
-* **10-04:** add read-only Authentifizierung section to TeamView ([96aaed8](https://github.com/zebra-group/zack/commit/96aaed861c63f266da2f09eb392862847ce8f5cf))
-* **10-05:** add conditional Mit-SSO-anmelden login affordance initiating genericOAuth ([2e27c4d](https://github.com/zebra-group/zack/commit/2e27c4d1c889b50db315dd1a97a00c816e20e12a))
-* **260724-d6y-01:** add DELETE /api/qr-codes/:id route (WR-07) ([bf7e207](https://github.com/zebra-group/zack/commit/bf7e2072fcde19bce099d0d100b134a1dec50fad))
-* **260724-d6y-01:** add QR Studio delete action (WR-07) ([5c8265b](https://github.com/zebra-group/zack/commit/5c8265b7580b169084438da87dad2657e72fcbc2))
-* **260724-d72:** add partial unique index enforcing one static QR per link ([95e85e7](https://github.com/zebra-group/zack/commit/95e85e7caea96fa5eabc91b2e5d8e7bb4928aaac))
-* **260724-d72:** surface QR_ALREADY_EXISTS (409) from createQrCode (GREEN) ([9edf583](https://github.com/zebra-group/zack/commit/9edf58315d3f96b7fc3ddfb0a909c8fff51b6f06))
-* **quick-260724-fmm:** add GHCR publish job to ci.yml ([76981fb](https://github.com/zebra-group/zack/commit/76981fbf80b75c35e78301c3925b165ba26be07d))
-* **quick-260724-gsf-01:** add semantic-release config and pinned devDependencies ([eddd04e](https://github.com/zebra-group/zack/commit/eddd04ea73f4f28618001c5e4f16843a1448e8e0))
-* **quick-260724-gsf-02:** replace publish job with tag-diff-gated release job in ci.yml ([ffc3f26](https://github.com/zebra-group/zack/commit/ffc3f2684ab9afd2b2a2cde0f1ff5c94f340c068))
+* **01-02:** make packages/shared buildable and importable by both apps
+* **01-02:** scaffold pnpm workspace root and install Phase 1 dependencies
+* **01-02:** scaffold web build/test config and base API vitest/tsup config
+* **01-03:** author Prisma schema, initial migration, and generated client
+* **01-04:** add .env.example and schema-drift guard test
+* **01-04:** implement fail-fast ENV validation module
+* **01-05:** wire testcontainers Postgres globalSetup + per-test rollback
+* **01-06:** Fastify app factory, health + redirect-stub routes, static SPA fallback, dev CORS
+* **01-06:** implement PersistenceCanary read/write route (GREEN)
+* **01-07:** wire Vue dashboard to live canary API via typed client
+* **01-08:** multi-stage Dockerfile with migration-on-start entrypoint
+* **01-08:** production compose (app+db) + dev-only Mailpit overlay
+* **01-09:** add CI workflow running full suite on every change
+* **02-01:** install auth/security packages and INITIAL_ADMIN_EMAIL ENV contract
+* **02-02:** add better-auth instance, mailer, allowlist, and shared auth DTOs
+* **02-02:** apply auth/domain schema to Postgres, regenerate client, prove queryability
+* **02-02:** generate better-auth tables and add Domain/DomainMembership models
+* **02-03:** implement requireDomainAccess/scopedDomainIds authorization core
+* **02-04:** add @fastify/helmet + @fastify/rate-limit plugins (D-07)
+* **02-04:** mount /api/auth/* + admin seed + extend registration order
+* **02-05:** add authSession store + typed getSession/logout API client
+* **02-05:** add LoginView (Idle/Sent) + AuthErrorView + component tests
+* **02-05:** add theme engine — LOCKED tokens.css + Geist fonts + theme store
+* **02-06:** App.vue/main.ts wiring + AppShell component test
+* **02-06:** AppShell layout + Dashboard + Coming-soon views
+* **02-06:** Vue Router with session-aware auth guard
+* **03-01:** extend Domain schema with lifecycle fields + DomainDTO
+* **03-01:** implement domainsRoute POST/GET /api/domains (DOMAIN-01)
+* **03-02:** add CNAME_TARGET/A_RECORD_IP env vars + verify/tls-check rate limits
+* **03-02:** add verify/delete/instructions routes, admin-gated + resolver-injected
+* **03-02:** implement dnsClient.verifyDomain (injectable, SSRF-safe, timeout-bounded)
+* **03-03:** add GET /api/tls-check ask endpoint, wire into app.ts
+* **03-03:** add resolveActiveDomainByHost exact-match deny-by-default host guard
+* **03-04:** build DomainsView and swap /domains to it
+* **03-04:** extend typed API client with domain CRUD/verify/instructions
+* **04-01:** install csv-parse and nanoid for links/CSV import
+* **04-02:** add Link model, migration, shared DTOs, and link rate limits
+* **04-02:** implement the D-01 single-write-path link core
+* **04-02:** wire POST/GET /api/links routes into app.ts
+* **04-03:** implement GET/DELETE /api/links/:id with the IDOR guard
+* **04-03:** implement PATCH /api/links/:id via the validated updateLink core
+* **04-04:** add CSV import preview/commit routes (GREEN)
+* **04-04:** add runImport shared CSV import core to lib/links.ts
+* **04-05:** LinkDetailView — attributes, placeholder stats, copy/edit/delete
+* **04-05:** Links list — api client, routes, shared modal, search/filter/CRUD
+* **04-05:** LinksImportView — file picker, live server-driven preview, commit
+* **05-01:** add BRAND_NAME/BRAND_ACCENT/PASSWORD_HASH_COST env keys, closes [#d7ff01](https://github.com/zebra-group/zack/issues/d7ff01)
+* **05-02:** add Link password/expiry/forwardQuery columns and migrate
+* **05-02:** hash+persist+expose password/expiry/forwardQuery (GREEN)
+* **05-03:** implement shared public-HTML render layer with escapeHtml
+* **05-04:** implement botDetection, unlockCookie, and new rate-limit configs
+* **05-04:** implement resolveLinkState + mergeQuery redirect engine
+* **05-05:** add Security accordion + forwardQuery toggle to LinkFormModal
+* **05-05:** thread password/expiresAt/forwardQuery through LinksView + LinkDetailView
+* **05-06:** implement redirect precedence engine route with no-leak canary (GREEN)
+* **06-01:** install maxmind and add GEOIP_DB_PATH/CLICK_RETENTION_DAYS env keys
+* **06-02:** add click tracking schema and migration
+* **06-02:** thread trackingEnabled through the single Link write path
+* **06-03:** bake DB-IP Country Lite .mmdb into the Docker image
+* **06-03:** implement local GeoIP country lookup with graceful degradation
+* **06-03:** implement referrer + visitorHash privacy transforms
+* **06-04:** add retention pruning + daily scheduler wiring (D-12)
+* **06-04:** fill recordClickHook with atomic privacy-first click write
+* **06-05:** add IDOR-guarded/session-gated analytics endpoints (TRACK-04/05)
+* **06-05:** implement lib/analytics.ts parameterized aggregation (TRACK-04/05, D-10)
+* **06-06:** add footer tracking toggle to LinkFormModal
+* **06-06:** add Klicks column and Tracking-aus badge to LinksView
+* **06-07:** add getLinkAnalytics typed API client
+* **06-07:** replace LinkDetailView placeholder with live per-link analytics (Surface A)
+* **06-08:** add global analytics overview (Surface B, TRACK-05)
+* **06-08:** route /analytics to AnalyticsView
+* **07-02:** add QrCode + QrRemapHistory models and migrate schema
+* **07-02:** install qrcode, sharp (prod) and jsqr, @types/qrcode (dev) for @kurzly/api
+* **07-03:** centered logo overlay with forced level-H, decode-verified for PNG and SVG
+* **07-03:** module-matrix QR renderer with SVG/PNG parity and forced EC-H
+* **07-04:** QrCode single-write-path create + validation + code generation
+* **07-04:** QrCode style update + remap transaction + remap history
+* **07-05:** QR management CRUD + remap routes with IDOR + mass-assignment guards
+* **07-05:** QR render endpoints + validated logo upload with dedicated rate limit
+* **07-06:** /q/:code dynamic redirect with gate reuse and qr scan tracking
+* **07-06:** /q/:code password unlock flow reusing redirect verify
+* **07-07:** optimistic QR remap + full remap-history expander
+* **07-07:** QR web API client + route swap to QrCodesView
+* **07-07:** QrCodesView list surface with four states and instant dynamic create
+* **07-08:** QR Studio panel — preview, style controls, logo upload, export
+* **07-09:** QR-Code entry point on link detail (create-or-deep-link)
+* **07-11:** count scans of static QR codes (QR-07)
+* **08-01:** add UTM + custom OG columns to Link with migration
+* **08-01:** allowlist UTM/OG fields on the links HTTP surface
+* **08-01:** validate and thread UTM/OG fields through the single write path
+* **08-02:** applyUtmParams with owner-wins override and safe encoding
+* **08-02:** serve owner-typed OG title/description/image to bots
+* **08-03:** append owner UTM parameters when building the redirect target
+* **08-03:** serve custom OG values to bots on both redirect handlers
+* **08-04:** buildUtmPreview mirroring the server plus UTM/OG inline error mapping
+* **08-04:** UTM builder section with live destination preview
+* **08-05:** custom OG-tag section with input column and length guidance
+* **08-05:** social-card live preview with debounced image and hatched fallback
+* **08-06:** thread UTM/OG through link detail and add metadata chips
+* **08-06:** thread UTM/OG through the links list and add attribute badges
+* **09-01:** add global AccountRole enum, User.accountRole column, isAccountAdmin
+* **09-01:** seed initial admin as account admin, expose accountRole in session
+* **09-02:** account-admin bypass in requireDomainAccess/scopedDomainIds
+* **09-03:** admin-gated GET /api/team + POST /api/team/invite
+* **09-03:** team DTOs + lib/team.ts list/invite with emailVerified-derived status
+* **09-04:** PATCH role / PUT domains / DELETE member routes with typed-error mapping
+* **09-04:** team mutations with atomic promote-clear and lockout guards
+* **09-06:** admin-only Team nav, requiresAdmin guard, TeamView route swap, listTeamMembers
+* **09-06:** TeamView read-only member table + role-model card
+* **09-07:** AssignDomainsModal and remove flow with last-admin lockout
+* **09-07:** InviteMemberModal and invite flow with re-invite resend
+* **09-07:** team mutation client + immediate role change with revert and last-admin guard
+* **10-01:** add ssoConfig reader, SSO primitives, and SsoStatusDTO
+* **10-01:** register optional OIDC env vars with all-three-or-none boot guard
+* **10-02:** conditionally register genericOAuth OIDC when configured, least-privilege by default
+* **10-03:** add read-only GET /api/sso/status endpoint
+* **10-04:** add getSsoStatus client and /login preview escape hatch
+* **10-04:** add read-only Authentifizierung section to TeamView
+* **10-05:** add conditional Mit-SSO-anmelden login affordance initiating genericOAuth
+* **260724-d6y-01:** add DELETE /api/qr-codes/:id route (WR-07)
+* **260724-d6y-01:** add QR Studio delete action (WR-07)
+* **260724-d72:** add partial unique index enforcing one static QR per link
+* **260724-d72:** surface QR_ALREADY_EXISTS (409) from createQrCode (GREEN)
+* **quick-260724-fmm:** add GHCR publish job to ci.yml
+* **quick-260724-gsf-01:** add semantic-release config and pinned devDependencies
+* **quick-260724-gsf-02:** replace publish job with tag-diff-gated release job in ci.yml
