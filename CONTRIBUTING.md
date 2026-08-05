@@ -113,7 +113,3 @@ environment surface is summarised in the [README](README.md#configuration).
 
 Do not report vulnerabilities in a public issue or pull request. See
 [`SECURITY.md`](SECURITY.md).
-
-## Code of conduct
-
-Participation is governed by [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
