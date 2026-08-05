@@ -272,6 +272,40 @@ describe("LinkDetailView", () => {
     expect(wrapper.find(".skeleton-block").exists()).toBe(false);
   });
 
+  /**
+   * The GeoIP country database baked into the image (Dockerfile: DB-IP Country
+   * Lite) is CC-BY 4.0 licensed, which requires a *visible* credit linking back
+   * to db-ip.com wherever its results are shown. A title attribute or
+   * aria-label would not satisfy the licence, so this asserts on link text.
+   */
+  it("renders the visible DB-IP attribution required by the GeoIP database's CC-BY 4.0 licence", async () => {
+    listDomains.mockResolvedValue([makeDomain()]);
+    getLink.mockResolvedValue(makeLink({ trackingEnabled: true }));
+    getLinkAnalytics.mockResolvedValue(
+      makeAnalytics({
+        totalClicks: 10,
+        topCountries: [{ country: "DE", count: 8 }],
+      }),
+    );
+
+    const { wrapper } = await mountDetailView();
+
+    const attribution = wrapper.find(".geoip-attribution a");
+    expect(attribution.exists()).toBe(true);
+    expect(attribution.attributes("href")).toBe("https://db-ip.com");
+    expect(attribution.text()).toBe("IP Geolocation by DB-IP");
+  });
+
+  it("keeps the DB-IP attribution visible when there is no country data yet", async () => {
+    listDomains.mockResolvedValue([makeDomain()]);
+    getLink.mockResolvedValue(makeLink({ trackingEnabled: true }));
+    getLinkAnalytics.mockResolvedValue(makeAnalytics({ totalClicks: 0 }));
+
+    const { wrapper } = await mountDetailView();
+
+    expect(wrapper.find(".geoip-attribution a").attributes("href")).toBe("https://db-ip.com");
+  });
+
   it("zero-data state: card shells with 0/–, chart hint, and 'Keine Daten' list rows", async () => {
     listDomains.mockResolvedValue([makeDomain()]);
     getLink.mockResolvedValue(makeLink({ trackingEnabled: true }));

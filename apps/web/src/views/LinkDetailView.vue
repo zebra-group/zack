@@ -492,6 +492,13 @@ loadDomains();
         <div class="list-card">
           <div class="list-title">Länder</div>
           <div class="list-empty-row">Keine Daten</div>
+          <!-- Same CC-BY 4.0 credit as the data-state branch below: the licence
+               obligation does not lapse just because no rows resolved yet. -->
+          <p class="geoip-attribution">
+            <a href="https://db-ip.com" target="_blank" rel="noopener noreferrer"
+              >IP Geolocation by DB-IP</a
+            >
+          </p>
         </div>
       </div>
     </div>
@@ -542,6 +549,18 @@ loadDomains();
             </div>
             <div class="row-pct">{{ Math.round(row.pct) }}%</div>
           </div>
+          <!--
+            Country resolution uses the DB-IP Country Lite database baked into
+            the image (see Dockerfile). Its CC-BY 4.0 licence requires a visible
+            credit linking back to db-ip.com wherever results are displayed —
+            hence real link text, not a title attribute, and rendered
+            unconditionally rather than only when rows exist.
+          -->
+          <p class="geoip-attribution">
+            <a href="https://db-ip.com" target="_blank" rel="noopener noreferrer"
+              >IP Geolocation by DB-IP</a
+            >
+          </p>
         </div>
       </div>
     </div>
@@ -897,6 +916,20 @@ loadDomains();
   text-align: center;
   font-size: 12.5px;
   color: var(--mut);
+}
+
+/* CC-BY 4.0 attribution for the DB-IP Country Lite database. Deliberately
+   muted but never hidden — the licence requires the credit to be visible, so
+   this must not become display:none, visibility:hidden or sr-only. */
+.geoip-attribution {
+  margin: 10px 0 0;
+  font-size: 10.5px;
+  color: var(--mut);
+}
+
+.geoip-attribution a {
+  color: inherit;
+  text-decoration: underline;
 }
 
 /* Loading skeleton (06-UI-SPEC.md § Loading State) — identical card shells
