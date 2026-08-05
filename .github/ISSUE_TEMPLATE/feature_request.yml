@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest a capability Zack does not have yet
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve
+      description: >
+        Describe the situation you are actually in, not just the feature you
+        have in mind. Concrete problems get better solutions than abstract ones.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Including whether an existing configuration option gets you close.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Fit
+      options:
+        - label: >
+            This keeps Zack self-hosted and free of third-party tracking — no
+            external analytics, no phone-home, no required SaaS dependency.
+          required: true

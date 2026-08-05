@@ -1,0 +1,87 @@
+name: Bug report
+description: Something in Zack behaves incorrectly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not use this form for security vulnerabilities — report those
+        privately via the Security tab (see `SECURITY.md`).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you observed, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Zack version
+      description: From `GET /api/version`, or the image tag you deployed.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How is it deployed
+      options:
+        - docker-compose.yml from this repo
+        - Published GHCR image, own compose/orchestration
+        - Image built from source
+        - Local development (pnpm)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: proxy
+    attributes:
+      label: Reverse proxy in front of Zack
+      options:
+        - "Yes, and TRUST_PROXY=true"
+        - "Yes, but TRUST_PROXY=false"
+        - "No proxy, TRUST_PROXY=false"
+        - "No proxy, but TRUST_PROXY=true"
+      description: >
+        This matters more than it looks. A mismatch between the actual topology
+        and TRUST_PROXY changes how client IPs — and therefore rate limiting —
+        are resolved.
+    validations:
+      required: true
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Relevant configuration
+      description: >
+        Any non-default environment variables that could be involved.
+        **Redact all secrets** — never paste BETTER_AUTH_SECRET, SMTP
+        credentials, or database passwords.
+      render: shell
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      description: Only needed for dashboard/UI bugs.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output from `docker compose logs app`, secrets redacted.
+      render: shell

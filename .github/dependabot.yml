@@ -1,0 +1,55 @@
+# Dependabot configuration.
+#
+# Alerts were already enabled before this file existed, which meant
+# vulnerabilities were surfaced but never remediated automatically — 27 alerts
+# had to be worked through by hand in quick task 260728-fxv. This adds the
+# missing update PRs.
+#
+# INTERACTION WITH THE pnpm SUPPLY-CHAIN GATE — read before debugging a red
+# Dependabot PR:
+#
+# `pnpm-workspace.yaml` relies on pnpm's `minimumReleaseAge` cooldown (only the
+# `minimumReleaseAgeExclude` allowlist is set explicitly, so the packageManager
+# default applies). Dependabot, by contrast, opens a PR as soon as a release
+# appears. A PR that bumps a package published minutes ago can therefore fail at
+# `pnpm install` — the gate refuses the too-young version. That is the gate
+# working as designed, not a broken PR: re-run the job once the version has aged
+# past the cooldown, or add a deliberate entry to `minimumReleaseAgeExclude` if
+# the bump is urgent (as was done for `@semantic-release/git@11.0.1`).
+#
+# Also note `pnpm-workspace.yaml`'s range-scoped `overrides` block. An override
+# pins a transitive dependency regardless of what a parent declares, so a
+# Dependabot PR bumping that parent will not change the resolved version until
+# the corresponding override is revisited. Check that block before concluding a
+# security PR had no effect.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      # Conventional Commits, because semantic-release derives the version from
+      # commit types: production bumps ship as `fix:` (patch), tooling-only
+      # bumps as `chore:` (no release).
+      prefix: fix
+      prefix-development: chore
+      include: scope
+    groups:
+      # Keeps routine tooling churn to a single reviewable PR instead of one per
+      # package. Production dependencies stay ungrouped so a security-relevant
+      # bump is never buried in a bulk update.
+      dev-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope
