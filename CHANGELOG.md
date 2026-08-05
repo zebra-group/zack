@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/zebra-group/zack/compare/v1.1.1...v1.2.0) (2026-08-05)
+
+
+### Features
+
+* **quick-260804-oln:** rename unlock-cookie prefix and theme storage key to zack ([7420416](https://github.com/zebra-group/zack/commit/74204168d29a415700f1f670c60e9530b39c9522))
+
 ## [1.1.1](https://github.com/zebra-group/zack/compare/v1.1.0...v1.1.1) (2026-07-28)
 
 
