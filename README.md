@@ -197,4 +197,9 @@ conventions.
 
 ## License
 
-No license has been chosen for this project yet.
+Copyright (C) 2026 zebra white GmbH
+
+Licensed under the GNU Affero General Public License v3.0 — see [`LICENSE`](LICENSE)
+for the full text. The practical consequence for operators: if you run a modified
+Zack as a network service that other people use, you must make the source of your
+modifications available to those users.
