@@ -117,6 +117,18 @@ triggers on a successful CI run rather than on the pull request itself, so no
 update lands without a green suite. Major bumps are deliberately left for a
 human to review and merge.
 
+## The main branch
+
+`main` is protected against force-pushes and deletion, with no exceptions
+configured — the rule applies to maintainers too. Releases are cut from it
+automatically: semantic-release runs on every push to `main` once the test and
+smoke jobs pass, and pushes the resulting `package.json` and `CHANGELOG.md`
+changes back itself, which is why neither file should be edited by hand.
+
+Secret scanning with push protection is enabled. A push containing a
+recognisable credential is rejected by the server before it lands, so treat such
+a rejection as a real finding rather than a glitch to work around.
+
 ## Security
 
 Do not report vulnerabilities in a public issue or pull request. See
