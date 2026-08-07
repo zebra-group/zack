@@ -195,8 +195,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       pinia:
-        specifier: ^3.0.4
-        version: 3.0.4(typescript@7.0.2)(vue@3.5.39(typescript@7.0.2))
+        specifier: ^4.0.2
+        version: 4.0.2(@vue/devtools-api@7.7.10)(typescript@7.0.2)(vue@3.5.39(typescript@7.0.2))
       vue:
         specifier: ^3.5.39
         version: 3.5.39(typescript@7.0.2)
@@ -3116,6 +3116,9 @@ packages:
     resolution: {integrity: sha512-ARftfC5HdUNu9jJeL8pHj8debUIHA2b91FizCoMzY4lG6dDX13jdvTK0TBe24IBDRf2HvJSzzwEPvmbkQWHRSg==}
     engines: {node: '>=20'}
 
+  nostics@1.2.0:
+    resolution: {integrity: sha512-FGqEfhQjrvo1lL8KFifdTQiNwwQHJxC1jtYE1Rc54qF/jxONUNL+kC9gS1krX8Q65PgrQ5fCqH/I4NhWBvdSqg==}
+
   npm-run-path@5.3.0:
     resolution: {integrity: sha512-ppwTtiJZq0O/ai0z7yfudtBpWIoxM8yE6nHi1X47eFR2EWORqfbu6CnPlNsjeN683eT0qG6H/Pyf9fCcvjnnnQ==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
@@ -3386,10 +3389,11 @@ packages:
     resolution: {integrity: sha512-C3FsVNH1udSEX48gGX1xfvwTWfsYWj5U+8/uK15BGzIGrKoUpghX8hWZwa/OFnakBiiVNmBvemTJR5mcy7iPcg==}
     engines: {node: '>=4'}
 
-  pinia@3.0.4:
-    resolution: {integrity: sha512-l7pqLUFTI/+ESXn6k3nu30ZIzW5E2WZF/LaHJEpoq6ElcLD+wduZoB2kBN19du6K/4FDpPMazY2wJr+IndBtQw==}
+  pinia@4.0.2:
+    resolution: {integrity: sha512-yKVVA7bSj5oRZFp/Ab9wLlmyb5gPUYEiIm4ryiWTe/xe7PtkRdMVOp1X1ggvq0c6Uj7Q0Du1HnV2mtAwM0Ks1g==}
     peerDependencies:
-      typescript: '>=4.5.0'
+      '@vue/devtools-api': ^8.1.5
+      typescript: '>=5.6.0'
       vue: ^3.5.11
     peerDependenciesMeta:
       typescript:
@@ -7061,6 +7065,8 @@ snapshots:
 
   normalize-url@9.0.1: {}
 
+  nostics@1.2.0: {}
+
   npm-run-path@5.3.0:
     dependencies:
       path-key: 4.0.0
@@ -7231,9 +7237,10 @@ snapshots:
 
   pify@3.0.0: {}
 
-  pinia@3.0.4(typescript@7.0.2)(vue@3.5.39(typescript@7.0.2)):
+  pinia@4.0.2(@vue/devtools-api@7.7.10)(typescript@7.0.2)(vue@3.5.39(typescript@7.0.2)):
     dependencies:
       '@vue/devtools-api': 7.7.10
+      nostics: 1.2.0
       vue: 3.5.39(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
